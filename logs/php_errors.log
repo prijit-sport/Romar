@@ -1,0 +1,224 @@
+[27-Dec-2025 14:04:14 Asia/Bangkok] PHP Warning:  SQLite3::prepare(): Unable to prepare statement: 1, no such table: activity_logs in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 114
+[27-Dec-2025 14:04:14 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function bindValue() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:92
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\auth\login.php(34): logActivity(5, '\xE0\xB9\x80\xE0\xB8\x82\xE0\xB9\x89\xE0\xB8\xB2\xE0\xB8\xAA...', 'Authentication', '\xE0\xB8\x9C\xE0\xB8\xB9\xE0\xB9\x89\xE0\xB9\x83\xE0\xB8\x8A...')
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 92
+[27-Dec-2025 14:06:29 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:06:29 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:06:31 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:06:31 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:07:27 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:07:27 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:07:29 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:07:29 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:07:32 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:07:32 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:07:44 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:07:44 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:08:41 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:08:41 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:09:26 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:09:26 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:09:27 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:09:27 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:09:31 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:09:31 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:10:45 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:10:45 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:11:58 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:11:58 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:12:05 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:12:05 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:12:35 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:12:35 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:32:54 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:32:54 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:33:52 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:33:52 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:34:29 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:34:29 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:37:01 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:37:01 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:37:02 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:37:02 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:37:02 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:37:02 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:37:02 Asia/Bangkok] PHP Warning:  SQLite3::query(): Unable to prepare statement: 1, no such table: tickets in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 96
+[27-Dec-2025 14:37:02 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function fetchArray() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:112
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 112
+[27-Dec-2025 14:42:14 Asia/Bangkok] PHP Warning:  SQLite3Stmt::execute(): Unable to execute statement: FOREIGN KEY constraint failed in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 98
+[27-Dec-2025 15:26:33 Asia/Bangkok] PHP Warning:  SQLite3::prepare(): Unable to prepare statement: 1, no such table: activity_logs in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 114
+[27-Dec-2025 15:26:33 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function bindValue() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:92
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\auth\logout.php(15): logActivity(1, '\xE0\xB8\xAD\xE0\xB8\xAD\xE0\xB8\x81\xE0\xB8\x88\xE0\xB8\xB2...', 'Authentication', 'User logged out')
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 92
+[27-Dec-2025 15:26:36 Asia/Bangkok] PHP Warning:  SQLite3::prepare(): Unable to prepare statement: 1, no such table: activity_logs in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 114
+[27-Dec-2025 15:26:36 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function bindValue() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:92
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\auth\logout.php(15): logActivity(1, '\xE0\xB8\xAD\xE0\xB8\xAD\xE0\xB8\x81\xE0\xB8\x88\xE0\xB8\xB2...', 'Authentication', 'User logged out')
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 92
+[27-Dec-2025 15:26:42 Asia/Bangkok] PHP Warning:  SQLite3::prepare(): Unable to prepare statement: 1, no such table: activity_logs in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 114
+[27-Dec-2025 15:26:42 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function bindValue() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:92
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\auth\logout.php(15): logActivity(1, '\xE0\xB8\xAD\xE0\xB8\xAD\xE0\xB8\x81\xE0\xB8\x88\xE0\xB8\xB2...', 'Authentication', 'User logged out')
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 92
+[27-Dec-2025 15:26:43 Asia/Bangkok] PHP Warning:  SQLite3::prepare(): Unable to prepare statement: 1, no such table: activity_logs in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 114
+[27-Dec-2025 15:26:43 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function bindValue() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:92
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\auth\logout.php(15): logActivity(1, '\xE0\xB8\xAD\xE0\xB8\xAD\xE0\xB8\x81\xE0\xB8\x88\xE0\xB8\xB2...', 'Authentication', 'User logged out')
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 92
+[27-Dec-2025 15:26:43 Asia/Bangkok] PHP Warning:  SQLite3::prepare(): Unable to prepare statement: 1, no such table: activity_logs in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\config\database.php on line 114
+[27-Dec-2025 15:26:43 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to a member function bindValue() on bool in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:92
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\auth\logout.php(15): logActivity(1, '\xE0\xB8\xAD\xE0\xB8\xAD\xE0\xB8\x81\xE0\xB8\x88\xE0\xB8\xB2...', 'Authentication', 'User logged out')
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 92
+[27-Dec-2025 15:56:02 Asia/Bangkok] PHP Warning:  SQLite3Stmt::execute(): Unable to execute statement: FOREIGN KEY constraint failed in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 98
+[05-Jan-2026 15:05:07 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:05:12 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:05:16 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:05:17 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:05:17 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:05:18 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:05:18 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:05:32 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:05:58 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:06:02 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:13:23 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
+[05-Jan-2026 15:14:06 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Call to undefined function getDB() in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php:106
+Stack trace:
+#0 C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\admin\dashboard.php(8): getDashboardStats()
+#1 {main}
+  thrown in C:\xampp\htdocs\ROMARDORMITORY-MANAGEMENT\includes\functions.php on line 106
