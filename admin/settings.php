@@ -13,6 +13,17 @@ $user_id = $_SESSION['user_id'];
 $success_message = '';
 $error_message = '';
 
+// ตรวจสอบว่ามีคอลัมน์ที่จำเป็นหรือไม่
+$columns_result = $db->query("PRAGMA table_info(users)");
+$existing_columns = [];
+while ($col = $columns_result->fetchArray(SQLITE3_ASSOC)) {
+    $existing_columns[] = $col['name'];
+}
+
+$has_avatar_column = in_array('avatar', $existing_columns);
+$has_phone_column = in_array('phone', $existing_columns);
+$has_department_column = in_array('department', $existing_columns);
+
 // ดึงข้อมูลผู้ใช้
 $stmt = $db->prepare("SELECT * FROM users WHERE user_id = ?");
 $stmt->bindValue(1, $user_id, SQLITE3_INTEGER);
@@ -26,34 +37,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'update_profile') {
         $full_name = trim($_POST['full_name']);
         $email = trim($_POST['email']);
-        $phone = trim($_POST['phone']);
-        $department = trim($_POST['department']);
+        $phone = trim($_POST['phone'] ?? '');
+        $department = trim($_POST['department'] ?? '');
         
-        $stmt = $db->prepare("UPDATE users SET full_name = ?, email = ?, phone = ?, department = ? WHERE user_id = ?");
-        $stmt->bindValue(1, $full_name, SQLITE3_TEXT);
-        $stmt->bindValue(2, $email, SQLITE3_TEXT);
-        $stmt->bindValue(3, $phone, SQLITE3_TEXT);
-        $stmt->bindValue(4, $department, SQLITE3_TEXT);
-        $stmt->bindValue(5, $user_id, SQLITE3_INTEGER);
+        // สร้าง SQL แบบ dynamic ตามคอลัมน์ที่มี
+        $update_fields = ['full_name = ?', 'email = ?'];
+        $bind_values = [$full_name, $email];
         
-        if ($stmt->execute()) {
-            // Log activity
-            $log = $db->prepare("INSERT INTO activity_logs (user_id, action, description, created_at) VALUES (?, 'update_profile', 'อัปเดตข้อมูลโปรไฟล์', datetime('now'))");
-            $log->bindValue(1, $user_id, SQLITE3_INTEGER);
-            $log->execute();
+        if ($has_phone_column) {
+            $update_fields[] = 'phone = ?';
+            $bind_values[] = $phone;
+        }
+        
+        if ($has_department_column) {
+            $update_fields[] = 'department = ?';
+            $bind_values[] = $department;
+        }
+        
+        $bind_values[] = $user_id; // WHERE user_id = ?
+        
+        $sql = "UPDATE users SET " . implode(', ', $update_fields) . " WHERE user_id = ?";
+        $stmt = $db->prepare($sql);
+        
+        if ($stmt) {
+            foreach ($bind_values as $index => $value) {
+                $stmt->bindValue($index + 1, $value, SQLITE3_TEXT);
+            }
             
-            Database::checkpoint();
-            
-            $_SESSION['full_name'] = $full_name;
-            $success_message = "อัปเดตข้อมูลส่วนตัวสำเร็จ!";
-            
-            // Reload user data
-            $stmt = $db->prepare("SELECT * FROM users WHERE user_id = ?");
-            $stmt->bindValue(1, $user_id, SQLITE3_INTEGER);
-            $result = $stmt->execute();
-            $user = $result->fetchArray(SQLITE3_ASSOC);
+            if ($stmt->execute()) {
+                // Log activity
+                $log = $db->prepare("INSERT INTO activity_logs (user_id, action, description, created_at) VALUES (?, 'update_profile', 'อัปเดตข้อมูลโปรไฟล์', datetime('now'))");
+                $log->bindValue(1, $user_id, SQLITE3_INTEGER);
+                $log->execute();
+                
+                Database::checkpoint();
+                
+                $_SESSION['full_name'] = $full_name;
+                $success_message = "อัปเดตข้อมูลส่วนตัวสำเร็จ!";
+                
+                // Reload user data
+                $stmt = $db->prepare("SELECT * FROM users WHERE user_id = ?");
+                $stmt->bindValue(1, $user_id, SQLITE3_INTEGER);
+                $result = $stmt->execute();
+                $user = $result->fetchArray(SQLITE3_ASSOC);
+            } else {
+                $error_message = "ไม่สามารถอัปเดตข้อมูลได้";
+            }
         } else {
-            $error_message = "ไม่สามารถอัปเดตข้อมูลได้";
+            $error_message = "เกิดข้อผิดพลาดในการเตรียมคำสั่ง SQL";
         }
     }
     
@@ -98,7 +129,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     
     // อัปโหลดรูปโปรไฟล์
     if ($_POST['action'] === 'upload_avatar') {
-        if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
+        // ตรวจสอบว่ามีคอลัมน์ avatar หรือไม่
+        if (!$has_avatar_column) {
+            $error_message = "โปรดอัปเดตฐานข้อมูลก่อนใช้งานฟีเจอร์นี้ <a href='update-database.php' style='color: #667eea;'>คลิกที่นี่เพื่ออัปเดต</a>";
+        } elseif (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
             $file = $_FILES['avatar'];
             $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             $allowed_ext = ['jpg', 'jpeg', 'png', 'gif'];
@@ -109,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 
                 if (move_uploaded_file($file['tmp_name'], $upload_path)) {
                     // ลบรูปเก่า (ถ้ามี)
-                    if ($user['avatar'] && file_exists('../uploads/images/' . $user['avatar'])) {
+                    if (isset($user['avatar']) && $user['avatar'] && file_exists('../uploads/images/' . $user['avatar'])) {
                         unlink('../uploads/images/' . $user['avatar']);
                     }
                     
@@ -444,6 +478,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 <div id="profile" class="section active">
                     <h2 class="section-title">ข้อมูลส่วนตัว</h2>
                     
+                    <?php if (!$has_phone_column || !$has_department_column): ?>
+                        <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                            <h3 style="color: #856404; margin-bottom: 10px;">⚠️ ต้องอัปเดตฐานข้อมูลก่อน</h3>
+                            <p style="color: #856404; margin-bottom: 15px;">
+                                บางฟีเจอร์ต้องการให้อัปเดตฐานข้อมูลก่อนใช้งาน
+                            </p>
+                            <a href="update-database.php" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 8px;">
+                                🔧 อัปเดตฐานข้อมูล
+                            </a>
+                        </div>
+                    <?php endif; ?>
+                    
                     <form method="POST">
                         <input type="hidden" name="action" value="update_profile">
                         
@@ -502,8 +548,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 <div id="avatar" class="section">
                     <h2 class="section-title">รูปโปรไฟล์</h2>
                     
+                    <?php if (!$has_avatar_column): ?>
+                        <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                            <h3 style="color: #856404; margin-bottom: 10px;">⚠️ ต้องอัปเดตฐานข้อมูลก่อน</h3>
+                            <p style="color: #856404; margin-bottom: 15px;">
+                                ฟีเจอร์รูปโปรไฟล์ต้องการให้อัปเดตฐานข้อมูลก่อนใช้งาน
+                            </p>
+                            <a href="update-database.php" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 8px;">
+                                🔧 อัปเดตฐานข้อมูล
+                            </a>
+                        </div>
+                    <?php endif; ?>
+                    
                     <div class="avatar-container">
-                        <?php if ($user['avatar']): ?>
+                        <?php if (isset($user['avatar']) && $user['avatar']): ?>
                             <img src="../uploads/images/<?php echo htmlspecialchars($user['avatar']); ?>" class="avatar-preview" alt="Avatar">
                         <?php else: ?>
                             <div class="avatar-placeholder">

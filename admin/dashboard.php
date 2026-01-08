@@ -265,12 +265,13 @@ include __DIR__ . '/../includes/sidebar.php';
         <a href="<?php echo BASE_URL; ?>modules/tickets/create.php" class="btn">
             🎫 สร้าง IT Ticket
         </a>
-        <a href="<?php echo BASE_URL; ?>modules/rooms/booking.php" class="btn">
+        <a href="<?php echo BASE_URL; ?>admin/room-booking.php" class="btn">
             🏢 จองห้องประชุม
         </a>
-        <a href="<?php echo BASE_URL; ?>modules/conversations/create.php" class="btn">
-            💬 บันทึกสนทนา
+        <a href="<?php echo BASE_URL; ?>admin/my-bookings.php" class="btn">
+            📋 รายการจองของฉัน
         </a>
+
         <a href="<?php echo BASE_URL; ?>admin/documents.php" class="btn">
             📁 อัปโหลดเอกสาร
         </a>

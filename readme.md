@@ -100,7 +100,6 @@ users - ผู้ใช้งาน
 tickets - IT Tickets
 meeting_rooms - ห้องประชุม
 room_bookings - การจองห้อง
-conversations - บันทึกสนทนา
 announcements - ประกาศ
 documents - เอกสาร
 activity_logs - Log การใช้งาน

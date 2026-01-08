@@ -59,7 +59,6 @@ $required_tables = [
     'tickets' => 'IT Tickets',
     'meeting_rooms' => 'ห้องประชุม',
     'room_bookings' => 'การจองห้อง',
-    'conversations' => 'บันทึกสนทนา',
     'announcements' => 'ประกาศข่าวสาร',
     'documents' => 'เอกสาร',
     'activity_logs' => 'บันทึกกิจกรรม'

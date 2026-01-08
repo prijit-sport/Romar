@@ -616,10 +616,6 @@ function getFileIcon($ext) {
                     จองห้องประชุม
                 </a>
                 <a href="#" class="menu-item">
-                    <span class="menu-item-icon">💬</span>
-                    บันทึกสนทนา
-                </a>
-                <a href="#" class="menu-item">
                     <span class="menu-item-icon">📢</span>
                     ประกาศข่าวสาร
                 </a>

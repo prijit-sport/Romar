@@ -590,6 +590,7 @@ function getFileIcon($ext) {
     </style>
 </head>
 <body>
+    
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-header">
@@ -611,14 +612,11 @@ function getFileIcon($ext) {
                     <span class="menu-item-icon">🎫</span>
                     IT Tickets
                 </a>
-                <a href="#" class="menu-item">
+                <a href="room-booking.php" class="menu-item">
                     <span class="menu-item-icon">🏢</span>
                     จองห้องประชุม
                 </a>
-                <a href="#" class="menu-item">
-                    <span class="menu-item-icon">💬</span>
-                    บันทึกสนทนา
-                </a>
+               
                 <a href="#" class="menu-item">
                     <span class="menu-item-icon">📢</span>
                     ประกาศข่าวสาร
@@ -635,7 +633,7 @@ function getFileIcon($ext) {
                     <span class="menu-item-icon">👥</span>
                     จัดการผู้ใช้
                 </a>
-                <a href="#" class="menu-item">
+                <a href="settings.php" class="menu-item">
                     <span class="menu-item-icon">⚙️</span>
                     ตั้งค่า
                 </a>
@@ -661,9 +659,45 @@ function getFileIcon($ext) {
                     <div style="font-weight: 600;"><?php echo $_SESSION['full_name']; ?></div>
                     <div style="font-size: 0.85em; color: #6c757d;"><?php echo $_SESSION['role'] === 'admin' ? 'ผู้ดูแลระบบ' : 'พนักงาน'; ?></div>
                 </div>
-                <div class="user-avatar">
-                    <?php echo substr($_SESSION['full_name'], 0, 1); ?>
-                </div>
+
+                <?php
+// ดึงข้อมูล avatar
+$user_id = $_SESSION['user_id'] ?? null;
+$user_avatar = null;
+
+if ($user_id) {
+    $db = getDb();
+    
+    // ตรวจสอบว่ามีคอลัมน์ avatar หรือไม่
+    $columns_check = $db->query("PRAGMA table_info(users)");
+    $has_avatar = false;
+    while ($col = $columns_check->fetchArray(SQLITE3_ASSOC)) {
+        if ($col['name'] === 'avatar') {
+            $has_avatar = true;
+            break;
+        }
+    }
+    
+    if ($has_avatar) {
+        $stmt = $db->prepare("SELECT avatar FROM users WHERE user_id = ?");
+        $stmt->bindValue(1, $user_id, SQLITE3_INTEGER);
+        $result = $stmt->execute();
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $user_avatar = $row['avatar'] ?? null;
+    }
+}
+?>
+
+<?php if ($user_avatar && file_exists(__DIR__ . '/../uploads/images/' . $user_avatar)): ?>
+    <img src="<?php echo BASE_URL; ?>uploads/images/<?php echo htmlspecialchars($user_avatar); ?>" 
+         alt="Avatar" 
+         class="user-avatar"
+         style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover;">
+<?php else: ?>
+    <div class="user-avatar">
+        <?php echo mb_substr(getCurrentUserFullName(), 0, 1); ?>
+    </div>
+<?php endif; ?>
             </div>
         </div>
 

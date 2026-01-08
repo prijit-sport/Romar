@@ -132,7 +132,6 @@ while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?> - ระบบจัดการหอพัก</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
     <style>
         /* เพิ่ม CSS ที่จำเป็น */
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
