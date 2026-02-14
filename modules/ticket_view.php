@@ -43,6 +43,18 @@ if (!$isAdmin && $ticket['created_by'] != $_SESSION['user_id']) {
     die('Access Denied');
 }
 
+// ✅ Auto mark-read: เมื่อเปิดดู ticket นี้ → mark notification ที่เกี่ยวกับ ticket นี้ว่าอ่านแล้ว
+$markStmt = $db->prepare("
+    UPDATE notification_recipients nr
+    INNER JOIN notifications n ON nr.notif_id = n.notif_id
+    SET nr.is_read = 1, nr.read_at = NOW()
+    WHERE n.ticket_id = ?
+    AND nr.user_id = ?
+    AND nr.is_read = 0
+");
+$markStmt->bind_param('ii', $ticketId, $_SESSION['user_id']);
+$markStmt->execute();
+
 // Get comments
 $stmtComments = $db->prepare("
     SELECT tc.*, u.full_name, u.role

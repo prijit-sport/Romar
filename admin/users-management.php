@@ -365,10 +365,16 @@ $currentUser = getCurrentUser();
             color: #92400e;
         }
 
+        .badge-staff {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
         .badge-user {
             background: #dbeafe;
             color: #1e40af;
         }
+        
 
         .badge-active {
             background: #d1fae5;
@@ -701,11 +707,16 @@ $currentUser = getCurrentUser();
                                 <td>
                                     <span class="badge badge-<?php 
                                         echo $user['role'] === 'admin' ? 'admin' : 
-                                            ($user['role'] === 'staff' ? 'warning' : 'user'); 
+                                            ($user['role'] === 'staff' ? 'staff' : 'user'); 
                                     ?>">
                                         <?php 
-                                            echo $user['role'] === 'admin' ? '🛡️ Admin' : 
-                                                ($user['role'] === 'staff' ? '👨‍💼 Staff' : '👤 User'); 
+                                            if ($user['role'] === 'admin') {
+                                                echo '<span style="display: inline-block; width: 8px; height: 8px; background: #92400e; border-radius: 50%; margin-right: 6px;"></span>Admin';
+                                            } elseif ($user['role'] === 'staff') {
+                                                echo '<span style="display: inline-block; width: 8px; height: 8px; background: #065f46; border-radius: 50%; margin-right: 6px;"></span>Staff';
+                                            } else {
+                                                echo '<span style="display: inline-block; width: 8px; height: 8px; background: #1e40af; border-radius: 50%; margin-right: 6px;"></span>User';
+                                            }
                                         ?>
                                     </span>
                                 </td>

@@ -2550,3 +2550,66 @@ Stack trace:
 [14-Feb-2026 08:34:53 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 509
 [14-Feb-2026 08:34:53 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 516
 [14-Feb-2026 08:34:53 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 521
+[14-Feb-2026 09:45:55 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 625
+[14-Feb-2026 09:45:56 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\meeting-rooms.php on line 657
+[14-Feb-2026 09:45:57 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\documents.php on line 650
+[14-Feb-2026 09:46:01 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 485
+[14-Feb-2026 09:46:01 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 491
+[14-Feb-2026 09:46:01 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 494
+[14-Feb-2026 09:46:01 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 497
+[14-Feb-2026 09:46:01 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 503
+[14-Feb-2026 09:46:01 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 506
+[14-Feb-2026 09:46:01 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 509
+[14-Feb-2026 09:46:01 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 521
+[14-Feb-2026 09:46:02 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\settings.php on line 412
+[14-Feb-2026 09:46:06 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 625
+[14-Feb-2026 09:47:42 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 629
+[14-Feb-2026 09:47:44 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 629
+[14-Feb-2026 09:47:44 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 629
+[14-Feb-2026 09:47:44 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 629
+[14-Feb-2026 09:47:50 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 629
+[14-Feb-2026 09:47:51 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 629
+[14-Feb-2026 09:47:51 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 629
+[14-Feb-2026 09:47:52 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\meeting-rooms.php on line 657
+[14-Feb-2026 09:47:52 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 629
+[14-Feb-2026 09:47:54 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 629
+[14-Feb-2026 09:48:07 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 625
+[14-Feb-2026 09:48:07 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 625
+[14-Feb-2026 09:55:33 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 626
+[14-Feb-2026 09:55:33 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 626
+[14-Feb-2026 09:55:34 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 626
+[14-Feb-2026 09:55:34 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 626
+[14-Feb-2026 09:55:34 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 626
+[14-Feb-2026 09:56:35 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 626
+[14-Feb-2026 09:56:45 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\meeting-rooms.php on line 657
+[14-Feb-2026 09:59:30 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\users-management.php on line 631
+[14-Feb-2026 16:57:28 Asia/Bangkok] PHP Warning:  require_once(notification_helper.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 16:57:28 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Failed opening required 'notification_helper.php' (include_path='C:\xampp\php\PEAR') in C:\xampp\htdocs\Romar\modules\tickets.php:5
+Stack trace:
+#0 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 16:58:33 Asia/Bangkok] PHP Warning:  require_once(notificationhelper.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 16:58:33 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Failed opening required 'notificationhelper.php' (include_path='C:\xampp\php\PEAR') in C:\xampp\htdocs\Romar\modules\tickets.php:5
+Stack trace:
+#0 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 16:58:45 Asia/Bangkok] PHP Warning:  require_once(Notificationhelper.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 16:58:45 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Failed opening required 'Notificationhelper.php' (include_path='C:\xampp\php\PEAR') in C:\xampp\htdocs\Romar\modules\tickets.php:5
+Stack trace:
+#0 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 16:58:50 Asia/Bangkok] PHP Warning:  require_once(Notificationhelper.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 16:58:50 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Failed opening required 'Notificationhelper.php' (include_path='C:\xampp\php\PEAR') in C:\xampp\htdocs\Romar\modules\tickets.php:5
+Stack trace:
+#0 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 17:22:57 Asia/Bangkok] PHP Warning:  require_once(notification_helper.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 17:22:57 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Failed opening required 'notification_helper.php' (include_path='C:\xampp\php\PEAR') in C:\xampp\htdocs\Romar\modules\tickets.php:5
+Stack trace:
+#0 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 17:23:02 Asia/Bangkok] PHP Warning:  require_once(notification_helper.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\Romar\modules\tickets.php on line 5
+[14-Feb-2026 17:23:02 Asia/Bangkok] PHP Fatal error:  Uncaught Error: Failed opening required 'notification_helper.php' (include_path='C:\xampp\php\PEAR') in C:\xampp\htdocs\Romar\modules\tickets.php:5
+Stack trace:
+#0 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\tickets.php on line 5

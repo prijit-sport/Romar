@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
+require_once 'notificationhelper.php';
 
 // Check login
 if (!isset($_SESSION['user_id'])) {
@@ -12,6 +13,13 @@ if (!isset($_SESSION['user_id'])) {
 $db = getDB();
 $message = '';
 $messageType = '';
+
+// ✅ รับ flash message จาก session (หลัง PRG redirect)
+if (isset($_SESSION['flash_success'])) {
+    $message = $_SESSION['flash_success'];
+    $messageType = 'success';
+    unset($_SESSION['flash_success']);
+}
 
 // Handle Create Ticket
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
@@ -59,12 +67,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             handleFileUploads($db, $ticketId, $_FILES['attachments']);
         }
         
-        $message = 'สร้าง Ticket สำเร็จ! หมายเลข: ' . $ticketNumber;
-        $messageType = 'success';
         logActivity($_SESSION['user_id'], 'สร้าง IT Ticket', 'Tickets', "สร้าง: $title ($ticketNumber)");
-        
-        // Send email notification to IT team
         sendTicketNotification($ticketId, 'created');
+        
+        // ✅ แจ้งเตือน admin/IT ว่ามี ticket ใหม่
+        notifyNewTicket($db, $ticketId, $ticketNumber, $title, $_SESSION['user_id']);
+        
+        // ✅ PRG: Redirect หลัง POST สำเร็จ ป้องกัน resubmit เมื่อ refresh
+        $_SESSION['flash_success'] = 'สร้าง Ticket สำเร็จ! หมายเลข: ' . $ticketNumber;
+        header('Location: tickets.php');
+        exit;
     } else {
         $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
         $messageType = 'error';
@@ -109,6 +121,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         
         // Send notification
         sendTicketNotification($ticketId, 'updated');
+        
+        // ✅ PRG redirect
+        $_SESSION['flash_success'] = 'อัปเดต Ticket สำเร็จ!';
+        header('Location: tickets.php');
+        exit;
     }
 }
 
@@ -122,9 +139,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $stmt->bind_param('iisi', $ticketId, $_SESSION['user_id'], $comment, $isInternal);
     
     if ($stmt->execute()) {
+        $commentId = $stmt->insert_id;
         addTimeline($db, $ticketId, 'comment', $isInternal ? 'เพิ่มบันทึกภายใน' : 'เพิ่มความคิดเห็น');
-        $message = 'เพิ่มความคิดเห็นสำเร็จ!';
-        $messageType = 'success';
+        
+        // ✅ แจ้งเตือนเมื่อมี comment ใหม่
+        $tStmt = $db->prepare("SELECT ticket_number, title, created_by FROM tickets WHERE ticket_id = ?");
+        $tStmt->bind_param('i', $ticketId);
+        $tStmt->execute();
+        $tData = $tStmt->get_result()->fetch_assoc();
+        if ($tData) {
+            notifyNewComment($db, $ticketId, $commentId, $tData['ticket_number'], $tData['title'],
+                $comment, $_SESSION['user_id'], $_SESSION['role'], $tData['created_by']);
+        }
+        
+        // ✅ PRG redirect
+        $_SESSION['flash_success'] = 'เพิ่มความคิดเห็นสำเร็จ!';
+        header('Location: tickets.php');
+        exit;
     }
 }
 
