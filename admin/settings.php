@@ -1,189 +1,81 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../includes/functions.php';
 
-// ตรวจสอบการ login
+// Check login
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ../index.php');
+    header('Location: ../auth/login.php');
     exit;
 }
 
-$db = getDb();
-$user_id = $_SESSION['user_id'];
-$success_message = '';
-$error_message = '';
+$db = getDB();
+$message = '';
+$messageType = '';
 
-// ตรวจสอบว่ามีคอลัมน์ที่จำเป็นหรือไม่
-$columns_result = $db->query("PRAGMA table_info(users)");
-$existing_columns = [];
-while ($col = $columns_result->fetchArray(SQLITE3_ASSOC)) {
-    $existing_columns[] = $col['name'];
+// Handle Update Profile
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
+    $fullName = sanitize($_POST['full_name']);
+    $email = sanitize($_POST['email']);
+    
+    $stmt = $db->prepare("UPDATE users SET full_name = ?, email = ? WHERE user_id = ?");
+    $stmt->bind_param('ssi', $fullName, $email, $_SESSION['user_id']);
+    
+    if ($stmt->execute()) {
+        $message = 'อัปเดตโปรไฟล์สำเร็จ!';
+        $messageType = 'success';
+        logActivity($_SESSION['user_id'], 'อัปเดตโปรไฟล์', 'Settings', 'อัปเดตข้อมูลส่วนตัว');
+    } else {
+        $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+        $messageType = 'error';
+    }
 }
 
-$has_avatar_column = in_array('avatar', $existing_columns);
-$has_phone_column = in_array('phone', $existing_columns);
-$has_department_column = in_array('department', $existing_columns);
-
-// ดึงข้อมูลผู้ใช้
-$stmt = $db->prepare("SELECT * FROM users WHERE user_id = ?");
-$stmt->bindValue(1, $user_id, SQLITE3_INTEGER);
-$result = $stmt->execute();
-$user = $result->fetchArray(SQLITE3_ASSOC);
-
-// จัดการอัปเดตโปรไฟล์
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+// Handle Change Password
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_password') {
+    $currentPassword = $_POST['current_password'];
+    $newPassword = $_POST['new_password'];
+    $confirmPassword = $_POST['confirm_password'];
     
-    // อัปเดตข้อมูลส่วนตัว
-    if ($_POST['action'] === 'update_profile') {
-        $full_name = trim($_POST['full_name']);
-        $email = trim($_POST['email']);
-        $phone = trim($_POST['phone'] ?? '');
-        $department = trim($_POST['department'] ?? '');
+    // Get current user
+    $stmt = $db->prepare("SELECT password FROM users WHERE user_id = ?");
+    $stmt->bind_param('i', $_SESSION['user_id']);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    
+    if (!password_verify($currentPassword, $user['password'])) {
+        $message = 'รหัสผ่านปัจจุบันไม่ถูกต้อง!';
+        $messageType = 'error';
+    } elseif ($newPassword !== $confirmPassword) {
+        $message = 'รหัสผ่านใหม่ไม่ตรงกัน!';
+        $messageType = 'error';
+    } elseif (strlen($newPassword) < 6) {
+        $message = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร!';
+        $messageType = 'error';
+    } else {
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+        $updateStmt = $db->prepare("UPDATE users SET password = ? WHERE user_id = ?");
+        $updateStmt->bind_param('si', $hashedPassword, $_SESSION['user_id']);
         
-        // สร้าง SQL แบบ dynamic ตามคอลัมน์ที่มี
-        $update_fields = ['full_name = ?', 'email = ?'];
-        $bind_values = [$full_name, $email];
-        
-        if ($has_phone_column) {
-            $update_fields[] = 'phone = ?';
-            $bind_values[] = $phone;
-        }
-        
-        if ($has_department_column) {
-            $update_fields[] = 'department = ?';
-            $bind_values[] = $department;
-        }
-        
-        $bind_values[] = $user_id; // WHERE user_id = ?
-        
-        $sql = "UPDATE users SET " . implode(', ', $update_fields) . " WHERE user_id = ?";
-        $stmt = $db->prepare($sql);
-        
-        if ($stmt) {
-            foreach ($bind_values as $index => $value) {
-                $stmt->bindValue($index + 1, $value, SQLITE3_TEXT);
-            }
-            
-            if ($stmt->execute()) {
-                // Log activity
-                $log = $db->prepare("INSERT INTO activity_logs (user_id, action, description, created_at) VALUES (?, 'update_profile', 'อัปเดตข้อมูลโปรไฟล์', datetime('now'))");
-                $log->bindValue(1, $user_id, SQLITE3_INTEGER);
-                $log->execute();
-                
-                Database::checkpoint();
-                
-                $_SESSION['full_name'] = $full_name;
-                $success_message = "อัปเดตข้อมูลส่วนตัวสำเร็จ!";
-                
-                // Reload user data
-                $stmt = $db->prepare("SELECT * FROM users WHERE user_id = ?");
-                $stmt->bindValue(1, $user_id, SQLITE3_INTEGER);
-                $result = $stmt->execute();
-                $user = $result->fetchArray(SQLITE3_ASSOC);
-            } else {
-                $error_message = "ไม่สามารถอัปเดตข้อมูลได้";
-            }
+        if ($updateStmt->execute()) {
+            $message = 'เปลี่ยนรหัสผ่านสำเร็จ!';
+            $messageType = 'success';
+            logActivity($_SESSION['user_id'], 'เปลี่ยนรหัสผ่าน', 'Settings', 'เปลี่ยนรหัสผ่านบัญชี');
         } else {
-            $error_message = "เกิดข้อผิดพลาดในการเตรียมคำสั่ง SQL";
-        }
-    }
-    
-    // เปลี่ยนรหัสผ่าน
-    if ($_POST['action'] === 'change_password') {
-        $current_password = $_POST['current_password'];
-        $new_password = $_POST['new_password'];
-        $confirm_password = $_POST['confirm_password'];
-        
-        // ตรวจสอบรหัสผ่านปัจจุบัน
-        if (password_verify($current_password, $user['password'])) {
-            if ($new_password === $confirm_password) {
-                if (strlen($new_password) >= 6) {
-                    $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                    
-                    $stmt = $db->prepare("UPDATE users SET password = ? WHERE user_id = ?");
-                    $stmt->bindValue(1, $hashed_password, SQLITE3_TEXT);
-                    $stmt->bindValue(2, $user_id, SQLITE3_INTEGER);
-                    
-                    if ($stmt->execute()) {
-                        // Log activity
-                        $log = $db->prepare("INSERT INTO activity_logs (user_id, action, description, created_at) VALUES (?, 'change_password', 'เปลี่ยนรหัสผ่าน', datetime('now'))");
-                        $log->bindValue(1, $user_id, SQLITE3_INTEGER);
-                        $log->execute();
-                        
-                        Database::checkpoint();
-                        
-                        $success_message = "เปลี่ยนรหัสผ่านสำเร็จ!";
-                    } else {
-                        $error_message = "ไม่สามารถเปลี่ยนรหัสผ่านได้";
-                    }
-                } else {
-                    $error_message = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
-                }
-            } else {
-                $error_message = "รหัสผ่านใหม่ไม่ตรงกัน";
-            }
-        } else {
-            $error_message = "รหัสผ่านปัจจุบันไม่ถูกต้อง";
-        }
-    }
-    
-    // อัปโหลดรูปโปรไฟล์
-    if ($_POST['action'] === 'upload_avatar') {
-        // ตรวจสอบว่ามีคอลัมน์ avatar หรือไม่
-        if (!$has_avatar_column) {
-            $error_message = "โปรดอัปเดตฐานข้อมูลก่อนใช้งานฟีเจอร์นี้ <a href='update-database.php' style='color: #667eea;'>คลิกที่นี่เพื่ออัปเดต</a>";
-        } elseif (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['avatar'];
-            $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            $allowed_ext = ['jpg', 'jpeg', 'png', 'gif'];
-            
-            if (in_array($file_ext, $allowed_ext)) {
-                $new_filename = 'avatar_' . $user_id . '_' . time() . '.' . $file_ext;
-                $upload_path = '../uploads/images/' . $new_filename;
-                
-                if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                    // ลบรูปเก่า (ถ้ามี)
-                    if (isset($user['avatar']) && $user['avatar'] && file_exists('../uploads/images/' . $user['avatar'])) {
-                        unlink('../uploads/images/' . $user['avatar']);
-                    }
-                    
-                    $stmt = $db->prepare("UPDATE users SET avatar = ? WHERE user_id = ?");
-                    $stmt->bindValue(1, $new_filename, SQLITE3_TEXT);
-                    $stmt->bindValue(2, $user_id, SQLITE3_INTEGER);
-                    
-                    if ($stmt->execute()) {
-                        // Log activity
-                        $log = $db->prepare("INSERT INTO activity_logs (user_id, action, description, created_at) VALUES (?, 'upload_avatar', 'อัปโหลดรูปโปรไฟล์', datetime('now'))");
-                        $log->bindValue(1, $user_id, SQLITE3_INTEGER);
-                        $log->execute();
-                        
-                        Database::checkpoint();
-                        
-                        $success_message = "อัปโหลดรูปโปรไฟล์สำเร็จ!";
-                        
-                        // Reload user data
-                        $stmt = $db->prepare("SELECT * FROM users WHERE user_id = ?");
-                        $stmt->bindValue(1, $user_id, SQLITE3_INTEGER);
-                        $result = $stmt->execute();
-                        $user = $result->fetchArray(SQLITE3_ASSOC);
-                    }
-                } else {
-                    $error_message = "ไม่สามารถอัปโหลดไฟล์ได้";
-                }
-            } else {
-                $error_message = "อนุญาตเฉพาะไฟล์รูปภาพเท่านั้น (jpg, jpeg, png, gif)";
-            }
+            $message = 'เกิดข้อผิดพลาด: ' . $updateStmt->error;
+            $messageType = 'error';
         }
     }
 }
+
+$currentUser = getCurrentUser();
 ?>
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ตั้งค่า - Romar Dormitory Management</title>
+    <title>ตั้งค่า - Romar</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -194,31 +86,198 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         body {
             font-family: 'Sarabun', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+            background: #065f159c;
+            color: #000000;
         }
 
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            display: flex;
+            min-height: 100vh;
         }
 
-        .header {
-            background: white;
-            padding: 25px 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg, #10ce30 0%, #000000 100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgb(0, 0, 0);
+            z-index: 1000;
+        }
+
+        .sidebar-brand {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgb(255, 255, 255);
             display: flex;
-            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            color: white;
+        }
+
+        .brand-icon { font-size: 2em; }
+        .brand-name { font-size: 1.5em; font-weight: 700; }
+        .brand-subtitle {
+            color: #000000;
+            font-size: 1em;
+            opacity: 0.8;
+        }
+
+        .sidebar-nav ul { list-style: none; padding: 0; margin: 0; }
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            color: rgb(255, 255, 255);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .sidebar-nav a:hover { background: rgba(255,255,255,0.1); color: white; }
+        .sidebar-nav li.active a { background: rgba(255, 243, 243, 0.15); color: white; border-left: 4px solid #000000; }
+        .menu-section {
+            padding: 20px 20px 10px;
+            color: rgb(255, 255, 255);
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content { 
+            flex: 1; 
+            margin-left: 260px; 
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
             align-items: center;
         }
 
-        .header h1 {
-            color: #667eea;
-            font-size: 2em;
+        .content-wrapper {
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .page-header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgb(0, 0, 0);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .page-title h1 { 
+            font-size: 1.8em; 
+            color: #000000; 
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* Settings Grid */
+        .settings-grid {
+            display: grid;
+            gap: 25px;
+            width: 100%;
+        }
+
+        .settings-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgb(0, 0, 0);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid #000000;
+            background: linear-gradient(135deg, #000000 0%, #10ce30 100%);
+            color: white;
+        }
+
+        .card-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        /* Profile Info */
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            padding: 25px;
+            background: linear-gradient(135deg, #000000 0%, #10ce30 100%);
+            border-radius: 12px;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5em;
             font-weight: 700;
+            border: 3px solid rgba(255,255,255,0.3);
+        }
+
+        .profile-details h2 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+
+        .profile-meta {
+            opacity: 0.9;
+            font-size: 0.95em;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #000000;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+        }
+
+        .form-control:disabled {
+            background: #f8fafc;
+            color: #94a3b8;
         }
 
         .btn {
@@ -228,460 +287,310 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             font-size: 1em;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #10ce30 100%);
             color: white;
+            box-shadow: 0 4px 6px rgb(0, 0, 0);
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 12px rgb(0, 0, 0);
         }
 
-        .content-grid {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 25px;
-        }
-
-        .sidebar-menu {
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            height: fit-content;
-        }
-
-        .menu-item {
-            padding: 15px 20px;
-            margin-bottom: 8px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: #555;
-            font-weight: 500;
-        }
-
-        .menu-item:hover {
-            background: #f8f9fa;
-            color: #667eea;
-        }
-
-        .menu-item.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .btn-success {
+            background: #10b981;
             color: white;
         }
 
-        .menu-icon {
-            font-size: 1.3em;
+        .btn-success:hover {
+            background: #059669;
         }
 
-        .content-box {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-
-        .section {
-            display: none;
-        }
-
-        .section.active {
-            display: block;
-        }
-
-        .section-title {
-            font-size: 1.8em;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #667eea;
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #333;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 12px 18px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1em;
-            font-family: 'Sarabun', sans-serif;
-            transition: all 0.3s ease;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .avatar-container {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .avatar-preview {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 5px solid #667eea;
-            margin-bottom: 15px;
-        }
-
-        .avatar-placeholder {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 4em;
-            color: white;
-            margin-bottom: 15px;
-        }
-
-        .info-card {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        .info-row:last-child {
-            border-bottom: none;
-        }
-
-        .info-label {
-            font-weight: 600;
-            color: #555;
-        }
-
-        .info-value {
-            color: #2c3e50;
-        }
-
+        /* Alert */
         .alert {
             padding: 15px 20px;
             border-radius: 8px;
             margin-bottom: 20px;
+            display: none;
         }
 
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .alert.show { display: block; }
+        .alert-success { background: #d1fae5; color: #065f46; border-left: 4px solid #10b981; }
+        .alert-error { background: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444; }
+
+        /* Info Box */
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #000000;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
         }
 
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .info-box-title {
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 5px;
         }
 
-        .password-note {
-            font-size: 0.9em;
-            color: #7f8c8d;
-            margin-top: 5px;
+        .info-box-text {
+            color: #ff0000;
+            font-size: 0.95em;
         }
 
-        @media (max-width: 968px) {
-            .content-grid {
-                grid-template-columns: 1fr;
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 3px solid #000000;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #000000;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #000000;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { margin-left: -260px; }
+            .main-content { 
+                margin-left: 0; 
+                padding: 15px; 
             }
+            .content-wrapper {
+                padding: 0;
+            }
+            .profile-info { flex-direction: column; text-align: center; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>⚙️ ตั้งค่า</h1>
-            <a href="dashboard.php" class="btn btn-secondary">← กลับหน้าหลัก</a>
-        </div>
-
-        <?php if ($success_message): ?>
-            <div class="alert alert-success"><?php echo $success_message; ?></div>
-        <?php endif; ?>
-
-        <?php if ($error_message): ?>
-            <div class="alert alert-error"><?php echo $error_message; ?></div>
-        <?php endif; ?>
-
-        <!-- Content Grid -->
-        <div class="content-grid">
-            <!-- Sidebar Menu -->
-            <div class="sidebar-menu">
-                <div class="menu-item active" onclick="showSection('profile')">
-                    <span class="menu-icon">👤</span>
-                    <span>ข้อมูลส่วนตัว</span>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">🏢</div>
+                <div>
+                    <div class="brand-name">Romar</div>
+                    <div class="brand-subtitle">Dormitory</div>
                 </div>
-                <div class="menu-item" onclick="showSection('password')">
-                    <span class="menu-icon">🔒</span>
-                    <span>เปลี่ยนรหัสผ่าน</span>
-                </div>
-                <div class="menu-item" onclick="showSection('avatar')">
-                    <span class="menu-icon">📷</span>
-                    <span>รูปโปรไฟล์</span>
-                </div>
-                <div class="menu-item" onclick="showSection('account')">
-                    <span class="menu-icon">📋</span>
-                    <span>ข้อมูลบัญชี</span>
-                </div>
-                <?php if ($_SESSION['role'] === 'admin'): ?>
-                <div class="menu-item" onclick="showSection('system')">
-                    <span class="menu-icon">⚙️</span>
-                    <span>ตั้งค่าระบบ</span>
-                </div>
-                <?php endif; ?>
             </div>
 
-            <!-- Main Content -->
-            <div class="content-box">
-                <!-- Profile Section -->
-                <div id="profile" class="section active">
-                    <h2 class="section-title">ข้อมูลส่วนตัว</h2>
-                    
-                    <?php if (!$has_phone_column || !$has_department_column): ?>
-                        <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-                            <h3 style="color: #856404; margin-bottom: 10px;">⚠️ ต้องอัปเดตฐานข้อมูลก่อน</h3>
-                            <p style="color: #856404; margin-bottom: 15px;">
-                                บางฟีเจอร์ต้องการให้อัปเดตฐานข้อมูลก่อนใช้งาน
-                            </p>
-                            <a href="update-database.php" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 8px;">
-                                🔧 อัปเดตฐานข้อมูล
-                            </a>
-                        </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="dashboard.php">📊 Dashboard</a></li>
+                    <?php if ($currentUser['role'] === 'admin'): ?>
+                    <li class="menu-section">การจัดการ</li>
+                    <li><a href="users-management.php">👥 จัดการผู้ใช้</a></li>
+                    <li><a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a></li>
+                    <li><a href="documents.php">📄 จัดการเอกสาร</a></li>
                     <?php endif; ?>
-                    
-                    <form method="POST">
-                        <input type="hidden" name="action" value="update_profile">
-                        
-                        <div class="form-group">
-                            <label>ชื่อ-นามสกุล *</label>
-                            <input type="text" name="full_name" value="<?php echo htmlspecialchars($user['full_name']); ?>" required>
-                        </div>
+                    <li class="menu-section">ฟีเจอร์</li>
+                    <li><a href="room-booking.php">📅 จองห้องประชุม</a></li>
+                    <li><a href="my-bookings.php">📋 รายการจองของฉัน</a></li>
+                    <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                        <a href="../modules/tickets.php">🎫 IT Tickets</a>
+                    </li>
+                    <li><a href="announcements.php">📢 ข่าวสาร</a></li>
+                    <li class="menu-section">ระบบ</li>
+                    <li class="active"><a href="settings.php">⚙️ ตั้งค่า</a></li>
+                    <li><a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">🚪 ออกจากระบบ</a></li>
+                </ul>
+            </nav>
+        </div>
 
-                        <div class="form-group">
-                            <label>อีเมล *</label>
-                            <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label>เบอร์โทรศัพท์</label>
-                            <input type="tel" name="phone" value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>">
-                        </div>
-
-                        <div class="form-group">
-                            <label>แผนก</label>
-                            <input type="text" name="department" value="<?php echo htmlspecialchars($user['department'] ?? ''); ?>">
-                        </div>
-
-                        <button type="submit" class="btn btn-primary">💾 บันทึกการเปลี่ยนแปลง</button>
-                    </form>
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="content-wrapper">
+                <div class="page-header">
+                    <h1>⚙️ ตั้งค่า</h1>
                 </div>
 
-                <!-- Password Section -->
-                <div id="password" class="section">
-                    <h2 class="section-title">เปลี่ยนรหัสผ่าน</h2>
-                    
-                    <form method="POST">
-                        <input type="hidden" name="action" value="change_password">
-                        
-                        <div class="form-group">
-                            <label>รหัสผ่านปัจจุบัน *</label>
-                            <input type="password" name="current_password" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label>รหัสผ่านใหม่ *</label>
-                            <input type="password" name="new_password" required>
-                            <div class="password-note">รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร</div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>ยืนยันรหัสผ่านใหม่ *</label>
-                            <input type="password" name="confirm_password" required>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary">🔒 เปลี่ยนรหัสผ่าน</button>
-                    </form>
-                </div>
-
-                <!-- Avatar Section -->
-                <div id="avatar" class="section">
-                    <h2 class="section-title">รูปโปรไฟล์</h2>
-                    
-                    <?php if (!$has_avatar_column): ?>
-                        <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-                            <h3 style="color: #856404; margin-bottom: 10px;">⚠️ ต้องอัปเดตฐานข้อมูลก่อน</h3>
-                            <p style="color: #856404; margin-bottom: 15px;">
-                                ฟีเจอร์รูปโปรไฟล์ต้องการให้อัปเดตฐานข้อมูลก่อนใช้งาน
-                            </p>
-                            <a href="update-database.php" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 8px;">
-                                🔧 อัปเดตฐานข้อมูล
-                            </a>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <div class="avatar-container">
-                        <?php if (isset($user['avatar']) && $user['avatar']): ?>
-                            <img src="../uploads/images/<?php echo htmlspecialchars($user['avatar']); ?>" class="avatar-preview" alt="Avatar">
-                        <?php else: ?>
-                            <div class="avatar-placeholder">
-                                <?php echo mb_substr($user['full_name'], 0, 1); ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-
-                    <form method="POST" enctype="multipart/form-data">
-                        <input type="hidden" name="action" value="upload_avatar">
-                        
-                        <div class="form-group">
-                            <label>เลือกรูปภาพใหม่</label>
-                            <input type="file" name="avatar" accept="image/*" required>
-                            <div class="password-note">รองรับ: JPG, JPEG, PNG, GIF (ขนาดไม่เกิน 5MB)</div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary">📷 อัปโหลดรูป</button>
-                    </form>
-                </div>
-
-                <!-- Account Section -->
-                <div id="account" class="section">
-                    <h2 class="section-title">ข้อมูลบัญชี</h2>
-                    
-                    <div class="info-card">
-                        <div class="info-row">
-                            <span class="info-label">ชื่อผู้ใช้:</span>
-                            <span class="info-value"><?php echo htmlspecialchars($user['username']); ?></span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">สถานะ:</span>
-                            <span class="info-value">
-                                <?php 
-                                if ($user['role'] === 'admin') {
-                                    echo '👑 ผู้ดูแลระบบ';
-                                } else {
-                                    echo '👤 ผู้ใช้ทั่วไป';
-                                }
-                                ?>
-                            </span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">สถานะบัญชี:</span>
-                            <span class="info-value">
-                                <?php echo $user['is_active'] ? '✅ ใช้งานอยู่' : '❌ ปิดการใช้งาน'; ?>
-                            </span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">วันที่สร้างบัญชี:</span>
-                            <span class="info-value"><?php echo date('d/m/Y H:i', strtotime($user['created_at'])); ?></span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">เข้าสู่ระบบล่าสุด:</span>
-                            <span class="info-value">
-                                <?php 
-                                echo $user['last_login'] 
-                                    ? date('d/m/Y H:i', strtotime($user['last_login'])) 
-                                    : 'ยังไม่เคยเข้าสู่ระบบ';
-                                ?>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- System Settings (Admin Only) -->
-                <?php if ($_SESSION['role'] === 'admin'): ?>
-                <div id="system" class="section">
-                    <h2 class="section-title">ตั้งค่าระบบ</h2>
-                    
-                    <div class="info-card">
-                        <h3 style="color: #667eea; margin-bottom: 15px;">🔧 ตัวเลือกการตั้งค่า</h3>
-                        
-                        <div style="margin: 20px 0;">
-                            <a href="users-management.php" class="btn btn-primary" style="display: block; text-align: center; margin-bottom: 10px;">
-                                👥 จัดการผู้ใช้
-                            </a>
-                            
-                            <a href="documents.php" class="btn btn-primary" style="display: block; text-align: center; margin-bottom: 10px;">
-                                📁 จัดการเอกสาร
-                            </a>
-                            
-                            <a href="dashboard.php" class="btn btn-primary" style="display: block; text-align: center;">
-                                📊 ดูสถิติระบบ
-                            </a>
-                        </div>
-
-                        <div style="margin-top: 30px; padding: 20px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
-                            <strong style="color: #856404;">⚠️ ข้อมูลระบบ</strong>
-                            <div style="margin-top: 10px; color: #856404;">
-                                <div>เวอร์ชัน: 1.0.0</div>
-                                <div>PHP Version: <?php echo PHP_VERSION; ?></div>
-                                <div>Database: SQLite 3</div>
-                            </div>
-                        </div>
-                    </div>
+                <?php if ($message): ?>
+                <div class="alert alert-<?php echo $messageType; ?> show">
+                    <?php echo $message; ?>
                 </div>
                 <?php endif; ?>
+
+                <!-- Profile Info Card -->
+                <div class="profile-info">
+                    <div class="profile-avatar">
+                        <?php echo strtoupper(substr($currentUser['full_name'], 0, 1)); ?>
+                    </div>
+                    <div class="profile-details">
+                        <h2><?php echo htmlspecialchars($currentUser['full_name']); ?></h2>
+                        <div class="profile-meta">
+                            <div>👤 Username: <strong><?php echo htmlspecialchars($currentUser['username']); ?></strong></div>
+                            <div>📧 Email: <strong><?php echo htmlspecialchars($currentUser['email']); ?></strong></div>
+                            <div>🛡️ บทบาท: <strong><?php echo $currentUser['role'] === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'; ?></strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-grid">
+                <!-- Update Profile -->
+                <div class="settings-card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <span>👤</span>
+                            <span>แก้ไขข้อมูลส่วนตัว</span>
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="update_profile">
+                            
+                            <div class="form-group">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" value="<?php echo htmlspecialchars($currentUser['username']); ?>" disabled>
+                                <small style="color: #94a3b8; margin-top: 5px; display: block;">* Username ไม่สามารถเปลี่ยนแปลงได้</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">ชื่อ-นามสกุล *</label>
+                                <input type="text" name="full_name" class="form-control" value="<?php echo htmlspecialchars($currentUser['full_name']); ?>" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Email *</label>
+                                <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars($currentUser['email']); ?>" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                ✅ บันทึกการเปลี่ยนแปลง
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Change Password -->
+                <div class="settings-card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <span>🔒</span>
+                            <span>เปลี่ยนรหัสผ่าน</span>
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-box">
+                            <div class="info-box-title">💡 คำแนะนำ</div>
+                            <div class="info-box-text">
+                                • รหัสผ่านควรมีอย่างน้อย 6 ตัวอักษร<br>
+                                • ใช้ตัวอักษรผสมตัวเลขเพื่อความปลอดภัย
+                            </div>
+                        </div>
+
+                        <form method="POST">
+                            <input type="hidden" name="action" value="change_password">
+                            
+                            <div class="form-group">
+                                <label class="form-label">รหัสผ่านปัจจุบัน *</label>
+                                <input type="password" name="current_password" class="form-control" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">รหัสผ่านใหม่ *</label>
+                                <input type="password" name="new_password" class="form-control" minlength="6" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">ยืนยันรหัสผ่านใหม่ *</label>
+                                <input type="password" name="confirm_password" class="form-control" minlength="6" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-success">
+                                🔒 เปลี่ยนรหัสผ่าน
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Account Info -->
+                <div class="settings-card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <span>📊</span>
+                            <span>ข้อมูลบัญชี</span>
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-row">
+                            <div class="stat-item">
+                                <div class="stat-label">สร้างบัญชีเมื่อ</div>
+                                <div class="stat-value"><?php echo formatDateShort($currentUser['created_at']); ?></div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">เข้าสู่ระบบล่าสุด</div>
+                                <div class="stat-value"><?php echo $currentUser['last_login'] ? formatDateShort($currentUser['last_login']) : 'ไม่มีข้อมูล'; ?></div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">สถานะบัญชี</div>
+                                <div class="stat-value"><?php echo $currentUser['is_active'] ? '✅ ใช้งาน' : '❌ ปิดใช้งาน'; ?></div>
+                            </div>
+                        </div>
+
+                        <?php
+                        // Get user statistics
+                        $userId = $_SESSION['user_id'];
+                        
+                        // Count bookings
+                        $bookingsStmt = $db->prepare("SELECT COUNT(*) as count FROM bookings WHERE user_id = ?");
+                        $bookingsStmt->bind_param('i', $userId);
+                        $bookingsStmt->execute();
+                        $bookingsCount = $bookingsStmt->get_result()->fetch_assoc()['count'];
+                        
+                        // Count documents (if uploaded by this user)
+                        $docsStmt = $db->prepare("SELECT COUNT(*) as count FROM documents WHERE uploaded_by = ?");
+                        $docsStmt->bind_param('i', $userId);
+                        $docsStmt->execute();
+                        $docsCount = $docsStmt->get_result()->fetch_assoc()['count'];
+                        ?>
+
+                        <div class="stats-row" style="margin-top: 15px;">
+                            <div class="stat-item">
+                                <div class="stat-label">การจองทั้งหมด</div>
+                                <div class="stat-value">📅 <?php echo $bookingsCount; ?> ครั้ง</div>
+                            </div>
+                            <?php if ($currentUser['role'] === 'admin'): ?>
+                            <div class="stat-item">
+                                <div class="stat-label">เอกสารที่อัปโหลด</div>
+                                <div class="stat-value">📄 <?php echo $docsCount; ?> ไฟล์</div>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
             </div>
         </div>
     </div>
 
     <script>
-        function showSection(sectionId) {
-            // Hide all sections
-            document.querySelectorAll('.section').forEach(section => {
-                section.classList.remove('active');
-            });
-
-            // Remove active class from all menu items
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('active');
-            });
-
-            // Show selected section
-            document.getElementById(sectionId).classList.add('active');
-
-            // Add active class to clicked menu item
-            event.currentTarget.classList.add('active');
-        }
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) alert.classList.remove('show');
+        }, 5000);
     </script>
 </body>
 </html>

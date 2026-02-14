@@ -1,82 +1,48 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../includes/functions.php';
 
-// ตรวจสอบการ login
+// Check login
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ../index.php');
+    header('Location: ../auth/login.php');
     exit;
 }
 
-$db = getDb();
-$user_id = $_SESSION['user_id'];
-$success_message = '';
-$error_message = '';
+$db = getDB();
+$message = '';
+$messageType = '';
 
-// จัดการยกเลิกการจอง
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'cancel_booking') {
-    $booking_id = $_POST['booking_id'];
+// Handle Cancel Booking
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'cancel') {
+    $bookingId = (int)$_POST['booking_id'];
     
-    // ตรวจสอบว่าเป็นการจองของผู้ใช้คนนี้
-    $check_stmt = $db->prepare("SELECT * FROM bookings WHERE booking_id = ? AND user_id = ?");
-    $check_stmt->bindValue(1, $booking_id, SQLITE3_INTEGER);
-    $check_stmt->bindValue(2, $user_id, SQLITE3_INTEGER);
-    $result = $check_stmt->execute();
-    $booking = $result->fetchArray(SQLITE3_ASSOC);
+    // เช็คว่าเป็นการจองของตัวเองหรือไม่
+    $checkStmt = $db->prepare("SELECT * FROM bookings WHERE booking_id = ? AND user_id = ?");
+    $checkStmt->bind_param('ii', $bookingId, $_SESSION['user_id']);
+    $checkStmt->execute();
+    $booking = $checkStmt->get_result()->fetch_assoc();
     
-    if ($booking && $booking['status'] !== 'cancelled') {
-        // อัปเดตสถานะเป็นยกเลิก
-        $stmt = $db->prepare("UPDATE bookings SET status = 'cancelled', updated_at = datetime('now') WHERE booking_id = ?");
-        $stmt->bindValue(1, $booking_id, SQLITE3_INTEGER);
+    if ($booking || $_SESSION['role'] === 'admin') {
+        $stmt = $db->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ?");
+        $stmt->bind_param('i', $_POST['booking_id']);
         
         if ($stmt->execute()) {
-            // Log activity
-            $log = $db->prepare("INSERT INTO activity_logs (user_id, action, description, created_at) VALUES (?, 'cancel_booking', ?, datetime('now'))");
-            $log->bindValue(1, $user_id, SQLITE3_INTEGER);
-            $log->bindValue(2, "ยกเลิกการจองห้องประชุม ID: {$booking_id}", SQLITE3_TEXT);
-            $log->execute();
-            
-            Database::checkpoint();
-            
-            $success_message = "ยกเลิกการจองสำเร็จ";
-        } else {
-            $error_message = "ไม่สามารถยกเลิกการจองได้";
+            $message = 'ยกเลิกการจองสำเร็จ!';
+            $messageType = 'success';
+            logActivity($_SESSION['user_id'], 'ยกเลิกการจอง', 'Bookings', "ยกเลิกการจอง ID: " . $_POST['booking_id']);
         }
-    } else {
-        $error_message = "ไม่พบการจองหรือไม่สามารถยกเลิกได้";
     }
 }
 
-// ดึงรายการจองทั้งหมดของผู้ใช้
-$bookings_result = $db->prepare("
-    SELECT b.*, r.room_name, r.location, r.capacity 
-    FROM bookings b
-    JOIN meeting_rooms r ON b.room_id = r.room_id
-    WHERE b.user_id = ?
-    ORDER BY b.booking_date DESC, b.start_time DESC
-");
-$bookings_result->bindValue(1, $user_id, SQLITE3_INTEGER);
-$bookings_result = $bookings_result->execute();
-
-$bookings = [];
-while ($booking = $bookings_result->fetchArray(SQLITE3_ASSOC)) {
-    $bookings[] = $booking;
-}
-
-// แยกตามสถานะ
-$pending_bookings = array_filter($bookings, function($b) { return $b['status'] === 'pending'; });
-$approved_bookings = array_filter($bookings, function($b) { return $b['status'] === 'approved'; });
-$cancelled_bookings = array_filter($bookings, function($b) { return $b['status'] === 'cancelled'; });
-$rejected_bookings = array_filter($bookings, function($b) { return $b['status'] === 'rejected'; });
-
+$currentUser = getCurrentUser();
 ?>
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>รายการจองของฉัน - Romar Dormitory Management</title>
+    <title>รายการจองของฉัน - Romar</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -87,228 +53,330 @@ $rejected_bookings = array_filter($bookings, function($b) { return $b['status'] 
 
         body {
             font-family: 'Sarabun', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+            background: #065f159c;
+            color: #000000;
         }
 
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .header {
-            background: white;
-            padding: 25px 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            min-height: 100vh;
         }
 
-        .header h1 {
-            color: #667eea;
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg, #10ce30 0%, #000000 100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgb(0, 0, 0);
+            z-index: 1000;
+        }
+
+        .sidebar-brand {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgb(255, 255, 255);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+        }
+
+        .brand-icon {
             font-size: 2em;
+        }
+
+        .brand-name {
+            font-size: 1.5em;
             font-weight: 700;
         }
 
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
+        .brand-subtitle {
+            color: #000000;
             font-size: 1em;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            opacity: 0.8;
+        }
+
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            color: rgb(255, 255, 255);
             text-decoration: none;
-            display: inline-block;
+            transition: all 0.3s;
         }
 
-        .btn-secondary {
-            background: #6c757d;
+        .sidebar-nav a:hover {
+            background: rgba(255,255,255,0.1);
             color: white;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .sidebar-nav li.active a {
+            background: rgba(255,255,255,0.15);
             color: white;
+            border-left: 4px solid #000000;
         }
 
-        .btn-danger {
-            background: #e74c3c;
-            color: white;
+        .menu-section {
+            padding: 20px 20px 10px;
+            color: rgb(255, 255, 255);
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
         }
 
-        .btn-sm {
-            padding: 8px 16px;
-            font-size: 0.9em;
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 30px;
         }
 
-        .alert {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+        .page-header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             margin-bottom: 30px;
         }
 
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        .page-title h1 {
+            font-size: 1.8em;
+            color: #2d3748;
+            font-weight: 600;
         }
 
-        .stat-value {
-            font-size: 2.5em;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .stat-value.pending { color: #f39c12; }
-        .stat-value.approved { color: #27ae60; }
-        .stat-value.cancelled { color: #95a5a6; }
-        .stat-value.rejected { color: #e74c3c; }
-
-        .stat-label {
-            color: #7f8c8d;
-            font-size: 0.95em;
-        }
-
-        .bookings-section {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
-        }
-
-        .section-title {
-            font-size: 1.5em;
-            font-weight: 700;
-            color: #2c3e50;
-            margin-bottom: 20px;
+        /* Tabs */
+        .tabs {
             display: flex;
-            align-items: center;
             gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Booking Cards */
+        .bookings-grid {
+            display: grid;
+            gap: 20px;
         }
 
         .booking-card {
-            background: #f8f9fa;
-            padding: 20px;
+            background: white;
             border-radius: 12px;
-            margin-bottom: 15px;
-            border-left: 5px solid;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            overflow: hidden;
+            transition: all 0.3s;
+            border-left: 4px solid;
         }
 
-        .booking-card.pending { border-left-color: #f39c12; }
-        .booking-card.approved { border-left-color: #27ae60; }
-        .booking-card.cancelled { border-left-color: #95a5a6; }
-        .booking-card.rejected { border-left-color: #e74c3c; }
+        .booking-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+        }
+
+        .booking-card.pending { border-left-color: #f59e0b; }
+        .booking-card.approved { border-left-color: #10b981; }
+        .booking-card.cancelled { border-left-color: #ef4444; }
+        .booking-card.completed { border-left-color: #6b7280; }
+
+        .booking-body {
+            padding: 25px;
+        }
 
         .booking-header {
             display: flex;
             justify-content: space-between;
             align-items: start;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .booking-room {
+            flex: 1;
+        }
+
+        .room-name {
             font-size: 1.3em;
-            font-weight: 700;
-            color: #2c3e50;
-        }
-
-        .booking-status {
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9em;
             font-weight: 600;
-            color: white;
+            color: #2d3748;
+            margin-bottom: 5px;
         }
 
-        .booking-status.pending { background: #f39c12; }
-        .booking-status.approved { background: #27ae60; }
-        .booking-status.cancelled { background: #95a5a6; }
-        .booking-status.rejected { background: #e74c3c; }
+        .room-location {
+            color: #64748b;
+            font-size: 0.9em;
+        }
 
         .booking-details {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 8px;
         }
 
-        .booking-detail-item {
+        .detail-item {
             display: flex;
-            flex-direction: column;
-            gap: 5px;
+            align-items: center;
+            gap: 10px;
         }
 
-        .detail-label {
-            font-size: 0.85em;
-            color: #7f8c8d;
-            font-weight: 600;
+        .detail-icon {
+            font-size: 1.2em;
         }
 
-        .detail-value {
-            font-size: 1em;
-            color: #2c3e50;
+        .detail-text {
+            font-size: 0.95em;
+            color: #475569;
         }
 
         .booking-purpose {
-            background: white;
             padding: 15px;
+            background: #eff6ff;
             border-radius: 8px;
-            margin-top: 15px;
+            margin-bottom: 15px;
         }
 
-        .purpose-title {
+        .purpose-label {
             font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
+            color: #1e40af;
+        }
+
+        .purpose-text {
+            color: #475569;
+            font-size: 0.95em;
+        }
+
+        .booking-actions {
+            display: flex;
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+        }
+
+        .btn-cancel {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #dc2626;
+        }
+
+        .btn-disabled {
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .badge-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-approved {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-cancelled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-completed {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
         }
 
         .empty-state {
             text-align: center;
-            padding: 40px 20px;
-            color: #7f8c8d;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 12px;
+            color: #94a3b8;
         }
 
-        .empty-state-icon {
+        .empty-icon {
             font-size: 4em;
             margin-bottom: 15px;
         }
 
         @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
+            .sidebar {
+                margin-left: -260px;
             }
-
-            .booking-header {
-                flex-direction: column;
-                gap: 10px;
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
             }
-
             .booking-details {
                 grid-template-columns: 1fr;
             }
@@ -317,146 +385,192 @@ $rejected_bookings = array_filter($bookings, function($b) { return $b['status'] 
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>📋 รายการจองของฉัน</h1>
-            <div>
-                <a href="room-booking.php" class="btn btn-primary">📅 จองห้องใหม่</a>
-                <a href="dashboard.php" class="btn btn-secondary">← กลับหน้าหลัก</a>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">🏢</div>
+                <div>
+                    <div class="brand-name">Romar</div>
+                    <div class="brand-subtitle">Dormitory</div>
+                </div>
             </div>
+
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="dashboard.php">📊 Dashboard</a></li>
+                    <?php if ($currentUser['role'] === 'admin'): ?>
+                    <li class="menu-section">การจัดการ</li>
+                    <li><a href="users-management.php">👥 จัดการผู้ใช้</a></li>
+                    <li><a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a></li>
+                    <li><a href="documents.php">📄 จัดการเอกสาร</a></li>
+                    <?php endif; ?>
+                    <li class="menu-section">ฟีเจอร์</li>
+                    <li><a href="room-booking.php">📅 จองห้องประชุม</a></li>
+                    <li class="active"><a href="my-bookings.php">📋 รายการจองของฉัน</a></li>
+                      <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                        <a href="../modules/tickets.php">🎫 IT Tickets</a>
+                    </li>
+                    <li><a href="announcements.php">📢 ข่าวสาร</a></li>
+                    <li class="menu-section">ระบบ</li>
+                    <li><a href="settings.php">⚙️ ตั้งค่า</a></li>
+                    <li><a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">🚪 ออกจากระบบ</a></li>
+                </ul>
+            </nav>
         </div>
 
-        <?php if ($success_message): ?>
-            <div class="alert alert-success"><?php echo $success_message; ?></div>
-        <?php endif; ?>
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="page-header">
+                <h1>📋 รายการจองของฉัน</h1>
+            </div>
 
-        <?php if ($error_message): ?>
-            <div class="alert alert-error"><?php echo $error_message; ?></div>
-        <?php endif; ?>
+            <?php if ($message): ?>
+            <div class="alert alert-<?php echo $messageType; ?> show">
+                <?php echo $message; ?>
+            </div>
+            <?php endif; ?>
 
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value pending"><?php echo count($pending_bookings); ?></div>
-                <div class="stat-label">⏳ รออนุมัติ</div>
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="filterBookings('all')">ทั้งหมด</button>
+                <button class="tab-btn" onclick="filterBookings('pending')">รออนุมัติ</button>
+                <button class="tab-btn" onclick="filterBookings('approved')">อนุมัติแล้ว</button>
+                <button class="tab-btn" onclick="filterBookings('cancelled')">ยกเลิกแล้ว</button>
             </div>
-            <div class="stat-card">
-                <div class="stat-value approved"><?php echo count($approved_bookings); ?></div>
-                <div class="stat-label">✅ อนุมัติแล้ว</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value cancelled"><?php echo count($cancelled_bookings); ?></div>
-                <div class="stat-label">❌ ยกเลิกแล้ว</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value rejected"><?php echo count($rejected_bookings); ?></div>
-                <div class="stat-label">🚫 ไม่อนุมัติ</div>
+
+            <!-- Bookings -->
+            <div class="bookings-grid" id="bookingsContainer">
+                <?php
+                // Get user bookings
+                $userId = $_SESSION['user_id'];
+                $stmt = $db->prepare("
+                    SELECT b.*, r.room_name, r.location, u.full_name as booked_by
+                    FROM bookings b
+                    JOIN meeting_rooms r ON b.room_id = r.room_id
+                    JOIN users u ON b.user_id = u.user_id
+                    WHERE b.user_id = ?
+                    ORDER BY b.booking_date DESC, b.start_time DESC
+                ");
+                $stmt->bind_param('i', $userId);
+                $stmt->execute();
+                $bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+                if (empty($bookings)):
+                ?>
+                    <div class="empty-state">
+                        <div class="empty-icon">📅</div>
+                        <h3>ยังไม่มีการจอง</h3>
+                        <p>คุณยังไม่มีรายการจองห้องประชุม</p>
+                        <a href="room-booking.php" class="btn" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; margin-top: 20px;">
+                            📅 จองห้องประชุม
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($bookings as $booking): 
+                        $statusClass = strtolower($booking['status']);
+                        $statusText = [
+                            'pending' => '⏳ รออนุมัติ',
+                            'approved' => '✅ อนุมัติแล้ว',
+                            'cancelled' => '❌ ยกเลิกแล้ว',
+                            'completed' => '✔️ เสร็จสิ้น'
+                        ][$booking['status']] ?? $booking['status'];
+                    ?>
+                    <div class="booking-card <?php echo $statusClass; ?>" data-status="<?php echo $statusClass; ?>">
+                        <div class="booking-body">
+                            <div class="booking-header">
+                                <div class="booking-room">
+                                    <div class="room-name"><?php echo htmlspecialchars($booking['room_name']); ?></div>
+                                    <div class="room-location">📍 <?php echo htmlspecialchars($booking['location']); ?></div>
+                                </div>
+                                <span class="badge badge-<?php echo $statusClass; ?>">
+                                    <?php echo $statusText; ?>
+                                </span>
+                            </div>
+
+                            <div class="booking-details">
+                                <div class="detail-item">
+                                    <span class="detail-icon">📅</span>
+                                    <div>
+                                        <div style="font-size: 0.85em; color: #94a3b8;">วันที่</div>
+                                        <div class="detail-text"><strong><?php echo formatDateShort($booking['booking_date']); ?></strong></div>
+                                    </div>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-icon">🕐</span>
+                                    <div>
+                                        <div style="font-size: 0.85em; color: #94a3b8;">เวลา</div>
+                                        <div class="detail-text"><strong><?php echo substr($booking['start_time'], 0, 5); ?> - <?php echo substr($booking['end_time'], 0, 5); ?> น.</strong></div>
+                                    </div>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-icon">👥</span>
+                                    <div>
+                                        <div style="font-size: 0.85em; color: #94a3b8;">จำนวนผู้เข้าร่วม</div>
+                                        <div class="detail-text"><strong><?php echo $booking['num_attendees']; ?> คน</strong></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="booking-purpose">
+                                <div class="purpose-label">📝 วัตถุประสงค์:</div>
+                                <div class="purpose-text"><?php echo nl2br(htmlspecialchars($booking['purpose'])); ?></div>
+                            </div>
+
+                            <div class="booking-actions">
+                                <?php if ($booking['status'] === 'pending' || $booking['status'] === 'approved'): ?>
+                                <form method="POST" style="flex: 1;" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะยกเลิกการจองนี้?')">
+                                    <input type="hidden" name="action" value="cancel">
+                                    <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
+                                    <button type="submit" class="btn btn-cancel">
+                                        ❌ ยกเลิกการจอง
+                                    </button>
+                                </form>
+                                <?php else: ?>
+                                <button class="btn btn-disabled" disabled>
+                                    <?php echo $booking['status'] === 'cancelled' ? '❌ ยกเลิกแล้ว' : '✔️ เสร็จสิ้น'; ?>
+                                </button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </div>
-
-        <!-- Pending Bookings -->
-        <?php if (count($pending_bookings) > 0): ?>
-            <div class="bookings-section">
-                <div class="section-title">
-                    <span>⏳</span>
-                    <span>รออนุมัติ (<?php echo count($pending_bookings); ?>)</span>
-                </div>
-
-                <?php foreach ($pending_bookings as $booking): ?>
-                    <div class="booking-card pending">
-                        <div class="booking-header">
-                            <div class="booking-room"><?php echo htmlspecialchars($booking['room_name']); ?></div>
-                            <div class="booking-status pending">รออนุมัติ</div>
-                        </div>
-
-                        <div class="booking-details">
-                            <div class="booking-detail-item">
-                                <div class="detail-label">📅 วันที่</div>
-                                <div class="detail-value"><?php echo date('d/m/Y', strtotime($booking['booking_date'])); ?></div>
-                            </div>
-                            <div class="booking-detail-item">
-                                <div class="detail-label">⏰ เวลา</div>
-                                <div class="detail-value"><?php echo substr($booking['start_time'], 0, 5); ?> - <?php echo substr($booking['end_time'], 0, 5); ?></div>
-                            </div>
-                            <div class="booking-detail-item">
-                                <div class="detail-label">👥 จำนวนคน</div>
-                                <div class="detail-value"><?php echo $booking['num_attendees']; ?> คน</div>
-                            </div>
-                            <div class="booking-detail-item">
-                                <div class="detail-label">📍 สถานที่</div>
-                                <div class="detail-value"><?php echo htmlspecialchars($booking['location']); ?></div>
-                            </div>
-                        </div>
-
-                        <div class="booking-purpose">
-                            <div class="purpose-title">วัตถุประสงค์:</div>
-                            <div><?php echo htmlspecialchars($booking['purpose']); ?></div>
-                        </div>
-
-                        <form method="POST" style="margin-top: 15px;" onsubmit="return confirm('ต้องการยกเลิกการจองนี้ใช่หรือไม่?')">
-                            <input type="hidden" name="action" value="cancel_booking">
-                            <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
-                            <button type="submit" class="btn btn-danger btn-sm">❌ ยกเลิกการจอง</button>
-                        </form>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-
-        <!-- Approved Bookings -->
-        <?php if (count($approved_bookings) > 0): ?>
-            <div class="bookings-section">
-                <div class="section-title">
-                    <span>✅</span>
-                    <span>อนุมัติแล้ว (<?php echo count($approved_bookings); ?>)</span>
-                </div>
-
-                <?php foreach ($approved_bookings as $booking): ?>
-                    <div class="booking-card approved">
-                        <div class="booking-header">
-                            <div class="booking-room"><?php echo htmlspecialchars($booking['room_name']); ?></div>
-                            <div class="booking-status approved">อนุมัติแล้ว</div>
-                        </div>
-
-                        <div class="booking-details">
-                            <div class="booking-detail-item">
-                                <div class="detail-label">📅 วันที่</div>
-                                <div class="detail-value"><?php echo date('d/m/Y', strtotime($booking['booking_date'])); ?></div>
-                            </div>
-                            <div class="booking-detail-item">
-                                <div class="detail-label">⏰ เวลา</div>
-                                <div class="detail-value"><?php echo substr($booking['start_time'], 0, 5); ?> - <?php echo substr($booking['end_time'], 0, 5); ?></div>
-                            </div>
-                            <div class="booking-detail-item">
-                                <div class="detail-label">👥 จำนวนคน</div>
-                                <div class="detail-value"><?php echo $booking['num_attendees']; ?> คน</div>
-                            </div>
-                            <div class="booking-detail-item">
-                                <div class="detail-label">📍 สถานที่</div>
-                                <div class="detail-value"><?php echo htmlspecialchars($booking['location']); ?></div>
-                            </div>
-                        </div>
-
-                        <div class="booking-purpose">
-                            <div class="purpose-title">วัตถุประสงค์:</div>
-                            <div><?php echo htmlspecialchars($booking['purpose']); ?></div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-
-        <!-- Empty State -->
-        <?php if (empty($bookings)): ?>
-            <div class="bookings-section">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📅</div>
-                    <h2>ยังไม่มีการจองห้องประชุม</h2>
-                    <p style="margin-top: 10px;">เริ่มจองห้องประชุมตอนนี้เลย!</p>
-                    <a href="room-booking.php" class="btn btn-primary" style="margin-top: 20px;">📅 จองห้องประชุม</a>
-                </div>
-            </div>
-        <?php endif; ?>
     </div>
+
+    <script>
+        function filterBookings(status) {
+            const buttons = document.querySelectorAll('.tab-btn');
+            const cards = document.querySelectorAll('.booking-card');
+            
+            // Update active tab
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.includes({
+                    'all': 'ทั้งหมด',
+                    'pending': 'รออนุมัติ',
+                    'approved': 'อนุมัติแล้ว',
+                    'cancelled': 'ยกเลิกแล้ว'
+                }[status])) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Filter cards
+            cards.forEach(card => {
+                if (status === 'all' || card.dataset.status === status) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) alert.classList.remove('show');
+        }, 5000);
+    </script>
 </body>
 </html>

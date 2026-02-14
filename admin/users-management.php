@@ -1,304 +1,887 @@
 <?php
 session_start();
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once '../config/database.php';
+require_once '../includes/functions.php';
 
-// ตรวจสอบ login
-if (!isset($_SESSION['user_id'])) {
+// Check login and admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: ../auth/login.php');
     exit;
 }
 
-// ตรวจสอบสิทธิ์ Admin
-if ($_SESSION['role'] !== 'admin') {
-    header('Location: dashboard.php');
-    exit;
-}
+$db = getDB();
+$message = '';
+$messageType = '';
 
-$db = Database::getInstance();
-$page_title = "จัดการผู้ใช้งาน";
-
-// จัดการ Actions
-$success_message = '';
-$error_message = '';
-
-// เพิ่มผู้ใช้ใหม่
-if (isset($_POST['add_user'])) {
-    $username = trim($_POST['username']);
-    $password = $_POST['password'];
-    $full_name = trim($_POST['full_name']);
-    $email = trim($_POST['email']);
-    $role = $_POST['role'];
-    
-    if (!empty($username) && !empty($password)) {
-        $hashed = password_hash($password, PASSWORD_DEFAULT);
+// Handle Add/Edit User
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    if ($_POST['action'] === 'add') {
+        $username = sanitize($_POST['username']);
+        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+        $fullName = sanitize($_POST['full_name']);
+        $email = sanitize($_POST['email']);
+        $role = sanitize($_POST['role']);
         
-        try {
-            $stmt = $db->prepare("INSERT INTO users (username, password, full_name, email, role, is_active, created_at) VALUES (:username, :password, :full_name, :email, :role, 1, :created_at)");
-            $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-            $stmt->bindValue(':password', $hashed, SQLITE3_TEXT);
-            $stmt->bindValue(':full_name', $full_name, SQLITE3_TEXT);
-            $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-            $stmt->bindValue(':role', $role, SQLITE3_TEXT);
-            $stmt->bindValue(':created_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
-            $stmt->execute();
-            
-            logActivity($_SESSION['user_id'], 'เพิ่มผู้ใช้', 'User Management', "เพิ่มผู้ใช้: {$username}");
-            $success_message = "เพิ่มผู้ใช้ {$username} สำเร็จ!";
-        } catch (Exception $e) {
-            $error_message = "เกิดข้อผิดพลาด: Username อาจซ้ำ";
-        }
-    }
-}
-
-// รีเซ็ตรหัสผ่าน
-if (isset($_POST['reset_password'])) {
-    $user_id = (int)$_POST['user_id'];
-    $new_password = $_POST['new_password'];
-    
-    $hashed = password_hash($new_password, PASSWORD_DEFAULT);
-    $stmt = $db->prepare("UPDATE users SET password = :password WHERE user_id = :id");
-    $stmt->bindValue(':password', $hashed, SQLITE3_TEXT);
-    $stmt->bindValue(':id', $user_id, SQLITE3_INTEGER);
-    $stmt->execute();
-    
-    logActivity($_SESSION['user_id'], 'รีเซ็ตรหัสผ่าน', 'User Management', "รีเซ็ตรหัสผ่านผู้ใช้ ID: {$user_id}");
-    $success_message = "รีเซ็ตรหัสผ่านสำเร็จ!";
-}
-
-// เปลี่ยนสถานะ
-if (isset($_POST['toggle_status'])) {
-    $user_id = (int)$_POST['user_id'];
-    $current_status = (int)$_POST['current_status'];
-    $new_status = $current_status ? 0 : 1;
-    
-    $stmt = $db->prepare("UPDATE users SET is_active = :status WHERE user_id = :id");
-    $stmt->bindValue(':status', $new_status, SQLITE3_INTEGER);
-    $stmt->bindValue(':id', $user_id, SQLITE3_INTEGER);
-    $stmt->execute();
-    
-    $action = $new_status ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
-    logActivity($_SESSION['user_id'], $action, 'User Management', "เปลี่ยนสถานะผู้ใช้ ID: {$user_id}");
-    $success_message = "{$action}ผู้ใช้สำเร็จ!";
-}
-
-// ลบผู้ใช้
-if (isset($_POST['delete_user'])) {
-    $user_id = (int)$_POST['user_id'];
-    
-    // ตรวจสอบว่าไม่ใช่ตัวเอง
-    if ($user_id != $_SESSION['user_id']) {
-        // ตรวจสอบว่าไม่ใช่ admin คนสุดท้าย
-        $result = $db->query("SELECT COUNT(*) as count FROM users WHERE role = 'admin' AND is_active = 1");
-        $admin_count = $result->fetchArray(SQLITE3_ASSOC)['count'];
+        $stmt = $db->prepare("INSERT INTO users (username, password, full_name, email, role, is_active, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())");
+        $stmt->bind_param('sssss', $username, $password, $fullName, $email, $role);
         
-        $stmt = $db->prepare("SELECT role FROM users WHERE user_id = :id");
-        $stmt->bindValue(':id', $user_id, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $user = $result->fetchArray(SQLITE3_ASSOC);
-        
-        if ($user['role'] === 'admin' && $admin_count <= 1) {
-            $error_message = "ไม่สามารถลบ Admin คนสุดท้ายได้!";
+        if ($stmt->execute()) {
+            $message = 'เพิ่มผู้ใช้สำเร็จ!';
+            $messageType = 'success';
+            logActivity($_SESSION['user_id'], 'เพิ่มผู้ใช้ใหม่', 'Users', "เพิ่มผู้ใช้: $username");
         } else {
-            $stmt = $db->prepare("DELETE FROM users WHERE user_id = :id");
-            $stmt->bindValue(':id', $user_id, SQLITE3_INTEGER);
-            $stmt->execute();
+            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+            $messageType = 'error';
+        }
+    } elseif ($_POST['action'] === 'edit') {
+        $userId = (int)$_POST['user_id'];
+        $fullName = sanitize($_POST['full_name']);
+        $email = sanitize($_POST['email']);
+        $role = sanitize($_POST['role']);
+        $isActive = isset($_POST['is_active']) ? 1 : 0;
+        
+        if (!empty($_POST['password'])) {
+            $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+            $stmt = $db->prepare("UPDATE users SET full_name = ?, email = ?, role = ?, is_active = ?, password = ? WHERE user_id = ?");
+            $stmt->bind_param('sssisi', $fullName, $email, $role, $isActive, $password, $userId);
+        } else {
+            $stmt = $db->prepare("UPDATE users SET full_name = ?, email = ?, role = ?, is_active = ? WHERE user_id = ?");
+            $stmt->bind_param('sssii', $fullName, $email, $role, $isActive, $userId);
+        }
+        
+        if ($stmt->execute()) {
+            $message = 'แก้ไขผู้ใช้สำเร็จ!';
+            $messageType = 'success';
+            logActivity($_SESSION['user_id'], 'แก้ไขข้อมูลผู้ใช้', 'Users', "แก้ไขผู้ใช้ ID: $userId");
+        } else {
+            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+            $messageType = 'error';
+        }
+    } elseif ($_POST['action'] === 'delete') {
+        $userId = (int)$_POST['user_id'];
+        
+        // ป้องกันลบตัวเอง
+        if ($userId == $_SESSION['user_id']) {
+            $message = 'ไม่สามารถลบบัญชีของตัวเองได้!';
+            $messageType = 'error';
+        } else {
+            $stmt = $db->prepare("DELETE FROM users WHERE user_id = ?");
+            $stmt->bind_param('i', $userId);
             
-            logActivity($_SESSION['user_id'], 'ลบผู้ใช้', 'User Management', "ลบผู้ใช้ ID: {$user_id}");
-            $success_message = "ลบผู้ใช้สำเร็จ!";
+            if ($stmt->execute()) {
+                $message = 'ลบผู้ใช้สำเร็จ!';
+                $messageType = 'success';
+                logActivity($_SESSION['user_id'], 'ลบผู้ใช้', 'Users', "ลบผู้ใช้ ID: $userId");
+            } else {
+                $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+                $messageType = 'error';
+            }
         }
     }
 }
 
-// ดึงข้อมูลผู้ใช้ทั้งหมด
-$search = isset($_GET['search']) ? $_GET['search'] : '';
+// Get all users
+$search = isset($_GET['search']) ? sanitize($_GET['search']) : '';
 if ($search) {
-    $stmt = $db->prepare("SELECT * FROM users WHERE username LIKE :search OR full_name LIKE :search OR email LIKE :search ORDER BY created_at DESC");
-    $stmt->bindValue(':search', "%{$search}%", SQLITE3_TEXT);
-    $result = $stmt->execute();
+    $stmt = $db->prepare("SELECT * FROM users WHERE username LIKE ? OR full_name LIKE ? OR email LIKE ? ORDER BY created_at DESC");
+    $searchTerm = "%$search%";
+    $stmt->bind_param('sss', $searchTerm, $searchTerm, $searchTerm);
 } else {
-    $result = $db->query("SELECT * FROM users ORDER BY created_at DESC");
+    $stmt = $db->prepare("SELECT * FROM users ORDER BY created_at DESC");
 }
+$stmt->execute();
+$result = $stmt->get_result();
+$users = $result->fetch_all(MYSQLI_ASSOC);
 
-$users = [];
-while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-    $users[] = $row;
-}
+$currentUser = getCurrentUser();
 ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $page_title; ?> - ระบบจัดการหอพัก</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>จัดการผู้ใช้ - Romar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* เพิ่ม CSS ที่จำเป็น */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-        .modal.active { display: flex; align-items: center; justify-content: center; }
-        .modal-content { background: white; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
-        .modal-header { padding: 20px 25px; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center; }
-        .modal-title { font-size: 1.3em; color: #2c3e50; font-weight: 600; }
-        .modal-close { background: none; border: none; font-size: 1.5em; cursor: pointer; color: #6c757d; }
-        .modal-body { padding: 25px; }
-        .modal-footer { padding: 15px 25px; border-top: 1px solid #dee2e6; display: flex; justify-content: flex-end; gap: 10px; }
-        .form-group { margin-bottom: 20px; }
-        .form-label { display: block; margin-bottom: 8px; font-weight: 500; color: #2c3e50; }
-        .form-control { width: 100%; padding: 10px 15px; border: 1px solid #ced4da; border-radius: 8px; font-size: 0.95em; }
-        .btn-sm { padding: 6px 12px; font-size: 0.85em; }
-        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
-        .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 500; }
-        .badge-admin { background: #667eea; color: white; }
-        .badge-staff { background: #6c757d; color: white; }
-        .badge-active { background: #28a745; color: white; }
-        .badge-inactive { background: #dc3545; color: white; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background: #065f159c;
+            color: #000000;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg, #10ce30 0%, #000000 100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgb(0, 0, 0);
+            z-index: 1000;
+        }
+
+        .sidebar-brand {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgb(255, 255, 255);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+        }
+
+        .brand-icon {
+            font-size: 2em;
+        }
+
+        .brand-name {
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+
+        .brand-subtitle {
+            color: #000000;
+            font-size: 1em;
+            opacity: 0.8;
+        }
+
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            color: rgb(255, 255, 255);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .sidebar-nav a:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .sidebar-nav li.active a {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border-left: 4px solid #000000;
+        }
+
+        .menu-section {
+            padding: 20px 20px 10px;
+            color: rgb(255, 255, 255);
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 30px;
+        }
+
+        /* Page Header */
+        .page-header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgb(0, 0, 0);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .page-title h1 {
+            font-size: 1.8em;
+            color: #000000;
+            font-weight: 600;
+        }
+
+        /* Card */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgb(0, 0, 0);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid #000000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Search Bar */
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #1ae424;
+            box-shadow: 0 0 0 3px rgb(0, 0, 0)
+        }
+
+        /* Button */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #10ce30 0%, #000000 100%);
+            color: white;
+            box-shadow: 0 4px 6px rgb(0, 0, 0);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgb(0, 3, 19);
+        }
+
+        .btn-secondary {
+            background: #718096;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        .btn-success {
+            background: #12ca3a;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8fafc;
+        }
+
+        th {
+            padding: 15px 20px;
+            text-align: left;
+            font-weight: 600;
+            color: #000000;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 18px 20px;
+            border-top: 1px solid #000000;
+        }
+
+        tbody tr {
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .badge-admin {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-user {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Action Buttons */
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.2em;
+        }
+
+        .btn-edit {
+            background: #dbeafe;
+            color: #169e2c;
+        }
+
+        .btn-edit:hover {
+            background: #14b91c;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .btn-delete:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #000000;
+        }
+
+        .modal-close {
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #000000;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #ef4444;
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #000000;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgb(255, 255, 255);
+        }
+
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-check input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            animation: slideDown 0.3s;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                margin-left: -260px;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
+            .card-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-bar {
+                max-width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
-    <?php include __DIR__ . '/../includes/sidebar.php'; ?>
-
-    <div class="main-content">
-        <?php include __DIR__ . '/../includes/header.php'; ?>
-
-        <?php if ($success_message): ?>
-            <div class="alert alert-success">✅ <?php echo $success_message; ?></div>
-        <?php endif; ?>
-
-        <?php if ($error_message): ?>
-            <div class="alert alert-error">❌ <?php echo $error_message; ?></div>
-        <?php endif; ?>
-
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">รายการผู้ใช้งาน (<?php echo count($users); ?> คน)</h2>
-                <button class="btn btn-primary" onclick="openModal('addUserModal')">➕ เพิ่มผู้ใช้ใหม่</button>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">🏢</div>
+                <div>
+                    <div class="brand-name">Romar</div>
+                    <div class="brand-subtitle">Dormitory</div>
+                </div>
             </div>
 
-            <div class="search-box">
-                <form method="GET" style="display: flex; gap: 10px; width: 100%;">
-                    <input type="text" name="search" class="form-control" placeholder="ค้นหา Username, ชื่อ, Email..." value="<?php echo htmlspecialchars($search); ?>">
-                    <button type="submit" class="btn btn-primary">🔍 ค้นหา</button>
-                    <?php if ($search): ?>
-                        <a href="users-management.php" class="btn btn-warning">✖️ ล้าง</a>
-                    <?php endif; ?>
-                </form>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li>
+                        <a href="dashboard.php">📊 Dashboard</a>
+                    </li>
+
+                    <li class="menu-section">การจัดการ</li>
+                    <li class="active">
+                        <a href="users-management.php">👥 จัดการผู้ใช้</a>
+                    </li>
+                    <li>
+                        <a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a>
+                    </li>
+                    <li>
+                        <a href="documents.php">📄 จัดการเอกสาร</a>
+                    </li>
+
+                    <li class="menu-section">ฟีเจอร์</li>
+                    <li>
+                        <a href="room-booking.php">📅 จองห้องประชุม</a>
+                    </li>
+                    <li>
+                        <a href="my-bookings.php">📋 รายการจองของฉัน</a>
+                    </li>
+                    
+                  <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                        <a href="../modules/tickets.php">🎫 IT Tickets</a>
+                    </li>
+
+                    <li><a href="announcements.php">📢 ข่าวสาร</a>
+                    </li>
+
+                    <li class="menu-section">ระบบ</li>
+                    <li>
+                        <a href="settings.php">⚙️ ตั้งค่า</a>
+                    </li>
+                    <li>
+                        <a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">🚪 ออกจากระบบ</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="page-title">
+                    <h1>👥 การจัดการผู้ใช้งาน</h1>
+                </div>
             </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Username</th>
-                        <th>ชื่อ-นามสกุล</th>
-                        <th>Email</th>
-                        <th>บทบาท</th>
-                        <th>สถานะ</th>
-                        <th>สร้างเมื่อ</th>
-                        <th>จัดการ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($users as $user): ?>
-                        <tr>
-                            <td><?php echo $user['user_id']; ?></td>
-                            <td><strong><?php echo htmlspecialchars($user['username']); ?></strong></td>
-                            <td><?php echo htmlspecialchars($user['full_name']); ?></td>
-                            <td><?php echo htmlspecialchars($user['email']); ?></td>
-                            <td><span class="badge badge-<?php echo $user['role']; ?>"><?php echo $user['role'] === 'admin' ? '👨‍💼 Admin' : '👤 Staff'; ?></span></td>
-                            <td><span class="badge badge-<?php echo $user['is_active'] ? 'active' : 'inactive'; ?>"><?php echo $user['is_active'] ? '✅ Active' : '❌ Inactive'; ?></span></td>
-                            <td><?php echo date('d/m/Y H:i', strtotime($user['created_at'])); ?></td>
-                            <td>
-                                <button class="btn btn-success btn-sm" onclick="openResetPasswordModal(<?php echo $user['user_id']; ?>)">🔑</button>
-                                <form method="POST" style="display: inline;">
-                                    <input type="hidden" name="user_id" value="<?php echo $user['user_id']; ?>">
-                                    <input type="hidden" name="current_status" value="<?php echo $user['is_active']; ?>">
-                                    <button type="submit" name="toggle_status" class="btn btn-warning btn-sm"><?php echo $user['is_active'] ? '🔒' : '🔓'; ?></button>
-                                </form>
-                                <?php if ($user['user_id'] != $_SESSION['user_id']): ?>
-                                    <form method="POST" style="display: inline;" onsubmit="return confirm('แน่ใจหรือ?')">
-                                        <input type="hidden" name="user_id" value="<?php echo $user['user_id']; ?>">
-                                        <button type="submit" name="delete_user" class="btn btn-danger btn-sm">🗑️</button>
-                                    </form>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+            <!-- Alert Messages -->
+            <?php if ($message): ?>
+            <div class="alert alert-<?php echo $messageType; ?> show" id="alertMessage">
+                <?php echo $message; ?>
+            </div>
+            <?php endif; ?>
+
+            <!-- Main Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="search-bar">
+                        <form method="GET" style="display: flex; gap: 10px; flex: 1;">
+                            <input type="text" name="search" class="search-input" placeholder="ค้นหา ชื่อ, อีเมล หรือยูสเซอร์เนม..." value="<?php echo htmlspecialchars($search); ?>">
+                            <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
+                        </form>
+                    </div>
+                    <button class="btn btn-primary" onclick="openAddModal()">
+                        ➕ เพิ่มผู้ใช้ใหม่
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>ชื่อ-นามสกุล</th>
+                                <th>บทบาท</th>
+                                <th>สถานะ</th>
+                                <th>จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($users)): ?>
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 40px;">
+                                    <div style="color: #94a3b8;">
+                                        <div style="font-size: 3em; margin-bottom: 10px;">👥</div>
+                                        <p>ไม่พบผู้ใช้งาน</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php else: ?>
+                            <?php foreach ($users as $user): ?>
+                            <tr>
+                                <td><strong>#<?php echo $user['user_id']; ?></strong></td>
+                                <td><code><?php echo htmlspecialchars($user['username']); ?></code></td>
+                                <td><?php echo htmlspecialchars($user['full_name']); ?></td>
+                                <td>
+                                    <span class="badge badge-<?php 
+                                        echo $user['role'] === 'admin' ? 'admin' : 
+                                            ($user['role'] === 'staff' ? 'warning' : 'user'); 
+                                    ?>">
+                                        <?php 
+                                            echo $user['role'] === 'admin' ? '🛡️ Admin' : 
+                                                ($user['role'] === 'staff' ? '👨‍💼 Staff' : '👤 User'); 
+                                        ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-<?php echo $user['is_active'] ? 'active' : 'inactive'; ?>">
+                                        <?php echo $user['is_active'] ? '✅ ใช้งาน' : '❌ ปิดใช้งาน'; ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button class="btn-icon btn-edit" onclick='openEditModal(<?php echo json_encode($user); ?>)' title="แก้ไข">
+                                            ✏️
+                                        </button>
+                                        <?php if ($user['user_id'] != $_SESSION['user_id']): ?>
+                                        <button class="btn-icon btn-delete" onclick="deleteUser(<?php echo $user['user_id']; ?>)" title="ลบ">
+                                            🗑️
+                                        </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Add User Modal -->
-    <div id="addUserModal" class="modal">
+    <div class="modal" id="addModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">➕ เพิ่มผู้ใช้ใหม่</h3>
-                <button class="modal-close" onclick="closeModal('addUserModal')">×</button>
+                <h2 class="modal-title">➕ เพิ่มผู้ใช้ใหม่</h2>
+                <span class="modal-close" onclick="closeModal('addModal')">&times;</span>
             </div>
-            <form method="POST">
-                <div class="modal-body">
+            <div class="modal-body">
+                <form method="POST" id="addForm">
+                    <input type="hidden" name="action" value="add">
+                    
                     <div class="form-group">
                         <label class="form-label">Username *</label>
                         <input type="text" name="username" class="form-control" required>
                     </div>
+
                     <div class="form-group">
                         <label class="form-label">Password *</label>
                         <input type="password" name="password" class="form-control" required>
                     </div>
+
                     <div class="form-group">
                         <label class="form-label">ชื่อ-นามสกุล *</label>
                         <input type="text" name="full_name" class="form-control" required>
                     </div>
+
                     <div class="form-group">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="email" class="form-control">
+                        <label class="form-label">Email *</label>
+                        <input type="email" name="email" class="form-control" required>
                     </div>
+
                     <div class="form-group">
                         <label class="form-label">บทบาท *</label>
                         <select name="role" class="form-control" required>
-                            <option value="staff">Staff (พนักงาน)</option>
-                            <option value="admin">Admin (ผู้ดูแลระบบ)</option>
+                            <option value="user">User</option>
+                            <option value="staff">Staff</option>
+                            <option value="admin">Admin</option>
                         </select>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-warning" onclick="closeModal('addUserModal')">ยกเลิก</button>
-                    <button type="submit" name="add_user" class="btn btn-primary">เพิ่มผู้ใช้</button>
-                </div>
-            </form>
+
+                    <div style="display: flex; gap: 10px; margin-top: 30px;">
+                        <button type="submit" class="btn btn-success" style="flex: 1;">✅ บันทึก</button>
+                        <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeModal('addModal')">❌ ยกเลิก</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
-    <!-- Reset Password Modal -->
-    <div id="resetPasswordModal" class="modal">
+    <!-- Edit User Modal -->
+    <div class="modal" id="editModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">🔑 รีเซ็ตรหัสผ่าน</h3>
-                <button class="modal-close" onclick="closeModal('resetPasswordModal')">×</button>
+                <h2 class="modal-title">✏️ แก้ไขผู้ใช้</h2>
+                <span class="modal-close" onclick="closeModal('editModal')">&times;</span>
             </div>
-            <form method="POST">
-                <div class="modal-body">
-                    <input type="hidden" name="user_id" id="reset_user_id">
+            <div class="modal-body">
+                <form method="POST" id="editForm">
+                    <input type="hidden" name="action" value="edit">
+                    <input type="hidden" name="user_id" id="edit_user_id">
+                    
                     <div class="form-group">
-                        <label class="form-label">รหัสผ่านใหม่ *</label>
-                        <input type="password" name="new_password" class="form-control" required>
+                        <label class="form-label">Username</label>
+                        <input type="text" id="edit_username" class="form-control" readonly style="background: #f8fafc;">
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-warning" onclick="closeModal('resetPasswordModal')">ยกเลิก</button>
-                    <button type="submit" name="reset_password" class="btn btn-primary">รีเซ็ตรหัสผ่าน</button>
-                </div>
-            </form>
+
+                    <div class="form-group">
+                        <label class="form-label">Password ใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</label>
+                        <input type="password" name="password" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">ชื่อ-นามสกุล *</label>
+                        <input type="text" name="full_name" id="edit_full_name" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" name="email" id="edit_email" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">บทบาท *</label>
+                        <select name="role" id="edit_role" class="form-control" required>
+                            <option value="user">User</option>
+                            <option value="staff">Staff</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" name="is_active" id="edit_is_active" value="1">
+                            <label>เปิดใช้งาน</label>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 30px;">
+                        <button type="submit" class="btn btn-success" style="flex: 1;">✅ บันทึก</button>
+                        <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeModal('editModal')">❌ ยกเลิก</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
+    <!-- Delete Form -->
+    <form method="POST" id="deleteForm" style="display: none;">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="user_id" id="delete_user_id">
+    </form>
+
     <script>
-        function openModal(modalId) { document.getElementById(modalId).classList.add('active'); }
-        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
-        function openResetPasswordModal(userId) {
-            document.getElementById('reset_user_id').value = userId;
-            openModal('resetPasswordModal');
+        // Auto hide alert
+        setTimeout(() => {
+            const alert = document.getElementById('alertMessage');
+            if (alert) alert.classList.remove('show');
+        }, 5000);
+
+        // Modal functions
+        function openAddModal() {
+            document.getElementById('addModal').classList.add('active');
         }
+
+        function openEditModal(user) {
+            document.getElementById('edit_user_id').value = user.user_id;
+            document.getElementById('edit_username').value = user.username;
+            document.getElementById('edit_full_name').value = user.full_name;
+            document.getElementById('edit_email').value = user.email;
+            document.getElementById('edit_role').value = user.role;
+            document.getElementById('edit_is_active').checked = user.is_active == 1;
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function deleteUser(userId) {
+            if (confirm('คุณแน่ใจหรือไม่ที่จะลบผู้ใช้นี้?')) {
+                document.getElementById('delete_user_id').value = userId;
+                document.getElementById('deleteForm').submit();
+            }
+        }
+
+        // Close modal on outside click
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {
                 event.target.classList.remove('active');

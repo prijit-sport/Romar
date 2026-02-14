@@ -1,114 +1,145 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../includes/functions.php';
 
-// ตรวจสอบการ login และสิทธิ์ Admin
+// Check login and admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header('Location: ../index.php');
+    header('Location: ../auth/login.php');
     exit;
 }
 
-$db = getDb();
-$user_id = $_SESSION['user_id'];
-$success_message = '';
-$error_message = '';
+$db = getDB();
+$message = '';
+$messageType = '';
 
-// จัดการอนุมัติการจอง
+// รับ flash message จาก session หลัง redirect
+if (isset($_SESSION['flash_message'])) {
+    $message = $_SESSION['flash_message'];
+    $messageType = $_SESSION['flash_type'];
+    unset($_SESSION['flash_message'], $_SESSION['flash_type']);
+}
+
+// Handle Add/Edit/Delete Room
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    if ($_POST['action'] === 'approve_booking') {
-        $booking_id = $_POST['booking_id'];
+    if ($_POST['action'] === 'add') {
+        $roomName = sanitize($_POST['room_name']);
+        $capacity = (int)$_POST['capacity'];
+        $location = sanitize($_POST['location']);
+        $facilities = sanitize($_POST['facilities']);
+        $image = isset($_POST['image']) ? sanitize($_POST['image']) : '';
         
-        $stmt = $db->prepare("UPDATE bookings SET status = 'approved', approved_by = ?, approved_at = datetime('now'), updated_at = datetime('now') WHERE booking_id = ?");
-        $stmt->bindValue(1, $user_id, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $booking_id, SQLITE3_INTEGER);
+        $stmt = $db->prepare("INSERT INTO meeting_rooms (room_name, capacity, location, facilities, image, is_active, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())");
+        $stmt->bind_param('sisss', $roomName, $capacity, $location, $facilities, $image);
         
         if ($stmt->execute()) {
-            Database::checkpoint();
-            $success_message = "อนุมัติการจองสำเร็จ";
+            logActivity($_SESSION['user_id'], 'เพิ่มห้องประชุม', 'Meeting Rooms', "เพิ่มห้อง: $roomName");
+            $_SESSION['flash_message'] = 'เพิ่มห้องประชุมสำเร็จ!';
+            $_SESSION['flash_type'] = 'success';
+            header('Location: meeting-rooms.php');
+            exit;
         } else {
-            $error_message = "ไม่สามารถอนุมัติการจองได้";
+            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+            $messageType = 'error';
         }
-    }
-    
-    if ($_POST['action'] === 'reject_booking') {
-        $booking_id = $_POST['booking_id'];
+    } elseif ($_POST['action'] === 'edit') {
+        $roomId = (int)$_POST['room_id'];
+        $roomName = sanitize($_POST['room_name']);
+        $capacity = (int)$_POST['capacity'];
+        $location = sanitize($_POST['location']);
+        $facilities = sanitize($_POST['facilities']);
+        $image = isset($_POST['image']) ? sanitize($_POST['image']) : '';
+        $isActive = isset($_POST['is_active']) ? 1 : 0;
         
-        $stmt = $db->prepare("UPDATE bookings SET status = 'rejected', approved_by = ?, approved_at = datetime('now'), updated_at = datetime('now') WHERE booking_id = ?");
-        $stmt->bindValue(1, $user_id, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $booking_id, SQLITE3_INTEGER);
+        $stmt = $db->prepare("UPDATE meeting_rooms SET room_name = ?, capacity = ?, location = ?, facilities = ?, image = ?, is_active = ? WHERE room_id = ?");
+        $stmt->bind_param('sisssii', $roomName, $capacity, $location, $facilities, $image, $isActive, $roomId);
         
         if ($stmt->execute()) {
-            Database::checkpoint();
-            $success_message = "ไม่อนุมัติการจองแล้ว";
+            logActivity($_SESSION['user_id'], 'แก้ไขห้องประชุม', 'Meeting Rooms', "แก้ไขห้อง ID: $roomId");
+            $_SESSION['flash_message'] = 'แก้ไขห้องประชุมสำเร็จ!';
+            $_SESSION['flash_type'] = 'success';
+            header('Location: meeting-rooms.php');
+            exit;
         } else {
-            $error_message = "ไม่สามารถดำเนินการได้";
+            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+            $messageType = 'error';
         }
-    }
-    
-    // จัดการห้องประชุม
-    if ($_POST['action'] === 'add_room') {
-        $room_name = trim($_POST['room_name']);
-        $capacity = $_POST['capacity'];
-        $location = trim($_POST['location']);
-        $facilities = trim($_POST['facilities']);
+    } elseif ($_POST['action'] === 'delete') {
+        $roomId = (int)$_POST['room_id'];
         
-        $stmt = $db->prepare("INSERT INTO meeting_rooms (room_name, capacity, location, facilities) VALUES (?, ?, ?, ?)");
-        $stmt->bindValue(1, $room_name, SQLITE3_TEXT);
-        $stmt->bindValue(2, $capacity, SQLITE3_INTEGER);
-        $stmt->bindValue(3, $location, SQLITE3_TEXT);
-        $stmt->bindValue(4, $facilities, SQLITE3_TEXT);
+        // เช็คว่ามีการจองอยู่หรือไม่
+        $checkStmt = $db->prepare("SELECT COUNT(*) as count FROM bookings WHERE room_id = ? AND status != 'cancelled'");
+        $checkStmt->bind_param('i', $roomId);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        $checkRow = $checkResult->fetch_assoc();
         
-        if ($stmt->execute()) {
-            Database::checkpoint();
-            $success_message = "เพิ่มห้องประชุมสำเร็จ";
+        if ($checkRow['count'] > 0) {
+            $message = 'ไม่สามารถลบได้! มีการจองห้องนี้อยู่';
+            $messageType = 'error';
         } else {
-            $error_message = "ไม่สามารถเพิ่มห้องประชุมได้";
+            $stmt = $db->prepare("DELETE FROM meeting_rooms WHERE room_id = ?");
+            $stmt->bind_param('i', $roomId);
+            
+            if ($stmt->execute()) {
+                logActivity($_SESSION['user_id'], 'ลบห้องประชุม', 'Meeting Rooms', "ลบห้อง ID: $roomId");
+                $_SESSION['flash_message'] = 'ลบห้องประชุมสำเร็จ!';
+                $_SESSION['flash_type'] = 'success';
+                header('Location: meeting-rooms.php');
+                exit;
+            } else {
+                $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+                $messageType = 'error';
+            }
         }
-    }
-    
-    if ($_POST['action'] === 'toggle_room_status') {
-        $room_id = $_POST['room_id'];
-        $new_status = $_POST['new_status'];
-        
-        $stmt = $db->prepare("UPDATE meeting_rooms SET is_active = ?, updated_at = datetime('now') WHERE room_id = ?");
-        $stmt->bindValue(1, $new_status, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $room_id, SQLITE3_INTEGER);
-        
+    } elseif ($_POST['action'] === 'approve') {
+        $bookingId = (int)$_POST['booking_id'];
+        $stmt = $db->prepare("UPDATE bookings SET status = 'approved', approved_by = ?, approved_at = NOW() WHERE booking_id = ? AND status = 'pending'");
+        $stmt->bind_param('ii', $_SESSION['user_id'], $bookingId);
         if ($stmt->execute()) {
-            Database::checkpoint();
-            $success_message = $new_status ? "เปิดใช้งานห้องแล้ว" : "ปิดใช้งานห้องแล้ว";
+            logActivity($_SESSION['user_id'], 'อนุมัติจอง', 'Bookings', "อนุมัติ Booking ID: $bookingId");
+            $_SESSION['flash_message'] = 'อนุมัติการจองสำเร็จ!';
+            $_SESSION['flash_type'] = 'success';
+            header('Location: meeting-rooms.php');
+            exit;
+        } else {
+            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+            $messageType = 'error';
+        }
+    } elseif ($_POST['action'] === 'reject') {
+        $bookingId = (int)$_POST['booking_id'];
+        $stmt = $db->prepare("UPDATE bookings SET status = 'rejected', approved_by = ?, approved_at = NOW() WHERE booking_id = ? AND status = 'pending'");
+        $stmt->bind_param('ii', $_SESSION['user_id'], $bookingId);
+        if ($stmt->execute()) {
+            logActivity($_SESSION['user_id'], 'ปฏิเสทธิ์จอง', 'Bookings', "ปฏิเสทธิ์ Booking ID: $bookingId");
+            $_SESSION['flash_message'] = 'ปฏิเสทธิ์การจองสำเร็จ!';
+            $_SESSION['flash_type'] = 'success';
+            header('Location: meeting-rooms.php');
+            exit;
+        } else {
+            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+            $messageType = 'error';
         }
     }
 }
+$rooms = $db->query("SELECT * FROM meeting_rooms ORDER BY room_name ASC")->fetch_all(MYSQLI_ASSOC);
 
-// ดึงรายการจองที่รออนุมัติ
-$pending_bookings = $db->query("
-    SELECT b.*, r.room_name, r.location, u.full_name as user_name
-    FROM bookings b
-    JOIN meeting_rooms r ON b.room_id = r.room_id
-    JOIN users u ON b.user_id = u.user_id
-    WHERE b.status = 'pending'
+// ดึง pending bookings สำหรับ อนุมัติ พร้อม JOIN room กับ user
+$pendingBookings = $db->query("
+    SELECT b.*, mr.room_name, u.username 
+    FROM bookings b 
+    JOIN meeting_rooms mr ON b.room_id = mr.room_id 
+    JOIN users u ON b.user_id = u.user_id 
+    WHERE b.status = 'pending' 
     ORDER BY b.booking_date ASC, b.start_time ASC
-");
-
-// ดึงรายการห้องประชุมทั้งหมด
-$rooms = $db->query("SELECT * FROM meeting_rooms ORDER BY room_name");
-
-// สถิติ
-$stats = [
-    'total_rooms' => $db->querySingle("SELECT COUNT(*) FROM meeting_rooms"),
-    'active_rooms' => $db->querySingle("SELECT COUNT(*) FROM meeting_rooms WHERE is_active = 1"),
-    'pending_bookings' => $db->querySingle("SELECT COUNT(*) FROM bookings WHERE status = 'pending'"),
-    'approved_today' => $db->querySingle("SELECT COUNT(*) FROM bookings WHERE status = 'approved' AND booking_date = date('now')")
-];
+")->fetch_all(MYSQLI_ASSOC);
 ?>
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>จัดการห้องประชุม - Admin</title>
+    <title>จัดการห้องประชุม - Romar</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -119,31 +150,110 @@ $stats = [
 
         body {
             font-family: 'Sarabun', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+            background: #065f159c;
+            color: #000000;
         }
 
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
+            display: flex;
+            min-height: 100vh;
         }
 
-        .header {
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg, #10ce30 0%, #000000 100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgb(0, 0, 0);
+            z-index: 1000;
+        }
+
+        .sidebar-brand {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgb(255, 255, 255);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+        }
+
+        .brand-icon {
+            font-size: 2em;
+        }
+
+        .brand-name {
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+
+        .brand-subtitle {
+            color: #000000;
+            font-size: 1em;
+            opacity: 0.8;
+        }
+
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            color: rgb(255, 255, 255);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .sidebar-nav a:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .sidebar-nav li.active a {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border-left: 4px solid #000000;
+        }
+
+        .menu-section {
+            padding: 20px 20px 10px;
+            color: rgb(255, 255, 255);
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 30px;
+        }
+
+        .page-header {
             background: white;
             padding: 25px 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgb(0, 0, 0);
+            margin-bottom: 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .header h1 {
-            color: #667eea;
-            font-size: 2em;
-            font-weight: 700;
+        .page-title h1 {
+            font-size: 1.8em;
+            color: #0a0a0a;
+            font-weight: 600;
         }
 
         .btn {
@@ -153,28 +263,31 @@ $stats = [
             font-size: 1em;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
             text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #10ce30 100%);
+            color: white;
+            box-shadow: 0 4px 6px rgb(0, 0, 0);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgb(0, 0, 0);
+        }
+
+        .btn-secondary {
+            background: #718096;
             color: white;
         }
 
         .btn-success {
-            background: #27ae60;
-            color: white;
-        }
-
-        .btn-danger {
-            background: #e74c3c;
+            background: #10ce30;
             color: white;
         }
 
@@ -183,112 +296,112 @@ $stats = [
             font-size: 0.9em;
         }
 
-        .alert {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .stats-grid {
+        /* Cards Grid */
+        .rooms-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
         }
 
-        .stat-card {
+        .room-card {
             background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-        }
-
-        .stat-value {
-            font-size: 2.5em;
-            font-weight: 700;
-            color: #667eea;
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            color: #7f8c8d;
-            font-size: 1em;
-        }
-
-        .section {
-            background: white;
-            padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgb(0, 0, 0);
+            overflow: hidden;
+            transition: all 0.3s;
         }
 
-        .section-title {
-            font-size: 1.5em;
-            font-weight: 700;
-            color: #2c3e50;
-            margin-bottom: 20px;
+        .room-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgb(255, 255, 255);
+        }
+
+        .room-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #070707 0%, #10ce30 100%);
+            color: white;
+        }
+
+        .room-name {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .room-location {
+            opacity: 0.9;
+            font-size: 0.95em;
+        }
+
+        .room-body {
+            padding: 20px;
+        }
+
+        .room-info {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .info-item {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        .info-icon {
+            font-size: 1.2em;
         }
 
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
+        .info-text {
+            font-size: 0.95em;
+            color: #0067f7;
         }
 
-        th {
-            background: #f8f9fa;
+        .room-facilities {
+            margin-bottom: 15px;
+        }
+
+        .facilities-label {
             font-weight: 600;
-            color: #2c3e50;
+            margin-bottom: 8px;
+            color: #000000;
         }
 
-        tr:hover {
-            background: #f8f9fa;
+        .facilities-list {
+            color: #000000;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .room-actions {
+            display: flex;
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
         }
 
         .badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: 600;
             display: inline-block;
-        }
-
-        .badge-pending {
-            background: #fff3cd;
-            color: #856404;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 500;
         }
 
         .badge-active {
-            background: #d4edda;
-            color: #155724;
+            background: #d1fae5;
+            color: #065f46;
         }
 
         .badge-inactive {
-            background: #f8d7da;
-            color: #721c24;
+            background: #fee2e2;
+            color: #991b1b;
         }
 
+        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -296,8 +409,8 @@ $stats = [
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1000;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
             align-items: center;
             justify-content: center;
         }
@@ -308,7 +421,7 @@ $stats = [
 
         .modal-content {
             background: white;
-            border-radius: 15px;
+            border-radius: 12px;
             width: 90%;
             max-width: 600px;
             max-height: 90vh;
@@ -316,8 +429,8 @@ $stats = [
         }
 
         .modal-header {
-            padding: 25px;
-            border-bottom: 1px solid #dee2e6;
+            padding: 25px 30px;
+            border-bottom: 1px solid #e2e8f0;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -325,277 +438,487 @@ $stats = [
 
         .modal-title {
             font-size: 1.5em;
-            font-weight: 700;
-            color: #2c3e50;
+            font-weight: 600;
+            color: #000000;
         }
 
         .modal-close {
-            background: none;
-            border: none;
-            font-size: 2em;
+            font-size: 1.5em;
             cursor: pointer;
-            color: #999;
+            color: #000000;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #ef4444;
         }
 
         .modal-body {
-            padding: 25px;
+            padding: 30px;
         }
 
         .form-group {
             margin-bottom: 20px;
         }
 
-        .form-group label {
+        .form-label {
             display: block;
             margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
+            font-weight: 500;
+            color: #000000;
         }
 
-        .form-group input,
-        .form-group textarea {
+        .form-control {
             width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
             font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgb(255, 255, 255);
+        }
+
+        textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        /* Pending Bookings Section */
+        .section-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pending-count {
+            background: #f59e0b;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: 600;
+        }
+
+        .pending-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgb(0, 0, 0);
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid #eeda88;
+        }
+
+        .pending-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95em;
+        }
+
+        .pending-table th {
+            text-align: left;
+            padding: 12px 14px;
+            background: #fef3c7;
+            color: #92400e;
+            font-weight: 600;
+            border-bottom: 2px solid #f59e0b;
+            white-space: nowrap;
+        }
+
+        .pending-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #050505;
+        }
+
+        .pending-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .pending-table tr:hover td {
+            background: #fffbeb;
+        }
+
+        .badge-pending {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .btn-approve {
+            background: #10b981;
+            color: white;
+            padding: 7px 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.88em;
+            cursor: pointer;
+            transition: all 0.2s;
             font-family: 'Sarabun', sans-serif;
         }
 
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
+        .btn-approve:hover { background: #059669; }
+
+        .btn-reject {
+            background: #ef4444;
+            color: white;
+            padding: 7px 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.88em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Sarabun', sans-serif;
         }
 
-        .empty-state {
+        .btn-reject:hover { background: #dc2626; }
+
+        .action-btns { display: flex; gap: 8px; }
+
+        .empty-pending {
             text-align: center;
-            padding: 40px 20px;
-            color: #7f8c8d;
+            padding: 30px;
+            color: #000000;
+            font-size: 1.05em;
         }
 
         @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            table {
-                font-size: 0.9em;
-            }
-
-            th, td {
-                padding: 10px;
-            }
+            .sidebar { margin-left: -260px; }
+            .main-content { margin-left: 0; padding: 15px; }
+            .rooms-grid { grid-template-columns: 1fr; }
+            .pending-table { font-size: 0.85em; }
+            .pending-table th, .pending-table td { padding: 8px 10px; }
         }
+
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>🏢 จัดการห้องประชุม</h1>
-            <div>
-                <a href="dashboard.php" class="btn btn-secondary">← กลับหน้าหลัก</a>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">🏢</div>
+                <div>
+                    <div class="brand-name">Romar</div>
+                    <div class="brand-subtitle">Dormitory</div>
+                </div>
             </div>
+
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="dashboard.php">📊 Dashboard</a></li>
+                    <li class="menu-section">การจัดการ</li>
+                    <li><a href="users-management.php">👥 จัดการผู้ใช้</a></li>
+                    <li class="active"><a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a></li>
+                    <li><a href="documents.php">📄 จัดการเอกสาร</a></li>
+                    <li class="menu-section">ฟีเจอร์</li>
+                    <li><a href="room-booking.php">📅 จองห้องประชุม</a></li>
+                    <li><a href="my-bookings.php">📋 รายการจองของฉัน</a></li>
+                      <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                        <a href="../modules/tickets.php">🎫 IT Tickets</a>
+                    </li>
+                    <li><a href="announcements.php">📢 ข่าวสาร</a></li>
+                    <li class="menu-section">ระบบ</li>
+                    <li><a href="settings.php">⚙️ ตั้งค่า</a></li>
+                    <li><a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">🚪 ออกจากระบบ</a></li>
+                </ul>
+            </nav>
         </div>
 
-        <?php if ($success_message): ?>
-            <div class="alert alert-success"><?php echo $success_message; ?></div>
-        <?php endif; ?>
-
-        <?php if ($error_message): ?>
-            <div class="alert alert-error"><?php echo $error_message; ?></div>
-        <?php endif; ?>
-
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value"><?php echo $stats['total_rooms']; ?></div>
-                <div class="stat-label">🏢 ห้องประชุมทั้งหมด</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value"><?php echo $stats['active_rooms']; ?></div>
-                <div class="stat-label">✅ ห้องที่ใช้งานได้</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value"><?php echo $stats['pending_bookings']; ?></div>
-                <div class="stat-label">⏳ รออนุมัติ</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value"><?php echo $stats['approved_today']; ?></div>
-                <div class="stat-label">📅 จองวันนี้</div>
-            </div>
-        </div>
-
-        <!-- Pending Bookings -->
-        <div class="section">
-            <div class="section-title">
-                <span>⏳</span>
-                <span>รายการจองรออนุมัติ</span>
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="page-header">
+                <div class="page-title">
+                    <h1>🏢 จัดการห้องประชุม</h1>
+                </div>
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    ➕ เพิ่มห้องประชุม
+                </button>
             </div>
 
-            <?php
-            $pending_array = [];
-            while ($booking = $pending_bookings->fetchArray(SQLITE3_ASSOC)) {
-                $pending_array[] = $booking;
-            }
-            ?>
+            <?php if ($message): ?>
+            <div class="alert alert-<?php echo $messageType; ?> show">
+                <?php echo $message; ?>
+            </div>
+            <?php endif; ?>
 
-            <?php if (count($pending_array) > 0): ?>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ผู้จอง</th>
-                            <th>ห้อง</th>
-                            <th>วันที่</th>
-                            <th>เวลา</th>
-                            <th>จำนวนคน</th>
-                            <th>วัตถุประสงค์</th>
-                            <th>จัดการ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($pending_array as $booking): ?>
+            <!-- ===== Pending Bookings สำหรับ อนุมัติ/ปฏิเสท ===== -->
+            <div class="pending-section">
+                <div class="section-title">
+                    ⏳ การจองที่รอการอนุมัติ
+                    <?php if (count($pendingBookings) > 0): ?>
+                        <span class="pending-count"><?php echo count($pendingBookings); ?> รายการ</span>
+                    <?php endif; ?>
+                </div>
+
+                <?php if (count($pendingBookings) === 0): ?>
+                    <div class="empty-pending">✅ ไม่มีการจองที่รอการอนุมัติ</div>
+                <?php else: ?>
+                    <table class="pending-table">
+                        <thead>
                             <tr>
-                                <td><?php echo htmlspecialchars($booking['user_name']); ?></td>
-                                <td><strong><?php echo htmlspecialchars($booking['room_name']); ?></strong></td>
+                                <th>#</th>
+                                <th>ห้องประชุม</th>
+                                <th>ผู้จอง</th>
+                                <th>วันที่จอง</th>
+                                <th>เวลา</th>
+                                <th>วัตถุประสงค์</th>
+                                <th>จำนวนผู้เข้าร่วม</th>
+                                <th>การดำเนินการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($pendingBookings as $i => $booking): ?>
+                            <tr>
+                                <td><?php echo $i + 1; ?></td>
+                                <td><?php echo htmlspecialchars($booking['room_name']); ?></td>
+                                <td><?php echo htmlspecialchars($booking['username']); ?></td>
                                 <td><?php echo date('d/m/Y', strtotime($booking['booking_date'])); ?></td>
-                                <td><?php echo substr($booking['start_time'], 0, 5); ?> - <?php echo substr($booking['end_time'], 0, 5); ?></td>
+                                <td><?php echo date('H:i', strtotime($booking['start_time'])); ?> - <?php echo date('H:i', strtotime($booking['end_time'])); ?> น.</td>
+                                <td><?php echo htmlspecialchars($booking['purpose']); ?></td>
                                 <td><?php echo $booking['num_attendees']; ?> คน</td>
-                                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;"><?php echo htmlspecialchars($booking['purpose']); ?></td>
                                 <td>
-                                    <form method="POST" style="display: inline;">
-                                        <input type="hidden" name="action" value="approve_booking">
-                                        <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
-                                        <button type="submit" class="btn btn-success btn-sm">✅ อนุมัติ</button>
-                                    </form>
-                                    <form method="POST" style="display: inline;">
-                                        <input type="hidden" name="action" value="reject_booking">
-                                        <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
-                                        <button type="submit" class="btn btn-danger btn-sm" 
-                                                onclick="return confirm('ต้องการไม่อนุมัติการจองนี้ใช่หรือไม่?')">🚫 ไม่อนุมัติ</button>
-                                    </form>
+                                    <div class="action-btns">
+                                        <form method="POST" style="margin:0;">
+                                            <input type="hidden" name="action" value="approve">
+                                            <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
+                                            <button type="submit" class="btn-approve" onclick="return confirm('อนุมัติการจองนี้?')">✅ อนุมัติ</button>
+                                        </form>
+                                        <form method="POST" style="margin:0;">
+                                            <input type="hidden" name="action" value="reject">
+                                            <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
+                                            <button type="submit" class="btn-reject" onclick="return confirm('ปฏิเสทธิ์การจองนี้?')">❌ ปฏิเสท</button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php else: ?>
-                <div class="empty-state">
-                    <div style="font-size: 3em; margin-bottom: 10px;">✅</div>
-                    <p>ไม่มีรายการจองรออนุมัติ</p>
-                </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- Meeting Rooms -->
-        <div class="section">
-            <div class="section-title">
-                <span>🏢</span>
-                <span>จัดการห้องประชุม</span>
-                <button class="btn btn-primary btn-sm" onclick="openAddRoomModal()" style="margin-left: auto;">+ เพิ่มห้องใหม่</button>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
             </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>ชื่อห้อง</th>
-                        <th>ความจุ</th>
-                        <th>สถานที่</th>
-                        <th>สิ่งอำนวยความสะดวก</th>
-                        <th>สถานะ</th>
-                        <th>จัดการ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php while ($room = $rooms->fetchArray(SQLITE3_ASSOC)): ?>
-                        <tr>
-                            <td><strong><?php echo htmlspecialchars($room['room_name']); ?></strong></td>
-                            <td><?php echo $room['capacity']; ?> คน</td>
-                            <td><?php echo htmlspecialchars($room['location']); ?></td>
-                            <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;">
-                                <?php echo htmlspecialchars($room['facilities']); ?>
-                            </td>
-                            <td>
-                                <?php if ($room['is_active']): ?>
-                                    <span class="badge badge-active">ใช้งานได้</span>
-                                <?php else: ?>
-                                    <span class="badge badge-inactive">ปิดใช้งาน</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <form method="POST" style="display: inline;">
-                                    <input type="hidden" name="action" value="toggle_room_status">
-                                    <input type="hidden" name="room_id" value="<?php echo $room['room_id']; ?>">
-                                    <input type="hidden" name="new_status" value="<?php echo $room['is_active'] ? 0 : 1; ?>">
-                                    <button type="submit" class="btn btn-sm <?php echo $room['is_active'] ? 'btn-danger' : 'btn-success'; ?>">
-                                        <?php echo $room['is_active'] ? '🔒 ปิดใช้งาน' : '✅ เปิดใช้งาน'; ?>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endwhile; ?>
-                </tbody>
-            </table>
+            <div class="rooms-grid">
+                <?php foreach ($rooms as $room): ?>
+                <div class="room-card" data-room='<?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>'>
+                    <div class="room-header">
+                        <div class="room-name"><?php echo htmlspecialchars($room['room_name']); ?></div>
+                        <div class="room-location">📍 <?php echo htmlspecialchars($room['location']); ?></div>
+                    </div>
+                    <div class="room-body">
+                        <div class="room-info">
+                            <div class="info-item">
+                                <span class="info-icon">👥</span>
+                                <span class="info-text"><?php echo $room['capacity']; ?> คน</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="badge badge-<?php echo $room['is_active'] ? 'active' : 'inactive'; ?>">
+                                    <?php echo $room['is_active'] ? '✅ เปิดใช้งาน' : '❌ ปิดใช้งาน'; ?>
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="room-facilities">
+                            <div class="facilities-label">🔧 สิ่งอำนวยความสะดวก:</div>
+                            <div class="facilities-list"><?php echo nl2br(htmlspecialchars($room['facilities'])); ?></div>
+                        </div>
+                       
+                        <div class="room-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="openEditModal(this)" style="flex: 1;">
+                                ✏️ แก้ไข
+                            </button>
+                            <button class="btn btn-sm" style="flex: 1; background: #ef4444; color: white;" onclick="deleteRoom(<?php echo $room['room_id']; ?>)">
+                                🗑️ ลบ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
         </div>
     </div>
 
-    <!-- Add Room Modal -->
-    <div id="addRoomModal" class="modal">
+    <!-- Add Modal -->
+    <div class="modal" id="addModal">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">เพิ่มห้องประชุมใหม่</div>
-                <button class="modal-close" onclick="closeAddRoomModal()">&times;</button>
+                <h2 class="modal-title">➕ เพิ่มห้องประชุม</h2>
+                <span class="modal-close" onclick="closeModal('addModal')">&times;</span>
             </div>
-
             <div class="modal-body">
                 <form method="POST">
-                    <input type="hidden" name="action" value="add_room">
-
+                    <input type="hidden" name="action" value="add">
+                    
                     <div class="form-group">
-                        <label>ชื่อห้อง: *</label>
-                        <input type="text" name="room_name" required>
+                        <label class="form-label">ชื่อห้องประชุม *</label>
+                        <input type="text" name="room_name" class="form-control" required>
                     </div>
 
                     <div class="form-group">
-                        <label>ความจุ (คน): *</label>
-                        <input type="number" name="capacity" required min="1">
+                        <label class="form-label">ความจุ (คน) *</label>
+                        <input type="number" name="capacity" class="form-control" min="1" required>
                     </div>
 
                     <div class="form-group">
-                        <label>สถานที่: *</label>
-                        <input type="text" name="location" required>
+                        <label class="form-label">สถานที่ *</label>
+                        <input type="text" name="location" class="form-control" placeholder="เช่น ชั้น 2" required>
                     </div>
 
                     <div class="form-group">
-                        <label>สิ่งอำนวยความสะดวก:</label>
-                        <textarea name="facilities" rows="3" placeholder="เช่น โปรเจคเตอร์, ไวท์บอร์ด, Wi-Fi..."></textarea>
+                        <label class="form-label">สิ่งอำนวยความสะดวก *</label>
+                        <textarea name="facilities" class="form-control" placeholder="เช่น โปรเจคเตอร์, ไวท์บอร์ด, Wi-Fi" required></textarea>
                     </div>
 
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button type="button" class="btn btn-secondary" onclick="closeAddRoomModal()" style="flex: 1;">ยกเลิก</button>
-                        <button type="submit" class="btn btn-primary" style="flex: 1;">✅ เพิ่มห้อง</button>
+                    <div class="form-group">
+                        <label class="form-label">รูปห้อง (URL)</label>
+                        <input type="text" name="image" class="form-control" placeholder="เช่น images/room1.jpg">
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 30px;">
+                        <button type="submit" class="btn btn-success" style="flex: 1;">✅ บันทึก</button>
+                        <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeModal('addModal')">❌ ยกเลิก</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
+    <!-- Edit Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">✏️ แก้ไขห้องประชุม</h2>
+                <span class="modal-close" onclick="closeModal('editModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="edit">
+                    <input type="hidden" name="room_id" id="edit_room_id">
+                    
+                    <div class="form-group">
+                        <label class="form-label">ชื่อห้องประชุม *</label>
+                        <input type="text" name="room_name" id="edit_room_name" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">ความจุ (คน) *</label>
+                        <input type="number" name="capacity" id="edit_capacity" class="form-control" min="1" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">สถานที่ *</label>
+                        <input type="text" name="location" id="edit_location" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">สิ่งอำนวยความสะดวก *</label>
+                        <textarea name="facilities" id="edit_facilities" class="form-control" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">รูปห้อง (URL)</label>
+                        <input type="text" name="image" id="edit_image" class="form-control" placeholder="เช่น images/room1.jpg">
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" name="is_active" id="edit_is_active" value="1" style="width: 20px; height: 20px;">
+                            <label>เปิดใช้งาน</label>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 30px;">
+                        <button type="submit" class="btn btn-success" style="flex: 1;">✅ บันทึก</button>
+                        <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeModal('editModal')">❌ ยกเลิก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" id="deleteForm" style="display: none;">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="room_id" id="delete_room_id">
+    </form>
+
     <script>
-        function openAddRoomModal() {
-            document.getElementById('addRoomModal').classList.add('active');
+        function openAddModal() {
+            document.getElementById('addModal').classList.add('active');
         }
 
-        function closeAddRoomModal() {
-            document.getElementById('addRoomModal').classList.remove('active');
+        function openEditModal(btn) {
+            const room = JSON.parse(btn.closest('.room-card').dataset.room);
+            document.getElementById('edit_room_id').value = room.room_id;
+            document.getElementById('edit_room_name').value = room.room_name;
+            document.getElementById('edit_capacity').value = room.capacity;
+            document.getElementById('edit_location').value = room.location;
+            document.getElementById('edit_facilities').value = room.facilities;
+            document.getElementById('edit_image').value = room.image || '';
+            document.getElementById('edit_is_active').checked = room.is_active == 1;
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function deleteRoom(roomId) {
+            if (confirm('คุณแน่ใจหรือไม่ที่จะลบห้องประชุมนี้?')) {
+                document.getElementById('delete_room_id').value = roomId;
+                document.getElementById('deleteForm').submit();
+            }
         }
 
         window.onclick = function(event) {
-            const modal = document.getElementById('addRoomModal');
-            if (event.target === modal) {
-                closeAddRoomModal();
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
             }
         }
+
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) alert.classList.remove('show');
+        }, 5000);
     </script>
 </body>
 </html>

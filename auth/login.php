@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg,  #88e72f 40%,#10ce30 60%, #ffdf29 100%);
             position: relative;
             overflow: hidden;
         }
@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .login-container {
             background: white;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 60px rgb(0, 0, 0);
             overflow: hidden;
             width: 420px;
             max-width: 90%;
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .login-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg,  #10ce30 0%,  rgb(0, 0, 0)100%);
             padding: 40px 30px;
             text-align: center;
             color: white;
@@ -153,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #333;
+            color: #000000;
             font-weight: 500;
             font-size: 0.95em;
         }
@@ -170,8 +170,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .form-control:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgb(255, 255, 255);
         }
 
         .password-wrapper {
@@ -191,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg,  #000000 0%, #10ce30 100%);
             color: white;
             border: none;
             border-radius: 10px;
@@ -204,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 10px 20px rgb(246, 250, 35);
         }
 
         .btn:active {
@@ -247,17 +247,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background: #f8f9fa;
             text-align: center;
             font-size: 0.9em;
-            color: #666;
+            color: #000000;
         }
 
         .login-footer strong {
-            color: #333;
+            color: #000000;
         }
 
         .demo-info {
             margin-top: 15px;
             padding: 15px;
-            background: #e8eaf6;
+            background: #4cb93de8;
             border-radius: 8px;
             font-size: 0.85em;
             line-height: 1.6;
@@ -266,7 +266,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .demo-info strong {
             display: block;
             margin-bottom: 8px;
-            color: #5e35b1;
+            color: #f1ff33;
         }
 
         .demo-info code {
@@ -345,12 +345,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <button type="submit" class="btn">เข้าสู่ระบบ</button>
             </form>
-
-            <div class="demo-info">
-                <strong>🔑 ข้อมูลทดสอบ:</strong>
-                <div>Admin: <code>admin</code> / <code>admin123</code></div>
-                <div>Staff: <code>staff1</code> / <code>staff123</code></div>
-            </div>
         </div>
 
         <div class="login-footer">

@@ -162,7 +162,7 @@ function getFileIcon($ext) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $page_title; ?> - ระบบจัดการหอพัก</title>
+    <title><?php echo $page_title; ?> - ระบบจัดการในRomar<</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -593,8 +593,8 @@ function getFileIcon($ext) {
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <h2>ระบบจัดการหอพัก</h2>
-            <p>ROMARDORMITORY-MANAGEMENT System</p>
+            <h2>ระบบจัดการในRomar</h2>
+            <p>Romar romarIndustrial Co., Ltd.</p>
         </div>
 
         <div class="sidebar-menu">

@@ -23,28 +23,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $purpose = trim($_POST['purpose']);
     $notes = trim($_POST['notes'] ?? '');
     
-    // ตรวจสอบความพร้อมของห้อง
+    // ตรวจสอบความพร้อมของห้อง (standard overlap: existing.start < new.end AND existing.end > new.start)
     $check_stmt = $db->prepare("
         SELECT COUNT(*) as count FROM bookings 
         WHERE room_id = ? 
         AND booking_date = ? 
         AND status != 'cancelled'
-        AND (
-            (start_time < ? AND end_time > ?)
-            OR (start_time < ? AND end_time > ?)
-            OR (start_time >= ? AND end_time <= ?)
-        )
+        AND start_time < ? 
+        AND end_time > ?
     ");
-    $check_stmt->bindValue(1, $room_id, SQLITE3_INTEGER);
-    $check_stmt->bindValue(2, $booking_date, SQLITE3_TEXT);
-    $check_stmt->bindValue(3, $end_time, SQLITE3_TEXT);
-    $check_stmt->bindValue(4, $start_time, SQLITE3_TEXT);
-    $check_stmt->bindValue(5, $end_time, SQLITE3_TEXT);
-    $check_stmt->bindValue(6, $end_time, SQLITE3_TEXT);
-    $check_stmt->bindValue(7, $start_time, SQLITE3_TEXT);
-    $check_stmt->bindValue(8, $end_time, SQLITE3_TEXT);
-    $result = $check_stmt->execute();
-    $row = $result->fetchArray(SQLITE3_ASSOC);
+    $check_stmt->bind_param("isss", $room_id, $booking_date, $end_time, $start_time);
+    $check_stmt->execute();
+    $row = $check_stmt->get_result()->fetch_assoc();
     
     if ($row['count'] > 0) {
         $error_message = "ห้องนี้ถูกจองในช่วงเวลาดังกล่าวแล้ว กรุณาเลือกเวลาอื่น";
@@ -54,23 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             INSERT INTO bookings (room_id, user_id, booking_date, start_time, end_time, num_attendees, purpose, notes, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
         ");
-        $stmt->bindValue(1, $room_id, SQLITE3_INTEGER);
-        $stmt->bindValue(2, $user_id, SQLITE3_INTEGER);
-        $stmt->bindValue(3, $booking_date, SQLITE3_TEXT);
-        $stmt->bindValue(4, $start_time, SQLITE3_TEXT);
-        $stmt->bindValue(5, $end_time, SQLITE3_TEXT);
-        $stmt->bindValue(6, $num_attendees, SQLITE3_INTEGER);
-        $stmt->bindValue(7, $purpose, SQLITE3_TEXT);
-        $stmt->bindValue(8, $notes, SQLITE3_TEXT);
+        $stmt->bind_param("iisssiss", $room_id, $user_id, $booking_date, $start_time, $end_time, $num_attendees, $purpose, $notes);
         
         if ($stmt->execute()) {
             // Log activity
-            $log = $db->prepare("INSERT INTO activity_logs (user_id, action, description, created_at) VALUES (?, 'book_room', ?, datetime('now'))");
-            $log->bindValue(1, $user_id, SQLITE3_INTEGER);
-            $log->bindValue(2, "จองห้องประชุมวันที่ {$booking_date} เวลา {$start_time}-{$end_time}", SQLITE3_TEXT);
+            $log = $db->prepare("INSERT INTO activity_logs (user_id, action, description, created_at) VALUES (?, 'book_room', ?, NOW())");
+            $log_message = "จองห้องประชุมวันที่ {$booking_date} เวลา {$start_time}-{$end_time}";
+            $log->bind_param("is", $user_id, $log_message);
             $log->execute();
-            
-            Database::checkpoint();
             
             $success_message = "จองห้องประชุมสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ";
         } else {
@@ -82,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // ดึงข้อมูลห้องประชุมทั้งหมด
 $rooms_result = $db->query("SELECT * FROM meeting_rooms WHERE is_active = 1 ORDER BY room_name");
 $rooms = [];
-while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
+while ($room = $rooms_result->fetch_assoc()) {
     $rooms[] = $room;
 }
 ?>
@@ -103,7 +84,7 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
 
         body {
             font-family: 'Sarabun', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg,  #065f159c 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -117,7 +98,7 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
             background: white;
             padding: 25px 30px;
             border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 32px rgb(0, 0, 0);
             margin-bottom: 25px;
             display: flex;
             justify-content: space-between;
@@ -125,7 +106,7 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
         }
 
         .header h1 {
-            color: #667eea;
+            color: #000000;
             font-size: 2em;
             font-weight: 700;
         }
@@ -148,13 +129,13 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #10ce30 100%);
             color: white;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 8px 20px rgb(0, 0, 0);
         }
 
         .alert {
@@ -186,13 +167,13 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
             background: white;
             border-radius: 15px;
             padding: 25px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 32px rgb(0, 0, 0);
             transition: all 0.3s ease;
         }
 
         .room-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+            box-shadow: 0 12px 40px rgb(255, 255, 255);
         }
 
         .room-header {
@@ -205,11 +186,11 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
         .room-name {
             font-size: 1.5em;
             font-weight: 700;
-            color: #2c3e50;
+            color: #000000;
         }
 
         .room-capacity {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #000000 0%, #10ce30 100%);
             color: white;
             padding: 8px 15px;
             border-radius: 20px;
@@ -226,7 +207,7 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
             align-items: center;
             gap: 10px;
             padding: 8px 0;
-            color: #555;
+            color: #000000;
         }
 
         .room-detail-item span:first-child {
@@ -243,12 +224,12 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
 
         .facilities-title {
             font-weight: 600;
-            color: #2c3e50;
+            color: #000000;
             margin-bottom: 10px;
         }
 
         .facilities-list {
-            color: #555;
+            color: #000000;
             line-height: 1.8;
         }
 
@@ -289,7 +270,7 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
         .modal-title {
             font-size: 1.5em;
             font-weight: 700;
-            color: #2c3e50;
+            color: #000000;
         }
 
         .modal-close {
@@ -297,11 +278,11 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
             border: none;
             font-size: 2em;
             cursor: pointer;
-            color: #999;
+            color: #000000;
         }
 
         .modal-close:hover {
-            color: #333;
+            color: #ff0000;
         }
 
         .modal-body {
@@ -316,7 +297,7 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: #333;
+            color: #000000;
         }
 
         .form-group input,
@@ -335,7 +316,7 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
         .form-group select:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #000000;
         }
 
         .form-row {
@@ -390,7 +371,7 @@ while ($room = $rooms_result->fetchArray(SQLITE3_ASSOC)) {
                         </div>
                     </div>
 
-                    <?php if ($room['facilities']): ?>
+                    <?php if (isset($room['facilities']) && !empty($room['facilities'])): ?>
                         <div class="facilities">
                             <div class="facilities-title">🎯 สิ่งอำนวยความสะดวก:</div>
                             <div class="facilities-list"><?php echo htmlspecialchars($room['facilities']); ?></div>

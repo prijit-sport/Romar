@@ -1,169 +1,150 @@
 <?php
 session_start();
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once '../config/database.php';
+require_once '../includes/functions.php';
 
-// ตรวจสอบ login
-if (!isset($_SESSION['user_id'])) {
+// Check login and admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: ../auth/login.php');
     exit;
 }
 
-$db = Database::getInstance();
-$page_title = "จัดการเอกสาร";
+$db = getDB();
+$message = '';
+$messageType = '';
 
-// สร้างโฟลเดอร์ uploads ถ้ายังไม่มี
-$upload_dir = __DIR__ . '/../uploads/documents/';
-if (!file_exists($upload_dir)) {
-    mkdir($upload_dir, 0755, true);
+// Create uploads directory if not exists
+$uploadDir = '../uploads/documents/';
+if (!is_dir($uploadDir)) {
+    mkdir($uploadDir, 0755, true);
 }
 
-// จัดการ Actions
-$success_message = '';
-$error_message = '';
-
-// อัปโหลดเอกสาร
-if (isset($_POST['upload_document'])) {
-    $document_name = trim($_POST['document_name']);
-    $category = trim($_POST['category']);
-    $description = trim($_POST['description']);
+// Handle Upload
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload') {
+    $title = sanitize($_POST['title']);
+    $category = sanitize($_POST['category']);
+    $description = sanitize($_POST['description']);
     
-    if (isset($_FILES['document_file']) && $_FILES['document_file']['error'] === 0) {
-        $file = $_FILES['document_file'];
-        $file_size = $file['size'];
-        $file_tmp = $file['tmp_name'];
-        $file_name = $file['name'];
-        $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+    if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['file'];
+        $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'zip'];
+        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         
-        // ตรวจสอบประเภทไฟล์
-        $allowed_extensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'zip', 'rar', 'jpg', 'jpeg', 'png', 'gif'];
-        
-        if (in_array($file_ext, $allowed_extensions)) {
-            // สร้างชื่อไฟล์ใหม่ (ป้องกันชื่อซ้ำ)
-            $new_file_name = time() . '_' . preg_replace('/[^A-Za-z0-9._-]/', '_', $file_name);
-            $file_path = 'uploads/documents/' . $new_file_name;
-            $full_path = __DIR__ . '/../' . $file_path;
-            
-            if (move_uploaded_file($file_tmp, $full_path)) {
-                // บันทึกลง database
-                $stmt = $db->prepare("INSERT INTO documents (document_name, file_name, file_path, file_size, file_type, category, description, uploaded_by, uploaded_at) VALUES (:document_name, :file_name, :file_path, :file_size, :file_type, :category, :description, :uploaded_by, :uploaded_at)");
-                $stmt->bindValue(':document_name', $document_name, SQLITE3_TEXT);
-                $stmt->bindValue(':file_name', $new_file_name, SQLITE3_TEXT);
-                $stmt->bindValue(':file_path', $file_path, SQLITE3_TEXT);
-                $stmt->bindValue(':file_size', $file_size, SQLITE3_INTEGER);
-                $stmt->bindValue(':file_type', $file_ext, SQLITE3_TEXT);
-                $stmt->bindValue(':category', $category, SQLITE3_TEXT);
-                $stmt->bindValue(':description', $description, SQLITE3_TEXT);
-                $stmt->bindValue(':uploaded_by', $_SESSION['user_id'], SQLITE3_INTEGER);
-                $stmt->bindValue(':uploaded_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
-                $stmt->execute();
-                
-                logActivity($_SESSION['user_id'], 'อัปโหลดเอกสาร', 'Documents', "อัปโหลด: {$document_name}");
-                $success_message = "อัปโหลดเอกสารสำเร็จ!";
-            } else {
-                $error_message = "ไม่สามารถอัปโหลดไฟล์ได้";
-            }
+        if (!in_array($extension, $allowedTypes)) {
+            $_SESSION['message'] = 'ประเภทไฟล์ไม่ถูกต้อง!';
+            $_SESSION['messageType'] = 'error';
+        } elseif ($file['size'] > 10485760) { // 10MB
+            $_SESSION['message'] = 'ไฟล์ใหญ่เกิน 10MB!';
+            $_SESSION['messageType'] = 'error';
         } else {
-            $error_message = "ประเภทไฟล์ไม่ได้รับอนุญาต";
+            $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $file['name']);
+            $filePath = $uploadDir . $fileName;
+            
+            if (move_uploaded_file($file['tmp_name'], $filePath)) {
+                $stmt = $db->prepare("INSERT INTO documents (title, category, description, file_name, file_path, file_size, file_type, uploaded_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                $relativePath = 'documents/' . $fileName;
+                $stmt->bind_param('sssssisi', $title, $category, $description, $fileName, $relativePath, $file['size'], $extension, $_SESSION['user_id']);
+                
+                if ($stmt->execute()) {
+                    $_SESSION['message'] = 'อัปโหลดเอกสารสำเร็จ!';
+                    $_SESSION['messageType'] = 'success';
+                    logActivity($_SESSION['user_id'], 'อัปโหลดเอกสาร', 'Documents', "อัปโหลด: $title");
+                } else {
+                    unlink($filePath);
+                    $_SESSION['message'] = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+                    $_SESSION['messageType'] = 'error';
+                }
+            }
         }
     } else {
-        $error_message = "กรุณาเลือกไฟล์";
+        $_SESSION['message'] = 'กรุณาเลือกไฟล์!';
+        $_SESSION['messageType'] = 'error';
     }
+    
+    // ✅ Redirect เพื่อป้องกัน duplicate submission
+    header('Location: documents.php' . ($category ? '?category=' . urlencode($category) : ''));
+    exit;
 }
 
-// ลบเอกสาร
-if (isset($_POST['delete_document'])) {
-    $doc_id = (int)$_POST['document_id'];
+// Handle Delete
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {
+    $docId = (int)$_POST['document_id'];
     
-    // ดึงข้อมูลเอกสาร
-    $stmt = $db->prepare("SELECT * FROM documents WHERE document_id = :id");
-    $stmt->bindValue(':id', $doc_id, SQLITE3_INTEGER);
-    $result = $stmt->execute();
-    $doc = $result->fetchArray(SQLITE3_ASSOC);
+    $stmt = $db->prepare("SELECT file_path FROM documents WHERE document_id = ?");
+    $stmt->bind_param('i', $docId);
+    $stmt->execute();
+    $doc = $stmt->get_result()->fetch_assoc();
     
     if ($doc) {
-        // ลบไฟล์
-        $full_path = __DIR__ . '/../' . $doc['file_path'];
-        if (file_exists($full_path)) {
-            unlink($full_path);
+        $fullPath = '../uploads/' . $doc['file_path'];
+        if (file_exists($fullPath)) {
+            unlink($fullPath);
         }
         
-        // ลบจาก database
-        $stmt = $db->prepare("DELETE FROM documents WHERE document_id = :id");
-        $stmt->bindValue(':id', $doc_id, SQLITE3_INTEGER);
-        $stmt->execute();
+        $deleteStmt = $db->prepare("DELETE FROM documents WHERE document_id = ?");
+        $deleteStmt->bind_param('i', $docId);
         
-        logActivity($_SESSION['user_id'], 'ลบเอกสาร', 'Documents', "ลบ: {$doc['document_name']}");
-        $success_message = "ลบเอกสารสำเร็จ!";
+        if ($deleteStmt->execute()) {
+            $_SESSION['message'] = 'ลบเอกสารสำเร็จ!';
+            $_SESSION['messageType'] = 'success';
+            logActivity($_SESSION['user_id'], 'ลบเอกสาร', 'Documents', "ลบเอกสาร ID: $docId");
+        }
     }
-}
-
-// ดึงข้อมูลเอกสารทั้งหมด
-$search = isset($_GET['search']) ? $_GET['search'] : '';
-$category_filter = isset($_GET['category']) ? $_GET['category'] : '';
-
-$sql = "SELECT d.*, u.full_name as uploader_name FROM documents d LEFT JOIN users u ON d.uploaded_by = u.user_id WHERE 1=1";
-
-if ($search) {
-    $sql .= " AND (d.document_name LIKE '%{$search}%' OR d.description LIKE '%{$search}%')";
-}
-
-if ($category_filter) {
-    $sql .= " AND d.category = '{$category_filter}'";
-}
-
-$sql .= " ORDER BY d.uploaded_at DESC";
-
-$result = $db->query($sql);
-$documents = [];
-while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-    $documents[] = $row;
-}
-
-// หมวดหมู่
-$categories = ['ทั่วไป', 'คู่มือ', 'แบบฟอร์ม', 'รายงาน', 'นโยบาย', 'อื่นๆ'];
-
-// ฟังก์ชันแสดงขนาดไฟล์
-function formatBytes($bytes) {
-    if ($bytes >= 1073741824) {
-        return number_format($bytes / 1073741824, 2) . ' GB';
-    } elseif ($bytes >= 1048576) {
-        return number_format($bytes / 1048576, 2) . ' MB';
-    } elseif ($bytes >= 1024) {
-        return number_format($bytes / 1024, 2) . ' KB';
-    } else {
-        return $bytes . ' bytes';
+    
+    // ✅ Redirect เพื่อป้องกัน duplicate submission
+    $redirectUrl = 'documents.php';
+    if (isset($_GET['category'])) {
+        $redirectUrl .= '?category=' . urlencode($_GET['category']);
     }
+    if (isset($_GET['search'])) {
+        $redirectUrl .= (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'search=' . urlencode($_GET['search']);
+    }
+    header('Location: ' . $redirectUrl);
+    exit;
 }
 
-// ฟังก์ชันไอคอนตามประเภทไฟล์
-function getFileIcon($ext) {
-    $icons = [
-        'pdf' => '📄',
-        'doc' => '📝',
-        'docx' => '📝',
-        'xls' => '📊',
-        'xlsx' => '📊',
-        'ppt' => '📽️',
-        'pptx' => '📽️',
-        'txt' => '📃',
-        'zip' => '🗜️',
-        'rar' => '🗜️',
-        'jpg' => '🖼️',
-        'jpeg' => '🖼️',
-        'png' => '🖼️',
-        'gif' => '🖼️'
-    ];
-    return isset($icons[$ext]) ? $icons[$ext] : '📁';
+// ✅ แสดง message จาก session แล้วลบออก
+$message = '';
+$messageType = '';
+if (isset($_SESSION['message'])) {
+    $message = $_SESSION['message'];
+    $messageType = $_SESSION['messageType'];
+    unset($_SESSION['message'], $_SESSION['messageType']);
 }
+
+// Get all documents
+$category = isset($_GET['category']) ? sanitize($_GET['category']) : '';
+$search = isset($_GET['search']) ? sanitize($_GET['search']) : '';
+
+// --- นำโค้ด Logic ที่คุณส่งมาวางตรงนี้ ---
+if ($search && $category) {
+    // ค้นหาภายใต้หมวดหมู่ที่เลือก
+    $stmt = $db->prepare("SELECT d.*, u.full_name FROM documents d LEFT JOIN users u ON d.uploaded_by = u.user_id WHERE d.category = ? AND (d.title LIKE ? OR d.description LIKE ? OR d.file_name LIKE ?) ORDER BY d.created_at DESC");
+    $searchTerm = "%$search%";
+    $stmt->bind_param('ssss', $category, $searchTerm, $searchTerm, $searchTerm);
+} elseif ($search) {
+    // ค้นหาจากทั้งหมด
+    $stmt = $db->prepare("SELECT d.*, u.full_name FROM documents d LEFT JOIN users u ON d.uploaded_by = u.user_id WHERE d.title LIKE ? OR d.description LIKE ? OR d.category LIKE ? OR d.file_name LIKE ? ORDER BY d.created_at DESC");
+    $searchTerm = "%$search%";
+    $stmt->bind_param('ssss', $searchTerm, $searchTerm, $searchTerm, $searchTerm);
+} elseif ($category) {
+    // กรองเฉพาะหมวดหมู่
+    $stmt = $db->prepare("SELECT d.*, u.full_name FROM documents d LEFT JOIN users u ON d.uploaded_by = u.user_id WHERE d.category = ? ORDER BY d.created_at DESC");
+    $stmt->bind_param('s', $category);
+} else {
+    // แสดงทั้งหมด
+    $stmt = $db->prepare("SELECT d.*, u.full_name FROM documents d LEFT JOIN users u ON d.uploaded_by = u.user_id ORDER BY d.created_at DESC");
+}
+$stmt->execute();
+$documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $page_title; ?> - ระบบจัดการหอพัก</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>จัดการเอกสาร - Romar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -172,294 +153,339 @@ function getFileIcon($ext) {
         }
 
         body {
-            font-family: 'Sarabun', Arial, sans-serif;
-            background: #f5f7fa;
+            font-family: 'Sarabun', sans-serif;
+            background: #065f159c;
+            color: #ffffff;
+        }
+
+        .container {
             display: flex;
             min-height: 100vh;
         }
 
         /* Sidebar */
         .sidebar {
-            width: 250px;
-            background: #2c3e50;
-            color: white;
-            padding: 20px 0;
+            width: 260px;
+            background: linear-gradient(180deg, #10ce30 0%, #000000 100%);
             position: fixed;
+            left: 0;
+            top: 0;
             height: 100vh;
             overflow-y: auto;
+            box-shadow: 2px 0 10px rgb(0, 0, 0);
+            z-index: 1000;
         }
 
-        .sidebar-header {
-            padding: 0 20px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .sidebar-header h2 {
-            font-size: 1.3em;
-            margin-bottom: 5px;
-        }
-
-        .sidebar-header p {
-            font-size: 0.85em;
-            opacity: 0.7;
-        }
-
-        .sidebar-menu {
-            padding: 20px 0;
-        }
-
-        .menu-section {
-            margin-bottom: 20px;
-        }
-
-        .menu-section-title {
-            padding: 0 20px;
-            font-size: 0.75em;
-            text-transform: uppercase;
-            opacity: 0.5;
-            margin-bottom: 10px;
-        }
-
-        .menu-item {
-            padding: 12px 20px;
-            color: white;
-            text-decoration: none;
+        .sidebar-brand {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgb(255, 255, 255);
             display: flex;
             align-items: center;
+            gap: 15px;
+            color: white;
+        }
+
+        .brand-icon { font-size: 2em; }
+        .brand-name { font-size: 1.5em; font-weight: 700; }
+        .brand-subtitle {
+            color: #000000;
+            font-size: 1em;
+            opacity: 0.8;
+        }
+
+        .sidebar-nav ul { list-style: none; padding: 0; margin: 0; }
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            color: rgb(255, 255, 255);
+            text-decoration: none;
             transition: all 0.3s;
         }
-
-        .menu-item:hover {
-            background: rgba(255,255,255,0.1);
-        }
-
-        .menu-item.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-left: 3px solid white;
-        }
-
-        .menu-item-icon {
-            margin-right: 10px;
-            font-size: 1.2em;
+        .sidebar-nav a:hover { background: rgba(255,255,255,0.1); color: white; }
+        .sidebar-nav li.active a { background: rgba(255,255,255,0.15); color: white; border-left: 4px solid #000000; }
+        .menu-section {
+            padding: 20px 20px 10px;
+            color: rgb(255, 255, 255);
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
         }
 
         /* Main Content */
-        .main-content {
-            margin-left: 250px;
-            flex: 1;
-            padding: 30px;
-        }
+        .main-content { flex: 1; margin-left: 260px; padding: 30px; }
 
         .page-header {
             background: white;
             padding: 25px 30px;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgb(0, 0, 0);
             margin-bottom: 30px;
+        }
+
+        .header-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
         }
 
-        .page-header h1 {
-            color: #2c3e50;
-            font-size: 1.8em;
-        }
+        .page-title h1 { font-size: 1.8em; color: #000000; font-weight: 600; }
 
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .user-avatar {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 1.2em;
-        }
-
-        /* Alert */
-        .alert {
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            animation: slideDown 0.3s ease-out;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .alert-success {
-            background: #d4edda;
-            border-left: 4px solid #28a745;
-            color: #155724;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            border-left: 4px solid #dc3545;
-            color: #721c24;
-        }
-
-        /* Card */
-        .card {
+        /* Search Bar */
+        .search-section {
             background: white;
+            padding: 20px 30px;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            padding: 25px;
+            box-shadow: 0 2px 8px rgb(0, 0, 0);
             margin-bottom: 25px;
         }
 
-        .card-header {
+        .search-row {
             display: flex;
-            justify-content: space-between;
+            gap: 15px;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
+            flex-wrap: wrap;
         }
 
-        .card-title {
-            font-size: 1.3em;
-            color: #2c3e50;
-            font-weight: 600;
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+            position: relative;
         }
 
-        /* Button */
-        .btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: none;
+        .search-input {
+            width: 100%;
+            padding: 12px 45px 12px 45px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #10ce30;
+            box-shadow: 0 0 0 3px rgb(0, 0, 0);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2em;
+            color: #ffffff;
+        }
+
+        .clear-search {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
             cursor: pointer;
+            color: #ffffff;
+            font-size: 1.2em;
+            display: none;
+        }
+
+        .clear-search.show {
+            display: block;
+        }
+
+        .clear-search:hover {
+            color: #ef4444;
+        }
+
+        .search-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #10ce30 0%, #000000 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
             font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgb(0, 0, 0);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
             transition: all 0.3s;
             text-decoration: none;
-            display: inline-block;
-            font-size: 0.95em;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #20d63e 0%, #000000 100%);
             color: white;
+            box-shadow: 0 4px 6px rgb(0, 0, 0);
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 12px rgb(0, 0, 0);
         }
 
-        .btn-success {
-            background: #28a745;
-            color: white;
+        .btn-secondary { background: #718096; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-sm { padding: 8px 16px; font-size: 0.9em; }
+
+        /* Filters */
+        .filters {
+            background: linear-gradient(135deg, #10ce30 0%, #000000 100%);
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgb(255, 255, 255);
+            margin-bottom: 25px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
         }
 
-        .btn-warning {
-            background: #ffc107;
-            color: #000;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 0.85em;
-        }
-
-        /* Table */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: #f8f9fa;
-            padding: 12px;
-            text-align: left;
+        .filter-label {
             font-weight: 600;
-            color: #2c3e50;
-            border-bottom: 2px solid #dee2e6;
-        }
-
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
-
-        .badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: 500;
-            background: #667eea;
             color: white;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        /* Form */
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #2c3e50;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 10px 15px;
-            border: 1px solid #ced4da;
-            border-radius: 8px;
+        .filter-btn {
+            padding: 10px 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
             font-size: 0.95em;
+            color: white;
+            font-weight: 500;
+        }
+
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .filter-btn.active {
+            background: white;
+            color: #0c7927;
+            border-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Documents Grid */
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .doc-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgb(0, 0, 0);
+            overflow: hidden;
             transition: all 0.3s;
         }
 
-        .form-control:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        .doc-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgb(0, 0, 0);
+        }
+
+        .doc-icon {
+            padding: 30px;
+            background: linear-gradient(135deg, #097e26 0%, #000000 100%);
+            text-align: center;
+            font-size: 3em;
+        }
+
+        .doc-body {
+            padding: 20px;
+        }
+
+        .doc-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 8px;
+        }
+
+        .doc-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 0.85em;
+            color: #000000;
+        }
+
+        .doc-description {
+            font-size: 0.9em;
+            color: #000000;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .doc-actions {
+            display: flex;
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #ffffff;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+
+        .badge-category {
+            background: #727272;
+            color: #fffdfd;
         }
 
         /* Modal */
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000;
-            left: 0;
             top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.5);
-        }
-
-        .modal.active {
-            display: flex;
+            z-index: 9999;
             align-items: center;
             justify-content: center;
         }
+
+        .modal.active { display: flex; }
 
         .modal-content {
             background: white;
@@ -471,404 +497,467 @@ function getFileIcon($ext) {
         }
 
         .modal-header {
-            padding: 20px 25px;
-            border-bottom: 1px solid #dee2e6;
+            padding: 25px 30px;
+            border-bottom: 1px solid #000000;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .modal-title {
-            font-size: 1.3em;
-            color: #2c3e50;
+            font-size: 1.5em;
             font-weight: 600;
+            color: #000000;
         }
 
         .modal-close {
-            background: none;
-            border: none;
             font-size: 1.5em;
             cursor: pointer;
-            color: #6c757d;
+            color: #000000;
+            transition: color 0.2s;
         }
 
-        .modal-body {
-            padding: 25px;
+        .modal-close:hover { color: #ef4444; }
+
+        .modal-body { padding: 30px; }
+
+        .form-group { margin-bottom: 20px; }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #000000;
         }
 
-        .modal-footer {
-            padding: 15px 25px;
-            border-top: 1px solid #dee2e6;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-
-        /* Filter Bar */
-        .filter-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .filter-bar .form-control {
-            flex: 1;
-            min-width: 200px;
-        }
-
-        /* Document Card */
-        .doc-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .doc-card {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 12px;
-            padding: 20px;
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #dfcbcb5b;
+            border-radius: 8px;
+            font-size: 1em;
             transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.97)
+        }
+
+        textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .file-upload {
+            border: 2px dashed #000000;
+            padding: 30px;
+            text-align: center;
+            border-radius: 8px;
             cursor: pointer;
+            transition: all 0.3s;
         }
 
-        .doc-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
+        .file-upload:hover {
+            border-color: #000000;
+            background: #f8fafc;
         }
 
-        .doc-icon {
+        .file-upload-icon {
             font-size: 3em;
             margin-bottom: 10px;
         }
 
-        .doc-name {
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: #2c3e50;
+        /* Alert */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
         }
 
-        .doc-meta {
-            font-size: 0.85em;
-            color: #6c757d;
-            margin-bottom: 5px;
-        }
+        .alert.show { display: block; }
+        .alert-success { background: #d1fae5; color: #065f46; border-left: 4px solid #10b981; }
+        .alert-error { background: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444; }
 
-        .doc-actions {
-            display: flex;
-            gap: 5px;
-            margin-top: 15px;
+        @media (max-width: 768px) {
+            .sidebar { margin-left: -260px; }
+            .main-content { margin-left: 0; padding: 15px; }
+            .documents-grid { grid-template-columns: 1fr; }
+            .header-row { flex-direction: column; align-items: stretch; }
+            .search-row { flex-direction: column; }
+            .search-box { min-width: 100%; }
+            .filters { flex-direction: column; align-items: stretch; }
+            .filter-btn { text-align: center; }
         }
+     .category-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap; 
+    padding: 10px 0;
+}
 
-        /* Stats */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
 
-        .stat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            border-left: 4px solid #667eea;
-        }
+.tab-item {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #f8f9fa; 
+    color: #000000;              
+    border-radius: 30px;      
+    text-decoration: none !important; 
+    transition: all 0.3s;
+    border: 1px solid #fffdfd;
+    font-size: 14px;
+}
 
-        .stat-value {
-            font-size: 2em;
-            font-weight: 700;
-            color: #2c3e50;
-        }
+.tab-item:hover {
+    background-color: #ffffff;
+    text-decoration: none; 
+}
 
-        .stat-label {
-            color: #6c757d;
-            font-size: 0.9em;
-        }
+.tab-item.active {
+    background-color: #029925; 
+    color: white;
+    border-color: #000000;
+    padding: 10px 25px;
+}
     </style>
 </head>
 <body>
-    
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <h2>ระบบจัดการหอพัก</h2>
-            <p>ROMARDORMITORY-MANAGEMENT System</p>
-        </div>
-
-        <div class="sidebar-menu">
-            <div class="menu-section">
-                <a href="dashboard.php" class="menu-item">
-                    <span class="menu-item-icon">📊</span>
-                    Dashboard
-                </a>
-            </div>
-
-            <div class="menu-section">
-                <div class="menu-section-title">ระบบหลัก</div>
-                <a href="#" class="menu-item">
-                    <span class="menu-item-icon">🎫</span>
-                    IT Tickets
-                </a>
-                <a href="room-booking.php" class="menu-item">
-                    <span class="menu-item-icon">🏢</span>
-                    จองห้องประชุม
-                </a>
-               
-                <a href="#" class="menu-item">
-                    <span class="menu-item-icon">📢</span>
-                    ประกาศข่าวสาร
-                </a>
-                <a href="documents.php" class="menu-item active">
-                    <span class="menu-item-icon">📁</span>
-                    เอกสาร
-                </a>
-            </div>
-
-            <div class="menu-section">
-                <div class="menu-section-title">การจัดการ</div>
-                <a href="users-management.php" class="menu-item">
-                    <span class="menu-item-icon">👥</span>
-                    จัดการผู้ใช้
-                </a>
-                <a href="settings.php" class="menu-item">
-                    <span class="menu-item-icon">⚙️</span>
-                    ตั้งค่า
-                </a>
-            </div>
-
-            <div class="menu-section">
-                <div class="menu-section-title">บัญชี</div>
-                <a href="../auth/logout.php" class="menu-item">
-                    <span class="menu-item-icon">🚪</span>
-                    ออกจากระบบ
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="main-content">
-        <!-- Page Header -->
-        <div class="page-header">
-            <h1><?php echo $page_title; ?></h1>
-            <div class="user-info">
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">🏢</div>
                 <div>
-                    <div style="font-weight: 600;"><?php echo $_SESSION['full_name']; ?></div>
-                    <div style="font-size: 0.85em; color: #6c757d;"><?php echo $_SESSION['role'] === 'admin' ? 'ผู้ดูแลระบบ' : 'พนักงาน'; ?></div>
+                    <div class="brand-name">Romar</div>
+                    <div class="brand-subtitle">Dormitory</div>
                 </div>
-
-                <?php
-// ดึงข้อมูล avatar
-$user_id = $_SESSION['user_id'] ?? null;
-$user_avatar = null;
-
-if ($user_id) {
-    $db = getDb();
-    
-    // ตรวจสอบว่ามีคอลัมน์ avatar หรือไม่
-    $columns_check = $db->query("PRAGMA table_info(users)");
-    $has_avatar = false;
-    while ($col = $columns_check->fetchArray(SQLITE3_ASSOC)) {
-        if ($col['name'] === 'avatar') {
-            $has_avatar = true;
-            break;
-        }
-    }
-    
-    if ($has_avatar) {
-        $stmt = $db->prepare("SELECT avatar FROM users WHERE user_id = ?");
-        $stmt->bindValue(1, $user_id, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
-        $user_avatar = $row['avatar'] ?? null;
-    }
-}
-?>
-
-<?php if ($user_avatar && file_exists(__DIR__ . '/../uploads/images/' . $user_avatar)): ?>
-    <img src="<?php echo BASE_URL; ?>uploads/images/<?php echo htmlspecialchars($user_avatar); ?>" 
-         alt="Avatar" 
-         class="user-avatar"
-         style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover;">
-<?php else: ?>
-    <div class="user-avatar">
-        <?php echo mb_substr(getCurrentUserFullName(), 0, 1); ?>
-    </div>
-<?php endif; ?>
             </div>
+
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="dashboard.php">📊 Dashboard</a></li>
+                    <li class="menu-section">การจัดการ</li>
+                    <li><a href="users-management.php">👥 จัดการผู้ใช้</a></li>
+                    <li><a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a></li>
+                    <li class="active"><a href="documents.php">📄 จัดการเอกสาร</a></li>
+                    <li class="menu-section">ฟีเจอร์</li>
+                    <li><a href="room-booking.php">📅 จองห้องประชุม</a></li>
+                    <li><a href="my-bookings.php">📋 รายการจองของฉัน</a></li>
+                      <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                        <a href="../modules/tickets.php">🎫 IT Tickets</a>
+                    </li>
+                    <li><a href="announcements.php">📢 ข่าวสาร</a></li>
+                    <li class="menu-section">ระบบ</li>
+                    <li><a href="settings.php">⚙️ ตั้งค่า</a></li>
+                    <li><a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">🚪 ออกจากระบบ</a></li>
+                </ul>
+            </nav>
         </div>
 
-        <!-- Alert Messages -->
-        <?php if ($success_message): ?>
-            <div class="alert alert-success">
-                ✅ <?php echo $success_message; ?>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($error_message): ?>
-            <div class="alert alert-error">
-                ❌ <?php echo $error_message; ?>
-            </div>
-        <?php endif; ?>
-
-        <!-- Stats -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value"><?php echo count($documents); ?></div>
-                <div class="stat-label">📁 เอกสารทั้งหมด</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">
-                    <?php
-                    $total_size = 0;
-                    foreach ($documents as $doc) {
-                        $total_size += $doc['file_size'];
-                    }
-                    echo formatBytes($total_size);
-                    ?>
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="page-header">
+                <div class="header-row">
+                    <div class="page-title">
+                        <h1>📄 จัดการเอกสาร</h1>
+                    </div>
+                    <button class="btn btn-primary" onclick="openUploadModal()">
+                        ⬆️ อัปโหลดเอกสาร
+                    </button>
                 </div>
-                <div class="stat-label">💾 ขนาดรวม</div>
-            </div>
-        </div>
-
-        <!-- Documents Card -->
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">รายการเอกสาร</h2>
-                <button class="btn btn-primary" onclick="openModal('uploadModal')">
-                    ⬆️ อัปโหลดเอกสาร
-                </button>
             </div>
 
-            <!-- Filter Bar -->
-            <div class="filter-bar">
-                <form method="GET" style="display: flex; gap: 10px; flex: 1; flex-wrap: wrap;">
-                    <input type="text" name="search" class="form-control" placeholder="ค้นหาเอกสาร..." value="<?php echo htmlspecialchars($search); ?>">
-                    
-                    <select name="category" class="form-control" style="max-width: 200px;">
-                        <option value="">ทุกหมวดหมู่</option>
-                        <?php foreach ($categories as $cat): ?>
-                            <option value="<?php echo $cat; ?>" <?php echo $category_filter === $cat ? 'selected' : ''; ?>>
-                                <?php echo $cat; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    
-                    <button type="submit" class="btn btn-primary">🔍 ค้นหา</button>
-                    <?php if ($search || $category_filter): ?>
-                        <a href="documents.php" class="btn btn-warning">✖️ ล้าง</a>
-                    <?php endif; ?>
-                </form>
+            <?php if ($message): ?>
+            <div class="alert alert-<?php echo $messageType; ?> show">
+                <?php echo $message; ?>
             </div>
-
-            <!-- Documents Table -->
-            <?php if (empty($documents)): ?>
-                <p style="text-align: center; padding: 40px; color: #6c757d;">
-                    📭 ยังไม่มีเอกสาร
-                </p>
-            <?php else: ?>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ไอคอน</th>
-                            <th>ชื่อเอกสาร</th>
-                            <th>หมวดหมู่</th>
-                            <th>ขนาดไฟล์</th>
-                            <th>ผู้อัปโหลด</th>
-                            <th>อัปโหลดเมื่อ</th>
-                            <th>จัดการ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($documents as $doc): ?>
-                            <tr>
-                                <td style="font-size: 2em;"><?php echo getFileIcon($doc['file_type']); ?></td>
-                                <td>
-                                    <strong><?php echo htmlspecialchars($doc['document_name']); ?></strong>
-                                    <?php if ($doc['description']): ?>
-                                        <br><small style="color: #6c757d;"><?php echo htmlspecialchars($doc['description']); ?></small>
-                                    <?php endif; ?>
-                                </td>
-                                <td><span class="badge"><?php echo htmlspecialchars($doc['category']); ?></span></td>
-                                <td><?php echo formatBytes($doc['file_size']); ?></td>
-                                <td><?php echo htmlspecialchars($doc['uploader_name']); ?></td>
-                                <td><?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?></td>
-                                <td>
-                                    <a href="../<?php echo $doc['file_path']; ?>" download class="btn btn-success btn-sm">
-                                        ⬇️ ดาวน์โหลด
-                                    </a>
-                                    
-                                    <?php if ($doc['uploaded_by'] == $_SESSION['user_id'] || $_SESSION['role'] === 'admin'): ?>
-                                        <form method="POST" style="display: inline;" onsubmit="return confirm('แน่ใจหรือว่าต้องการลบเอกสารนี้?')">
-                                            <input type="hidden" name="document_id" value="<?php echo $doc['document_id']; ?>">
-                                            <button type="submit" name="delete_document" class="btn btn-danger btn-sm">
-                                                🗑️ ลบ
-                                            </button>
-                                        </form>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
             <?php endif; ?>
+
+              <!-- Filters -->
+            <div class="filters">
+                <span class="filter-label">
+                    <span>📁</span>
+                    <span>หมวดหมู่:</span>
+                </span>
+                <div class="category-menu">
+    <a href="documents.php" class="tab-item <?php echo !$category ? 'active' : ''; ?>">
+        📁 ทั้งหมด
+    </a>
+    <a href="documents.php?category=คู่มือ" class="tab-item <?php echo $category === 'คู่มือ' ? 'active' : ''; ?>">
+        📘 คู่มือ
+    </a>
+    <a href="documents.php?category=แบบฟอร์ม" class="tab-item <?php echo $category === 'แบบฟอร์ม' ? 'active' : ''; ?>">
+        📝 แบบฟอร์ม
+    </a>
+    <a href="documents.php?category=รูปภาพ" class="tab-item <?php echo $category === 'รูปภาพ' ? 'active' : ''; ?>">
+        🖼️ รูปภาพ
+    </a>
+    <a href="documents.php?category=เอกสารทั่วไป" class="tab-item <?php echo $category === 'เอกสารทั่วไป' ? 'active' : ''; ?>">
+        📗 เอกสารทั่วไป
+    </a>
+</div>
+            </div>
+            <!-- Search Bar -->
+            <div class="search-section">
+    <form method="GET" class="search-row">
+
+        <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input 
+                type="text" 
+                name="search" 
+                class="search-input" 
+                placeholder="ค้นหาชื่อเอกสาร..."
+                value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>"
+            >
+        </div>
+        <button type="submit" class="search-btn">ค้นหา</button>
+    </form>
+</div>
+
+          
+
+            <!-- Documents -->
+            <div class="documents-grid">
+                <?php if (empty($documents)): ?>
+                <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; background: white; border-radius: 12px;">
+                    <div style="font-size: 4em; margin-bottom: 15px;">📄</div>
+                    <h3>ยังไม่มีเอกสาร</h3>
+                    <p style="color: #94a3b8;">เริ่มต้นด้วยการอัปโหลดเอกสารแรกของคุณ</p>
+                </div>
+                <?php else: ?>
+                <?php foreach ($documents as $doc): 
+                    $icons = [
+                        'pdf' => '📕', 'doc' => '📘', 'docx' => '📘',
+                        'xls' => '📗', 'xlsx' => '📗',
+                        'ppt' => '📙', 'pptx' => '📙',
+                        'jpg' => '🖼️', 'jpeg' => '🖼️', 'png' => '🖼️',
+                        'zip' => '📦'
+                    ];
+                    $icon = $icons[$doc['file_type']] ?? '📄';
+                ?>
+                <div class="doc-card">
+                    <div class="doc-icon"><?php echo $icon; ?></div>
+                    <div class="doc-body">
+                        <div class="doc-title"><?php echo htmlspecialchars($doc['title']); ?></div>
+                        <div class="doc-meta">
+                            <span class="badge badge-category"><?php echo htmlspecialchars($doc['category']); ?></span>
+                            <span>📦 <?php echo round($doc['file_size'] / 1024, 2); ?> KB</span>
+                        </div>
+                        <?php if ($doc['description']): ?>
+                        <div class="doc-description"><?php echo htmlspecialchars($doc['description']); ?></div>
+                        <?php endif; ?>
+                        <div class="doc-meta">
+                            <span>👤 <?php echo htmlspecialchars($doc['full_name']); ?></span>
+                            <span>📅 <?php echo formatDateShort($doc['created_at']); ?></span>
+                        </div>
+                        <div class="doc-actions">
+                            <button class="btn btn-primary btn-sm" onclick="previewDocument('<?php echo $doc['file_path']; ?>', '<?php echo $doc['file_type']; ?>', '<?php echo addslashes($doc['title']); ?>')" style="flex: 1;">
+                                👁️ ดูตัวอย่าง
+                            </button>
+                            <a href="../uploads/<?php echo $doc['file_path']; ?>" class="btn btn-secondary btn-sm" download style="flex: 1; justify-content: center;">
+                                ⬇️ ดาวน์โหลด
+                            </a>
+                            <button class="btn btn-sm" style="flex: 1; background: #ef4444; color: white;" onclick="deleteDocument(<?php echo $doc['document_id']; ?>)">
+                                🗑️ ลบ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 
     <!-- Upload Modal -->
-    <div id="uploadModal" class="modal">
+    <div class="modal" id="uploadModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">⬆️ อัปโหลดเอกสาร</h3>
-                <button class="modal-close" onclick="closeModal('uploadModal')">×</button>
+                <h2 class="modal-title">⬆️ อัปโหลดเอกสาร</h2>
+                <span class="modal-close" onclick="closeModal('uploadModal')">&times;</span>
             </div>
-            <form method="POST" enctype="multipart/form-data">
-                <div class="modal-body">
+            <div class="modal-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="upload">
+                    
                     <div class="form-group">
                         <label class="form-label">ชื่อเอกสาร *</label>
-                        <input type="text" name="document_name" class="form-control" required>
+                        <input type="text" name="title" class="form-control" required>
                     </div>
-                    
+
+               <div class="form-group">
+    <label class="form-label">หมวดหมู่ *</label>
+    <select name="category" class="form-control" required>
+        <option value="" disabled selected>--- เลือกหมวดหมู่ ---</option>
+        <option value="คู่มือ">คู่มือ</option>
+        <option value="แบบฟอร์ม">แบบฟอร์ม</option>
+        <option value="รูปภาพ">รูปภาพ</option>
+        <option value="เอกสารทั่วไป">เอกสารทั่วไป</option>
+    </select>
+</div>
+
                     <div class="form-group">
-                        <label class="form-label">หมวดหมู่ *</label>
-                        <select name="category" class="form-control" required>
-                            <?php foreach ($categories as $cat): ?>
-                                <option value="<?php echo $cat; ?>"><?php echo $cat; ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <label class="form-label">รายละเอียด</label>
+                        <textarea name="description" class="form-control"></textarea>
                     </div>
-                    
+
                     <div class="form-group">
-                        <label class="form-label">คำอธิบาย</label>
-                        <textarea name="description" class="form-control" rows="3"></textarea>
+                        <label class="form-label">เลือกไฟล์ * (สูงสุด 10MB)</label>
+                        <div class="file-upload" onclick="document.getElementById('fileInput').click()">
+                            <div class="file-upload-icon">📁</div>
+                            <p>คลิกเพื่อเลือกไฟล์</p>
+                            <p style="font-size: 0.85em; color: #94a3b8; margin-top: 8px;">
+                                รองรับ: PDF, Word, Excel, PowerPoint, รูปภาพ, ZIP
+                            </p>
+                        </div>
+                        <input type="file" id="fileInput" name="file" style="display: none;" required onchange="updateFileName(this)">
+                        <p id="fileName" style="margin-top: 10px; color: #667eea; font-weight: 500;"></p>
                     </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">เลือกไฟล์ *</label>
-                        <input type="file" name="document_file" class="form-control" required>
-                        <small style="color: #6c757d;">
-                            รองรับ: PDF, Word, Excel, PowerPoint, รูปภาพ, ZIP (สูงสุด 10MB)
-                        </small>
+
+                    <div style="display: flex; gap: 10px; margin-top: 30px;">
+                        <button type="submit" class="btn btn-success" style="flex: 1;">✅ อัปโหลด</button>
+                        <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeModal('uploadModal')">❌ ยกเลิก</button>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-warning" onclick="closeModal('uploadModal')">ยกเลิก</button>
-                    <button type="submit" name="upload_document" class="btn btn-primary">⬆️ อัปโหลด</button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 
+    <!-- Preview Modal -->
+    <div class="modal" id="previewModal">
+        <div class="modal-content" style="max-width: 1000px; max-height: 90vh;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="previewTitle">👁️ ดูตัวอย่างเอกสาร</h2>
+                <span class="modal-close" onclick="closeModal('previewModal')">&times;</span>
+            </div>
+            <div class="modal-body" style="max-height: calc(90vh - 100px); overflow: auto;">
+                <div id="previewContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" id="deleteForm" style="display: none;">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="document_id" id="delete_document_id">
+    </form>
+
     <script>
-        function openModal(modalId) {
-            document.getElementById(modalId).classList.add('active');
+        function openUploadModal() {
+            document.getElementById('uploadModal').classList.add('active');
         }
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
+        }
+
+        function updateFileName(input) {
+            const fileName = input.files[0]?.name;
+            if (fileName) {
+                document.getElementById('fileName').textContent = '✅ เลือกไฟล์: ' + fileName;
+            }
+        }
+
+        function deleteDocument(docId) {
+            if (confirm('คุณแน่ใจหรือไม่ที่จะลบเอกสารนี้?')) {
+                document.getElementById('delete_document_id').value = docId;
+                document.getElementById('deleteForm').submit();
+            }
+        }
+
+        function previewDocument(filePath, fileType, title) {
+            const modal = document.getElementById('previewModal');
+            const content = document.getElementById('previewContent');
+            const titleElement = document.getElementById('previewTitle');
+            
+            titleElement.textContent = '👁️ ' + title;
+            
+            const fullPath = '../uploads/' + filePath;
+            
+            // ล้างเนื้อหาเดิม
+            content.innerHTML = '';
+            
+            // Preview ตามประเภทไฟล์
+            if (['jpg', 'jpeg', 'png', 'gif'].includes(fileType.toLowerCase())) {
+                // รูปภาพ - แสดงเต็ม
+                content.innerHTML = `
+                    <div style="text-align: center; background: #f8fafc; padding: 20px; border-radius: 12px;">
+                        <img src="${fullPath}" alt="${title}" style="max-width: 100%; max-height: 70vh; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                    </div>
+                `;
+            } else if (fileType.toLowerCase() === 'pdf') {
+                // PDF - ใช้ iframe (ทำงานได้บน localhost)
+                content.innerHTML = `
+                    <iframe src="${fullPath}" style="width: 100%; height: 70vh; border: none; border-radius: 8px;"></iframe>
+                `;
+            } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileType.toLowerCase())) {
+                // เอกสาร Office - แสดง icon และข้อมูล (localhost ไม่สามารถใช้ Google Docs Viewer)
+                const icons = {
+                    'doc': '📘', 'docx': '📘',
+                    'xls': '📗', 'xlsx': '📗',
+                    'ppt': '📙', 'pptx': '📙'
+                };
+                const fileNames = {
+                    'doc': 'Word Document', 'docx': 'Word Document',
+                    'xls': 'Excel Spreadsheet', 'xlsx': 'Excel Spreadsheet',
+                    'ppt': 'PowerPoint', 'pptx': 'PowerPoint'
+                };
+                const icon = icons[fileType.toLowerCase()] || '📄';
+                const typeName = fileNames[fileType.toLowerCase()] || 'Office Document';
+                
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px;">
+                        <div style="font-size: 6em; margin-bottom: 20px; animation: pulse 2s infinite;">${icon}</div>
+                        <h2 style="color: #1e293b; margin-bottom: 15px; font-size: 1.8em;">${title}</h2>
+                        <div style="display: inline-block; background: white; padding: 12px 24px; border-radius: 25px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <span style="color: #667eea; font-weight: 600; font-size: 1.1em;">${typeName} (.${fileType.toUpperCase()})</span>
+                        </div>
+                        <p style="color: #64748b; font-size: 1.1em; margin: 25px 0; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                            ไฟล์ Office ไม่สามารถแสดงตัวอย่างได้บนระบบ Localhost<br>
+                            กรุณาดาวน์โหลดไฟล์เพื่อเปิดด้วยโปรแกรม Office
+                        </p>
+                        <a href="${fullPath}" download class="btn btn-primary" style="margin-top: 25px; display: inline-flex; padding: 16px 32px; font-size: 1.1em; gap: 10px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                            ⬇️ ดาวน์โหลดไฟล์
+                        </a>
+                        <p style="color: #94a3b8; font-size: 0.9em; margin-top: 20px;">
+                            💡 คลิกปุ่มเพื่อดาวน์โหลดและเปิดด้วย Microsoft Office หรือ LibreOffice
+                        </p>
+                    </div>
+                    <style>
+                        @keyframes pulse {
+                            0%, 100% { transform: scale(1); }
+                            50% { transform: scale(1.05); }
+                        }
+                    </style>
+                `;
+            } else {
+                // ไฟล์อื่นๆ - แสดงข้อมูล
+                const icons = {
+                    'zip': '📦',
+                    'rar': '📦',
+                    'txt': '📝'
+                };
+                const icon = icons[fileType.toLowerCase()] || '📄';
+                
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; background: #f8fafc; border-radius: 12px;">
+                        <div style="font-size: 5em; margin-bottom: 20px;">${icon}</div>
+                        <h3 style="color: #1e293b; margin-bottom: 10px;">${title}</h3>
+                        <p style="color: #64748b; font-size: 1.1em;">ไฟล์ประเภท: ${fileType.toUpperCase()}</p>
+                        <p style="color: #64748b; margin-top: 15px;">ไม่สามารถแสดงตัวอย่างไฟล์ประเภทนี้ได้</p>
+                        <p style="color: #64748b;">กรุณาดาวน์โหลดเพื่อดูเนื้อหา</p>
+                        <a href="${fullPath}" download class="btn btn-primary" style="margin-top: 25px; display: inline-flex;">
+                            ⬇️ ดาวน์โหลดไฟล์
+                        </a>
+                    </div>
+                `;
+            }
+            
+            modal.classList.add('active');
         }
 
         window.onclick = function(event) {
@@ -877,15 +966,10 @@ if ($user_id) {
             }
         }
 
-        // เปิด modal อัปโหลดอัตโนมัติถ้ามี parameter ?action=upload
-        window.addEventListener('load', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('action') === 'upload') {
-                openModal('uploadModal');
-                // ลบ parameter ออกจาก URL
-                window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace('?action=upload', '').replace('&action=upload', ''));
-            }
-        });
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) alert.classList.remove('show');
+        }, 5000);
     </script>
 </body>
 </html>

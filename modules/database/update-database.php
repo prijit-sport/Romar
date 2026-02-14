@@ -29,7 +29,7 @@ try {
     // ตรวจสอบว่ามีคอลัมน์อะไรบ้าง
     $result = $db->query("PRAGMA table_info(users)");
     $columns = [];
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $result->fetch_assoc()) {
         $columns[] = $row['name'];
     }
     
@@ -75,7 +75,7 @@ try {
     echo "<th style='padding: 10px; border: 1px solid #dee2e6; text-align: left;'>Null?</th>";
     echo "</tr>";
     
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $result->fetch_assoc()) {
         echo "<tr>";
         echo "<td style='padding: 10px; border: 1px solid #dee2e6;'>" . $row['cid'] . "</td>";
         echo "<td style='padding: 10px; border: 1px solid #dee2e6;'><strong>" . $row['name'] . "</strong></td>";
@@ -102,7 +102,7 @@ try {
     echo "</tr>";
     
     $user_count = 0;
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $result->fetch_assoc()) {
         $user_count++;
         echo "<tr>";
         echo "<td style='padding: 10px; border: 1px solid #dee2e6;'>" . $row['user_id'] . "</td>";

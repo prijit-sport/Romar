@@ -25,11 +25,12 @@ ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 // ========================================
 
 // ชื่อระบบ
-define('SITE_NAME', 'ระบบจัดการหอพัก');
-define('SITE_NAME_EN', 'ROMARDORMITORY-MANAGEMENT System');
+define('SITE_NAME', 'ระบบจัดการในRomar');
+define('SITE_NAME_EN', 'Romar');
 
 // URL พื้นฐาน (ปรับตามโครงสร้างของคุณ)
-define('BASE_URL', 'http://localhost/ROMARDORMITORY-MANAGEMENT/');
+// ✅ แก้ไขจาก localhost เป็น IP Address ของ Server
+define('BASE_URL', 'http://192.168.2.99/Romar/');
 
 // Path ของโปรเจค
 define('ROOT_PATH', dirname(__DIR__));
