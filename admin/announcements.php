@@ -626,18 +626,18 @@ $currentUser = getCurrentUser();
                     <input type="hidden" name="action" value="create">
                     
                     <div class="form-group">
-                        <label class="form-label">หัวข้อ *</label>
-                        <input type="text" name="title" class="form-control" required>
+                        <label class="form-label" for="add_title">หัวข้อ *</label>
+                        <input type="text" name="title" id="add_title" class="form-control" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">เนื้อหา *</label>
-                        <textarea name="content" class="form-control" required></textarea>
+                        <label class="form-label" for="add_content">เนื้อหา *</label>
+                        <textarea name="content" id="add_content" class="form-control" required></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">ระดับความสำคัญ *</label>
-                        <select name="priority" class="form-control" required>
+                        <label class="form-label" for="add_priority">ระดับความสำคัญ *</label>
+                        <select name="priority" id="add_priority" class="form-control" required>
                             <option value="normal">🟢 ปกติ</option>
                             <option value="important">🟡 สำคัญ</option>
                             <option value="urgent">🔴 เร่งด่วน</option>
@@ -646,8 +646,8 @@ $currentUser = getCurrentUser();
 
                     <div class="form-group">
                         <div class="form-check">
-                            <input type="checkbox" name="is_active" value="1" checked style="width: 20px; height: 20px;">
-                            <label>เปิดใช้งาน</label>
+                            <input type="checkbox" name="is_active" id="add_is_active" value="1" checked style="width: 20px; height: 20px;">
+                            <label for="add_is_active">เปิดใช้งาน</label>
                         </div>
                     </div>
 
@@ -673,17 +673,17 @@ $currentUser = getCurrentUser();
                     <input type="hidden" name="announcement_id" id="edit_announcement_id">
                     
                     <div class="form-group">
-                        <label class="form-label">หัวข้อ *</label>
+                        <label class="form-label" for="edit_title">หัวข้อ *</label>
                         <input type="text" name="title" id="edit_title" class="form-control" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">เนื้อหา *</label>
+                        <label class="form-label" for="edit_content">เนื้อหา *</label>
                         <textarea name="content" id="edit_content" class="form-control" required></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">ระดับความสำคัญ *</label>
+                        <label class="form-label" for="edit_priority">ระดับความสำคัญ *</label>
                         <select name="priority" id="edit_priority" class="form-control" required>
                             <option value="normal">🟢 ปกติ</option>
                             <option value="important">🟡 สำคัญ</option>
@@ -694,7 +694,7 @@ $currentUser = getCurrentUser();
                     <div class="form-group">
                         <div class="form-check">
                             <input type="checkbox" name="is_active" id="edit_is_active" value="1" style="width: 20px; height: 20px;">
-                            <label>เปิดใช้งาน</label>
+                            <label for="edit_is_active">เปิดใช้งาน</label>
                         </div>
                     </div>
 

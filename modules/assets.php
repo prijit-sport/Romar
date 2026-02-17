@@ -830,19 +830,19 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Asset Tag <span style="color: red;">*</span></label>
-                        <input type="text" name="asset_tag" class="form-control" required placeholder="e.g., IT-DT-001">
+                        <label for="create_asset_tag">Asset Tag <span style="color: red;">*</span></label>
+                        <input type="text" name="asset_tag" id="create_asset_tag" class="form-control" required placeholder="e.g., IT-DT-001">
                     </div>
                     <div class="form-group">
-                        <label>ชื่อสินทรัพย์ <span style="color: red;">*</span></label>
-                        <input type="text" name="asset_name" class="form-control" required placeholder="e.g., Desktop Computer">
+                        <label for="create_asset_name">ชื่อสินทรัพย์ <span style="color: red;">*</span></label>
+                        <input type="text" name="asset_name" id="create_asset_name" class="form-control" required placeholder="e.g., Desktop Computer">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>ประเภท <span style="color: red;">*</span></label>
-                        <select name="asset_type" class="form-control" required>
+                        <label for="create_asset_type">ประเภท <span style="color: red;">*</span></label>
+                        <select name="asset_type" id="create_asset_type" class="form-control" required>
                             <option value="desktop">Desktop</option>
                             <option value="laptop">Laptop</option>
                             <option value="server">Server</option>
@@ -854,8 +854,8 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>สถานะ <span style="color: red;">*</span></label>
-                        <select name="status" class="form-control" required>
+                        <label for="create_status">สถานะ <span style="color: red;">*</span></label>
+                        <select name="status" id="create_status" class="form-control" required>
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                             <option value="maintenance">Maintenance</option>
@@ -866,28 +866,28 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Brand</label>
-                        <input type="text" name="brand" class="form-control" placeholder="e.g., Dell, HP">
+                        <label for="create_brand">Brand</label>
+                        <input type="text" name="brand" id="create_brand" class="form-control" placeholder="e.g., Dell, HP">
                     </div>
                     <div class="form-group">
-                        <label>Model</label>
-                        <input type="text" name="model" class="form-control" placeholder="e.g., OptiPlex 7080">
+                        <label for="create_model">Model</label>
+                        <input type="text" name="model" id="create_model" class="form-control" placeholder="e.g., OptiPlex 7080">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Serial Number</label>
-                    <input type="text" name="serial_number" class="form-control" placeholder="e.g., SN123456789">
+                    <label for="create_serial_number">Serial Number</label>
+                    <input type="text" name="serial_number" id="create_serial_number" class="form-control" placeholder="e.g., SN123456789">
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Location</label>
-                        <input type="text" name="location" class="form-control" placeholder="e.g., IT Room 301">
+                        <label for="create_location">Location</label>
+                        <input type="text" name="location" id="create_location" class="form-control" placeholder="e.g., IT Room 301">
                     </div>
                     <div class="form-group">
-                        <label>Assigned To</label>
-                        <select name="assigned_to" class="form-control">
+                        <label for="create_assigned_to">Assigned To</label>
+                        <select name="assigned_to" id="create_assigned_to" class="form-control">
                             <option value="">ไม่ได้มอบหมาย</option>
                             <?php foreach ($users as $u): ?>
                             <option value="<?php echo $u['user_id']; ?>"><?php echo htmlspecialchars($u['full_name']); ?></option>
@@ -898,18 +898,18 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Purchase Date</label>
-                        <input type="date" name="purchase_date" class="form-control">
+                        <label for="create_purchase_date">Purchase Date</label>
+                        <input type="date" name="purchase_date" id="create_purchase_date" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>Warranty Expiry</label>
-                        <input type="date" name="warranty_expiry" class="form-control">
+                        <label for="create_warranty_expiry">Warranty Expiry</label>
+                        <input type="date" name="warranty_expiry" id="create_warranty_expiry" class="form-control">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Notes</label>
-                    <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
+                    <label for="create_notes">Notes</label>
+                    <textarea name="notes" id="create_notes" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
                 </div>
 
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
@@ -933,18 +933,18 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Asset Tag <span style="color: red;">*</span></label>
+                        <label for="edit_asset_tag">Asset Tag <span style="color: red;">*</span></label>
                         <input type="text" name="asset_tag" id="edit_asset_tag" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label>ชื่อสินทรัพย์ <span style="color: red;">*</span></label>
+                        <label for="edit_asset_name">ชื่อสินทรัพย์ <span style="color: red;">*</span></label>
                         <input type="text" name="asset_name" id="edit_asset_name" class="form-control" required>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>ประเภท <span style="color: red;">*</span></label>
+                        <label for="edit_asset_type">ประเภท <span style="color: red;">*</span></label>
                         <select name="asset_type" id="edit_asset_type" class="form-control" required>
                             <option value="desktop">Desktop</option>
                             <option value="laptop">Laptop</option>
@@ -957,7 +957,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>สถานะ <span style="color: red;">*</span></label>
+                        <label for="edit_status">สถานะ <span style="color: red;">*</span></label>
                         <select name="status" id="edit_status" class="form-control" required>
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
@@ -969,27 +969,27 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Brand</label>
+                        <label for="edit_brand">Brand</label>
                         <input type="text" name="brand" id="edit_brand" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>Model</label>
+                        <label for="edit_model">Model</label>
                         <input type="text" name="model" id="edit_model" class="form-control">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Serial Number</label>
+                    <label for="edit_serial_number">Serial Number</label>
                     <input type="text" name="serial_number" id="edit_serial_number" class="form-control">
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Location</label>
+                        <label for="edit_location">Location</label>
                         <input type="text" name="location" id="edit_location" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>Assigned To</label>
+                        <label for="edit_assigned_to">Assigned To</label>
                         <select name="assigned_to" id="edit_assigned_to" class="form-control">
                             <option value="">ไม่ได้มอบหมาย</option>
                             <?php foreach ($users as $u): ?>
@@ -1001,17 +1001,17 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Purchase Date</label>
+                        <label for="edit_purchase_date">Purchase Date</label>
                         <input type="date" name="purchase_date" id="edit_purchase_date" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>Warranty Expiry</label>
+                        <label for="edit_warranty_expiry">Warranty Expiry</label>
                         <input type="date" name="warranty_expiry" id="edit_warranty_expiry" class="form-control">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Notes</label>
+                    <label for="edit_notes">Notes</label>
                     <textarea name="notes" id="edit_notes" class="form-control" rows="3"></textarea>
                 </div>
 

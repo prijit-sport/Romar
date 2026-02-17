@@ -462,19 +462,19 @@ $currentUser = getCurrentUser();
                             <input type="hidden" name="action" value="update_profile">
                             
                             <div class="form-group">
-                                <label class="form-label">Username</label>
-                                <input type="text" class="form-control" value="<?php echo htmlspecialchars($currentUser['username']); ?>" disabled>
+                                <label class="form-label" for="settings_username">Username</label>
+                                <input type="text" id="settings_username" name="username_display" class="form-control" autocomplete="username" value="<?php echo htmlspecialchars($currentUser['username']); ?>" disabled>
                                 <small style="color: #94a3b8; margin-top: 5px; display: block;">* Username ไม่สามารถเปลี่ยนแปลงได้</small>
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label">ชื่อ-นามสกุล *</label>
-                                <input type="text" name="full_name" class="form-control" value="<?php echo htmlspecialchars($currentUser['full_name']); ?>" required>
+                                <label class="form-label" for="settings_fullname">ชื่อ-นามสกุล *</label>
+                                <input type="text" name="full_name" id="settings_fullname" class="form-control" autocomplete="name" value="<?php echo htmlspecialchars($currentUser['full_name']); ?>" required>
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label">Email *</label>
-                                <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars($currentUser['email']); ?>" required>
+                                <label class="form-label" for="settings_email">Email *</label>
+                                <input type="email" name="email" id="settings_email" class="form-control" autocomplete="email" value="<?php echo htmlspecialchars($currentUser['email']); ?>" required>
                             </div>
 
                             <button type="submit" class="btn btn-primary">
@@ -503,20 +503,21 @@ $currentUser = getCurrentUser();
 
                         <form method="POST">
                             <input type="hidden" name="action" value="change_password">
+                            <input type="text" name="username" value="<?php echo htmlspecialchars($currentUser['username']); ?>" autocomplete="username" style="display:none;" aria-hidden="true" tabindex="-1">
                             
                             <div class="form-group">
-                                <label class="form-label">รหัสผ่านปัจจุบัน *</label>
-                                <input type="password" name="current_password" class="form-control" required>
+                                <label class="form-label" for="current_password">รหัสผ่านปัจจุบัน *</label>
+                                <input type="password" name="current_password" id="current_password" class="form-control" autocomplete="current-password" required>
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label">รหัสผ่านใหม่ *</label>
-                                <input type="password" name="new_password" class="form-control" minlength="6" required>
+                                <label class="form-label" for="new_password">รหัสผ่านใหม่ *</label>
+                                <input type="password" name="new_password" id="new_password" class="form-control" autocomplete="new-password" minlength="6" required>
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label">ยืนยันรหัสผ่านใหม่ *</label>
-                                <input type="password" name="confirm_password" class="form-control" minlength="6" required>
+                                <label class="form-label" for="confirm_password">ยืนยันรหัสผ่านใหม่ *</label>
+                                <input type="password" name="confirm_password" id="confirm_password" class="form-control" autocomplete="new-password" minlength="6" required>
                             </div>
 
                             <button type="submit" class="btn btn-success">

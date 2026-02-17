@@ -407,6 +407,7 @@ $currentUser = getCurrentUser();
                     <li class="menu-section">ฟีเจอร์</li>
                     <li><a href="room-booking.php">📅 จองห้องประชุม</a></li>
                     <li class="active"><a href="my-bookings.php">📋 รายการจองของฉัน</a></li>
+                      <?php $current_page = basename($_SERVER['PHP_SELF']); ?>
                       <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
                         <a href="../modules/tickets.php">🎫 IT Tickets</a>
                     </li>

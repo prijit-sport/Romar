@@ -401,43 +401,43 @@ while ($room = $rooms_result->fetch_assoc()) {
                     <input type="hidden" name="room_id" id="modal_room_id">
 
                     <div class="form-group">
-                        <label>ห้องที่เลือก:</label>
+                        <label for="modal_room_name">ห้องที่เลือก:</label>
                         <input type="text" id="modal_room_name" readonly style="background: #f8f9fa;">
                     </div>
 
                     <div class="form-group">
-                        <label>วันที่จอง: *</label>
+                        <label for="booking_date">วันที่จอง: *</label>
                         <input type="date" name="booking_date" id="booking_date" required 
                                min="<?php echo date('Y-m-d'); ?>">
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label>เวลาเริ่ม: *</label>
+                            <label for="start_time">เวลาเริ่ม: *</label>
                             <input type="time" name="start_time" id="start_time" required>
                         </div>
 
                         <div class="form-group">
-                            <label>เวลาสิ้นสุด: *</label>
+                            <label for="end_time">เวลาสิ้นสุด: *</label>
                             <input type="time" name="end_time" id="end_time" required>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label>จำนวนผู้เข้าร่วม: *</label>
+                        <label for="num_attendees">จำนวนผู้เข้าร่วม: *</label>
                         <input type="number" name="num_attendees" id="num_attendees" required min="1">
                         <small style="color: #7f8c8d;">ความจุสูงสุด: <span id="max_capacity"></span> คน</small>
                     </div>
 
                     <div class="form-group">
-                        <label>วัตถุประสงค์: *</label>
-                        <textarea name="purpose" required rows="3" 
+                        <label for="booking_purpose">วัตถุประสงค์: *</label>
+                        <textarea name="purpose" id="booking_purpose" required rows="3" 
                                   placeholder="ระบุวัตถุประสงค์ในการใช้ห้องประชุม..."></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label>หมายเหตุ:</label>
-                        <textarea name="notes" rows="2" 
+                        <label for="booking_notes">หมายเหตุ:</label>
+                        <textarea name="notes" id="booking_notes" rows="2" 
                                   placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)..."></textarea>
                     </div>
 

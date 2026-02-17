@@ -759,28 +759,28 @@ $currentUser = getCurrentUser();
                     <input type="hidden" name="action" value="add">
                     
                     <div class="form-group">
-                        <label class="form-label">Username *</label>
-                        <input type="text" name="username" class="form-control" required>
+                        <label class="form-label" for="add_username">Username *</label>
+                        <input type="text" name="username" id="add_username" class="form-control" autocomplete="username" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Password *</label>
-                        <input type="password" name="password" class="form-control" required>
+                        <label class="form-label" for="add_password">Password *</label>
+                        <input type="password" name="password" id="add_password" class="form-control" autocomplete="new-password" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">ชื่อ-นามสกุล *</label>
-                        <input type="text" name="full_name" class="form-control" required>
+                        <label class="form-label" for="add_full_name">ชื่อ-นามสกุล *</label>
+                        <input type="text" name="full_name" id="add_full_name" class="form-control" autocomplete="name" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Email *</label>
-                        <input type="email" name="email" class="form-control" required>
+                        <label class="form-label" for="add_email">Email *</label>
+                        <input type="email" name="email" id="add_email" class="form-control" autocomplete="email" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">บทบาท *</label>
-                        <select name="role" class="form-control" required>
+                        <label class="form-label" for="add_role">บทบาท *</label>
+                        <select name="role" id="add_role" class="form-control" required>
                             <option value="user">User</option>
                             <option value="staff">Staff</option>
                             <option value="admin">Admin</option>
@@ -809,27 +809,27 @@ $currentUser = getCurrentUser();
                     <input type="hidden" name="user_id" id="edit_user_id">
                     
                     <div class="form-group">
-                        <label class="form-label">Username</label>
-                        <input type="text" id="edit_username" class="form-control" readonly style="background: #f8fafc;">
+                        <label class="form-label" for="edit_username">Username</label>
+                        <input type="text" id="edit_username" class="form-control" autocomplete="username" readonly style="background: #f8fafc;">
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Password ใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</label>
-                        <input type="password" name="password" class="form-control">
+                        <label class="form-label" for="edit_password">Password ใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</label>
+                        <input type="password" name="password" id="edit_password" class="form-control" autocomplete="new-password">
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">ชื่อ-นามสกุล *</label>
-                        <input type="text" name="full_name" id="edit_full_name" class="form-control" required>
+                        <label class="form-label" for="edit_full_name">ชื่อ-นามสกุล *</label>
+                        <input type="text" name="full_name" id="edit_full_name" class="form-control" autocomplete="name" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Email *</label>
-                        <input type="email" name="email" id="edit_email" class="form-control" required>
+                        <label class="form-label" for="edit_email">Email *</label>
+                        <input type="email" name="email" id="edit_email" class="form-control" autocomplete="email" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">บทบาท *</label>
+                        <label class="form-label" for="edit_role">บทบาท *</label>
                         <select name="role" id="edit_role" class="form-control" required>
                             <option value="user">User</option>
                             <option value="staff">Staff</option>
@@ -840,7 +840,7 @@ $currentUser = getCurrentUser();
                     <div class="form-group">
                         <div class="form-check">
                             <input type="checkbox" name="is_active" id="edit_is_active" value="1">
-                            <label>เปิดใช้งาน</label>
+                            <label for="edit_is_active">เปิดใช้งาน</label>
                         </div>
                     </div>
 

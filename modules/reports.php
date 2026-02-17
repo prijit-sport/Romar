@@ -534,16 +534,16 @@ if ($slaCompliance['total'] > 0) {
                 <form method="GET">
                     <div class="filter-grid">
                         <div class="form-group">
-                            <label>วันที่เริ่มต้น</label>
-                            <input type="date" name="start_date" class="form-control" value="<?php echo $startDate; ?>">
+                            <label for="start_date">วันที่เริ่มต้น</label>
+                            <input type="date" name="start_date" id="start_date" class="form-control" value="<?php echo $startDate; ?>">
                         </div>
                         <div class="form-group">
-                            <label>วันที่สิ้นสุด</label>
-                            <input type="date" name="end_date" class="form-control" value="<?php echo $endDate; ?>">
+                            <label for="end_date">วันที่สิ้นสุด</label>
+                            <input type="date" name="end_date" id="end_date" class="form-control" value="<?php echo $endDate; ?>">
                         </div>
                         <div class="form-group">
-                            <label>ประเภทรายงาน</label>
-                            <select name="report_type" class="form-control">
+                            <label for="report_type">ประเภทรายงาน</label>
+                            <select name="report_type" id="report_type" class="form-control">
                                 <option value="summary" <?php echo $reportType === 'summary' ? 'selected' : ''; ?>>สรุปภาพรวม</option>
                                 <option value="detailed" <?php echo $reportType === 'detailed' ? 'selected' : ''; ?>>รายละเอียด</option>
                             </select>

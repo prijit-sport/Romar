@@ -257,7 +257,7 @@ $systemInfo = [
             margin-bottom: 25px;
         }
 
-        .form-group label {
+        .form-group label, .form-group .form-group-label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
@@ -507,10 +507,11 @@ $systemInfo = [
                             <?php if (isset($settingsByCategory['General'])): ?>
                                 <?php foreach ($settingsByCategory['General'] as $setting): ?>
                                 <div class="form-group">
-                                    <label><?php echo ucfirst(str_replace('_', ' ', $setting['setting_key'])); ?></label>
                                     <?php if ($setting['value'] === 'true' || $setting['value'] === 'false'): ?>
-                                        <label class="toggle-switch">
+                                        <span class="form-group-label"><?php echo ucfirst(str_replace('_', ' ', $setting['setting_key'])); ?></span>
+                                        <label class="toggle-switch" aria-label="<?php echo ucfirst(str_replace('_', ' ', $setting['setting_key'])); ?>">
                                             <input type="checkbox" 
+                                                   id="setting_<?php echo $setting['setting_key']; ?>"
                                                    name="setting[<?php echo $setting['setting_key']; ?>]" 
                                                    value="true"
                                                    <?php echo $setting['value'] === 'true' ? 'checked' : ''; ?>
@@ -518,7 +519,9 @@ $systemInfo = [
                                             <span class="slider"></span>
                                         </label>
                                     <?php else: ?>
+                                        <label for="setting_<?php echo $setting['setting_key']; ?>"><?php echo ucfirst(str_replace('_', ' ', $setting['setting_key'])); ?></label>
                                         <input type="text" 
+                                               id="setting_<?php echo $setting['setting_key']; ?>"
                                                name="setting[<?php echo $setting['setting_key']; ?>]" 
                                                class="form-control" 
                                                value="<?php echo htmlspecialchars($setting['value']); ?>">
@@ -541,10 +544,11 @@ $systemInfo = [
                             <?php if (isset($settingsByCategory['Email'])): ?>
                                 <?php foreach ($settingsByCategory['Email'] as $setting): ?>
                                 <div class="form-group">
-                                    <label><?php echo ucfirst(str_replace(['email_', '_'], ['', ' '], $setting['setting_key'])); ?></label>
                                     <?php if ($setting['value'] === 'true' || $setting['value'] === 'false'): ?>
-                                        <label class="toggle-switch">
+                                        <span class="form-group-label"><?php echo ucfirst(str_replace(['email_', '_'], ['', ' '], $setting['setting_key'])); ?></span>
+                                        <label class="toggle-switch" aria-label="<?php echo ucfirst(str_replace(['email_', '_'], ['', ' '], $setting['setting_key'])); ?>">
                                             <input type="checkbox" 
+                                                   id="setting_<?php echo $setting['setting_key']; ?>"
                                                    name="setting[<?php echo $setting['setting_key']; ?>]" 
                                                    value="true"
                                                    <?php echo $setting['value'] === 'true' ? 'checked' : ''; ?>
@@ -552,7 +556,9 @@ $systemInfo = [
                                             <span class="slider"></span>
                                         </label>
                                     <?php else: ?>
+                                        <label for="setting_<?php echo $setting['setting_key']; ?>"><?php echo ucfirst(str_replace(['email_', '_'], ['', ' '], $setting['setting_key'])); ?></label>
                                         <input type="text" 
+                                               id="setting_<?php echo $setting['setting_key']; ?>"
                                                name="setting[<?php echo $setting['setting_key']; ?>]" 
                                                class="form-control" 
                                                value="<?php echo htmlspecialchars($setting['value']); ?>">
@@ -575,10 +581,11 @@ $systemInfo = [
                             <?php if (isset($settingsByCategory['Notifications'])): ?>
                                 <?php foreach ($settingsByCategory['Notifications'] as $setting): ?>
                                 <div class="form-group">
-                                    <label><?php echo ucfirst(str_replace(['notification_', '_'], ['', ' '], $setting['setting_key'])); ?></label>
                                     <?php if ($setting['value'] === 'true' || $setting['value'] === 'false'): ?>
-                                        <label class="toggle-switch">
+                                        <span class="form-group-label"><?php echo ucfirst(str_replace(['notification_', '_'], ['', ' '], $setting['setting_key'])); ?></span>
+                                        <label class="toggle-switch" aria-label="<?php echo ucfirst(str_replace(['notification_', '_'], ['', ' '], $setting['setting_key'])); ?>">
                                             <input type="checkbox" 
+                                                   id="setting_<?php echo $setting['setting_key']; ?>"
                                                    name="setting[<?php echo $setting['setting_key']; ?>]" 
                                                    value="true"
                                                    <?php echo $setting['value'] === 'true' ? 'checked' : ''; ?>
@@ -586,7 +593,9 @@ $systemInfo = [
                                             <span class="slider"></span>
                                         </label>
                                     <?php else: ?>
+                                        <label for="setting_<?php echo $setting['setting_key']; ?>"><?php echo ucfirst(str_replace(['notification_', '_'], ['', ' '], $setting['setting_key'])); ?></label>
                                         <input type="text" 
+                                               id="setting_<?php echo $setting['setting_key']; ?>"
                                                name="setting[<?php echo $setting['setting_key']; ?>]" 
                                                class="form-control" 
                                                value="<?php echo htmlspecialchars($setting['value']); ?>">
@@ -609,10 +618,11 @@ $systemInfo = [
                             <?php if (isset($settingsByCategory['Tickets'])): ?>
                                 <?php foreach ($settingsByCategory['Tickets'] as $setting): ?>
                                 <div class="form-group">
-                                    <label><?php echo ucfirst(str_replace(['ticket_', '_'], ['', ' '], $setting['setting_key'])); ?></label>
                                     <?php if ($setting['value'] === 'true' || $setting['value'] === 'false'): ?>
-                                        <label class="toggle-switch">
+                                        <span class="form-group-label"><?php echo ucfirst(str_replace(['ticket_', '_'], ['', ' '], $setting['setting_key'])); ?></span>
+                                        <label class="toggle-switch" aria-label="<?php echo ucfirst(str_replace(['ticket_', '_'], ['', ' '], $setting['setting_key'])); ?>">
                                             <input type="checkbox" 
+                                                   id="setting_<?php echo $setting['setting_key']; ?>"
                                                    name="setting[<?php echo $setting['setting_key']; ?>]" 
                                                    value="true"
                                                    <?php echo $setting['value'] === 'true' ? 'checked' : ''; ?>
@@ -620,7 +630,9 @@ $systemInfo = [
                                             <span class="slider"></span>
                                         </label>
                                     <?php else: ?>
+                                        <label for="setting_<?php echo $setting['setting_key']; ?>"><?php echo ucfirst(str_replace(['ticket_', '_'], ['', ' '], $setting['setting_key'])); ?></label>
                                         <input type="text" 
+                                               id="setting_<?php echo $setting['setting_key']; ?>"
                                                name="setting[<?php echo $setting['setting_key']; ?>]" 
                                                class="form-control" 
                                                value="<?php echo htmlspecialchars($setting['value']); ?>">

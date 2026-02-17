@@ -790,28 +790,28 @@ $pendingBookings = $db->query("
                     <input type="hidden" name="action" value="add">
                     
                     <div class="form-group">
-                        <label class="form-label">ชื่อห้องประชุม *</label>
-                        <input type="text" name="room_name" class="form-control" required>
+                        <label class="form-label" for="add_room_name">ชื่อห้องประชุม *</label>
+                        <input type="text" name="room_name" id="add_room_name" class="form-control" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">ความจุ (คน) *</label>
-                        <input type="number" name="capacity" class="form-control" min="1" required>
+                        <label class="form-label" for="add_capacity">ความจุ (คน) *</label>
+                        <input type="number" name="capacity" id="add_capacity" class="form-control" min="1" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">สถานที่ *</label>
-                        <input type="text" name="location" class="form-control" placeholder="เช่น ชั้น 2" required>
+                        <label class="form-label" for="add_location">สถานที่ *</label>
+                        <input type="text" name="location" id="add_location" class="form-control" placeholder="เช่น ชั้น 2" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">สิ่งอำนวยความสะดวก *</label>
-                        <textarea name="facilities" class="form-control" placeholder="เช่น โปรเจคเตอร์, ไวท์บอร์ด, Wi-Fi" required></textarea>
+                        <label class="form-label" for="add_facilities">สิ่งอำนวยความสะดวก *</label>
+                        <textarea name="facilities" id="add_facilities" class="form-control" placeholder="เช่น โปรเจคเตอร์, ไวท์บอร์ด, Wi-Fi" required></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">รูปห้อง (URL)</label>
-                        <input type="text" name="image" class="form-control" placeholder="เช่น images/room1.jpg">
+                        <label class="form-label" for="add_image">รูปห้อง (URL)</label>
+                        <input type="text" name="image" id="add_image" class="form-control" placeholder="เช่น images/room1.jpg">
                     </div>
 
                     <div style="display: flex; gap: 10px; margin-top: 30px;">
@@ -836,34 +836,34 @@ $pendingBookings = $db->query("
                     <input type="hidden" name="room_id" id="edit_room_id">
                     
                     <div class="form-group">
-                        <label class="form-label">ชื่อห้องประชุม *</label>
+                        <label class="form-label" for="edit_room_name">ชื่อห้องประชุม *</label>
                         <input type="text" name="room_name" id="edit_room_name" class="form-control" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">ความจุ (คน) *</label>
+                        <label class="form-label" for="edit_capacity">ความจุ (คน) *</label>
                         <input type="number" name="capacity" id="edit_capacity" class="form-control" min="1" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">สถานที่ *</label>
+                        <label class="form-label" for="edit_location">สถานที่ *</label>
                         <input type="text" name="location" id="edit_location" class="form-control" required>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">สิ่งอำนวยความสะดวก *</label>
+                        <label class="form-label" for="edit_facilities">สิ่งอำนวยความสะดวก *</label>
                         <textarea name="facilities" id="edit_facilities" class="form-control" required></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">รูปห้อง (URL)</label>
+                        <label class="form-label" for="edit_image">รูปห้อง (URL)</label>
                         <input type="text" name="image" id="edit_image" class="form-control" placeholder="เช่น images/room1.jpg">
                     </div>
 
                     <div class="form-group">
                         <div class="form-check">
                             <input type="checkbox" name="is_active" id="edit_is_active" value="1" style="width: 20px; height: 20px;">
-                            <label>เปิดใช้งาน</label>
+                            <label for="edit_is_active">เปิดใช้งาน</label>
                         </div>
                     </div>
 

@@ -786,13 +786,13 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     <input type="hidden" name="action" value="upload">
                     
                     <div class="form-group">
-                        <label class="form-label">ชื่อเอกสาร *</label>
-                        <input type="text" name="title" class="form-control" required>
+                        <label class="form-label" for="doc_title">ชื่อเอกสาร *</label>
+                        <input type="text" name="title" id="doc_title" class="form-control" required>
                     </div>
 
                <div class="form-group">
-    <label class="form-label">หมวดหมู่ *</label>
-    <select name="category" class="form-control" required>
+    <label class="form-label" for="doc_category">หมวดหมู่ *</label>
+    <select name="category" id="doc_category" class="form-control" required>
         <option value="" disabled selected>--- เลือกหมวดหมู่ ---</option>
         <option value="คู่มือ">คู่มือ</option>
         <option value="แบบฟอร์ม">แบบฟอร์ม</option>
@@ -802,12 +802,12 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 </div>
 
                     <div class="form-group">
-                        <label class="form-label">รายละเอียด</label>
-                        <textarea name="description" class="form-control"></textarea>
+                        <label class="form-label" for="doc_description">รายละเอียด</label>
+                        <textarea name="description" id="doc_description" class="form-control"></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">เลือกไฟล์ * (สูงสุด 10MB)</label>
+                        <label class="form-label" for="fileInput">เลือกไฟล์ * (สูงสุด 10MB)</label>
                         <div class="file-upload" onclick="document.getElementById('fileInput').click()">
                             <div class="file-upload-icon">📁</div>
                             <p>คลิกเพื่อเลือกไฟล์</p>

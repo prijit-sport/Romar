@@ -733,54 +733,54 @@ $stats = $db->query($statsSQL)->fetch_assoc();
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Username <span style="color: red;">*</span></label>
-                        <input type="text" name="username" class="form-control" required>
+                        <label for="add_username">Username <span style="color: red;">*</span></label>
+                        <input type="text" name="username" id="add_username" class="form-control" autocomplete="username" required>
                     </div>
                     <div class="form-group">
-                        <label>Password <span style="color: red;">*</span></label>
-                        <input type="password" name="password" class="form-control" required>
+                        <label for="add_password">Password <span style="color: red;">*</span></label>
+                        <input type="password" name="password" id="add_password" class="form-control" autocomplete="new-password" required>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>ชื่อ-นามสกุล <span style="color: red;">*</span></label>
-                    <input type="text" name="full_name" class="form-control" required>
+                    <label for="add_full_name">ชื่อ-นามสกุล <span style="color: red;">*</span></label>
+                    <input type="text" name="full_name" id="add_full_name" class="form-control" autocomplete="name" required>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>อีเมล</label>
-                        <input type="email" name="email" class="form-control">
+                        <label for="add_email">อีเมล</label>
+                        <input type="email" name="email" id="add_email" class="form-control" autocomplete="email">
                     </div>
                     <div class="form-group">
-                        <label>เบอร์โทร</label>
-                        <input type="text" name="phone" class="form-control">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>แผนก</label>
-                        <input type="text" name="department" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label>ตำแหน่ง</label>
-                        <input type="text" name="position" class="form-control">
+                        <label for="add_phone">เบอร์โทร</label>
+                        <input type="text" name="phone" id="add_phone" class="form-control" autocomplete="tel">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>บทบาท <span style="color: red;">*</span></label>
-                        <select name="role" class="form-control" required>
+                        <label for="add_department">แผนก</label>
+                        <input type="text" name="department" id="add_department" class="form-control" autocomplete="organization">
+                    </div>
+                    <div class="form-group">
+                        <label for="add_position">ตำแหน่ง</label>
+                        <input type="text" name="position" id="add_position" class="form-control" autocomplete="organization-title">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="add_role">บทบาท <span style="color: red;">*</span></label>
+                        <select name="role" id="add_role" class="form-control" required>
                             <option value="user">User</option>
                             <option value="staff">Staff</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>สถานะ <span style="color: red;">*</span></label>
-                        <select name="status" class="form-control" required>
+                        <label for="add_status">สถานะ <span style="color: red;">*</span></label>
+                        <select name="status" id="add_status" class="form-control" required>
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                             <option value="suspended">Suspended</option>
@@ -808,35 +808,35 @@ $stats = $db->query($statsSQL)->fetch_assoc();
                 <input type="hidden" name="user_id" id="edit_user_id">
                 
                 <div class="form-group">
-                    <label>ชื่อ-นามสกุล <span style="color: red;">*</span></label>
-                    <input type="text" name="full_name" id="edit_full_name" class="form-control" required>
+                    <label for="edit_full_name">ชื่อ-นามสกุล <span style="color: red;">*</span></label>
+                    <input type="text" name="full_name" id="edit_full_name" class="form-control" autocomplete="name" required>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>อีเมล</label>
-                        <input type="email" name="email" id="edit_email" class="form-control">
+                        <label for="edit_email">อีเมล</label>
+                        <input type="email" name="email" id="edit_email" class="form-control" autocomplete="email">
                     </div>
                     <div class="form-group">
-                        <label>เบอร์โทร</label>
-                        <input type="text" name="phone" id="edit_phone" class="form-control">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>แผนก</label>
-                        <input type="text" name="department" id="edit_department" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label>ตำแหน่ง</label>
-                        <input type="text" name="position" id="edit_position" class="form-control">
+                        <label for="edit_phone">เบอร์โทร</label>
+                        <input type="text" name="phone" id="edit_phone" class="form-control" autocomplete="tel">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>บทบาท <span style="color: red;">*</span></label>
+                        <label for="edit_department">แผนก</label>
+                        <input type="text" name="department" id="edit_department" class="form-control" autocomplete="organization">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_position">ตำแหน่ง</label>
+                        <input type="text" name="position" id="edit_position" class="form-control" autocomplete="organization-title">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit_role">บทบาท <span style="color: red;">*</span></label>
                         <select name="role" id="edit_role" class="form-control" required>
                             <option value="user">User</option>
                             <option value="staff">Staff</option>
@@ -844,7 +844,7 @@ $stats = $db->query($statsSQL)->fetch_assoc();
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>สถานะ <span style="color: red;">*</span></label>
+                        <label for="edit_status">สถานะ <span style="color: red;">*</span></label>
                         <select name="status" id="edit_status" class="form-control" required>
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>

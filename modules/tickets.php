@@ -2,7 +2,9 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
-require_once 'notificationhelper.php';
+if (file_exists(__DIR__ . '/notificationhelper.php')) {
+    require_once __DIR__ . '/notificationhelper.php';
+}
 
 // Check login
 if (!isset($_SESSION['user_id'])) {
@@ -1395,18 +1397,18 @@ function handleFileUploads($db, $ticketId, $files) {
                     <input type="hidden" name="action" value="create">
                     
                     <div class="form-group">
-                        <label class="form-label">
+                        <label class="form-label" for="ticket_title">
                             <i class="fas fa-heading"></i> หัวข้อ *
                         </label>
-                        <input type="text" name="title" class="form-control" required placeholder="ระบุหัวข้อปัญหา">
+                        <input type="text" name="title" id="ticket_title" class="form-control" required placeholder="ระบุหัวข้อปัญหา">
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">
+                            <label class="form-label" for="ticket_category">
                                 <i class="fas fa-folder"></i> หมวดหมู่ *
                             </label>
-                            <select name="category" class="form-control" required>
+                            <select name="category" id="ticket_category" class="form-control" required>
                                 <option value="">เลือกหมวดหมู่</option>
                                 <option value="hardware">🖥️ Hardware</option>
                                 <option value="software">💿 Software</option>
@@ -1419,10 +1421,10 @@ function handleFileUploads($db, $ticketId, $files) {
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">
+                            <label class="form-label" for="ticket_asset">
                                 <i class="fas fa-laptop"></i> สินทรัพย์ที่เกี่ยวข้อง
                             </label>
-                            <select name="asset_id" class="form-control">
+                            <select name="asset_id" id="ticket_asset" class="form-control">
                                 <option value="">ไม่ระบุ</option>
                                 <?php foreach ($assets as $asset): ?>
                                 <option value="<?php echo $asset['asset_id']; ?>">
@@ -1435,10 +1437,10 @@ function handleFileUploads($db, $ticketId, $files) {
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">
+                            <label class="form-label" for="ticket_urgency">
                                 <i class="fas fa-flag"></i> ความเร่งด่วน (Urgency) *
                             </label>
-                            <select name="urgency" class="form-control" required>
+                            <select name="urgency" id="ticket_urgency" class="form-control" required>
                                 <option value="low">🟢 Low - สามารถรอได้</option>
                                 <option value="medium" selected>🟡 Medium - ควรแก้ไขเร็ว</option>
                                 <option value="high">🟠 High - ต้องแก้ไขด่วน</option>
@@ -1447,10 +1449,10 @@ function handleFileUploads($db, $ticketId, $files) {
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">
+                            <label class="form-label" for="ticket_impact">
                                 <i class="fas fa-exclamation-circle"></i> ผลกระทบ (Impact) *
                             </label>
-                            <select name="impact" class="form-control" required>
+                            <select name="impact" id="ticket_impact" class="form-control" required>
                                 <option value="low">🟢 Low - ส่งผลต่อตัวเอง</option>
                                 <option value="medium" selected>🟡 Medium - ส่งผลต่อทีม</option>
                                 <option value="high">🟠 High - ส่งผลต่อแผนก</option>
@@ -1461,10 +1463,10 @@ function handleFileUploads($db, $ticketId, $files) {
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">
+                            <label class="form-label" for="ticket_priority">
                                 <i class="fas fa-tachometer-alt"></i> ระดับความสำคัญ (Priority) *
                             </label>
-                            <select name="priority" class="form-control" required>
+                            <select name="priority" id="ticket_priority" class="form-control" required>
                                 <option value="low">🟢 Low</option>
                                 <option value="normal" selected>🔵 Normal</option>
                                 <option value="high">🟠 High</option>
@@ -1473,22 +1475,22 @@ function handleFileUploads($db, $ticketId, $files) {
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">
+                            <label class="form-label" for="ticket_location">
                                 <i class="fas fa-map-marker-alt"></i> สถานที่
                             </label>
-                            <input type="text" name="location" class="form-control" placeholder="อาคาร / ชั้น / ห้อง">
+                            <input type="text" name="location" id="ticket_location" class="form-control" placeholder="อาคาร / ชั้น / ห้อง">
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">
+                        <label class="form-label" for="ticket_description">
                             <i class="fas fa-align-left"></i> รายละเอียดปัญหา *
                         </label>
-                        <textarea name="description" class="form-control" required placeholder="อธิบายปัญหาอย่างละเอียด..."></textarea>
+                        <textarea name="description" id="ticket_description" class="form-control" required placeholder="อธิบายปัญหาอย่างละเอียด..."></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">
+                        <label class="form-label" for="fileInput">
                             <i class="fas fa-paperclip"></i> แนบไฟล์ (ถ้ามี)
                         </label>
                         <div class="file-upload" onclick="document.getElementById('fileInput').click()">

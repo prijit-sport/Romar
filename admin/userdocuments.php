@@ -572,15 +572,15 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 <input type="hidden" name="action" value="upload">
                 
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label style="color: #1e293b; font-weight: 600;">ชื่อเอกสาร <span style="color: #ef4444;">*</span></label>
-                    <input type="text" name="title" required 
+                    <label for="udoc_title" style="color: #1e293b; font-weight: 600;">ชื่อเอกสาร <span style="color: #ef4444;">*</span></label>
+                    <input type="text" name="title" id="udoc_title" required 
                         style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1em;"
                         placeholder="เช่น คู่มือการใช้งาน">
                 </div>
                 
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label style="color: #1e293b; font-weight: 600;">หมวดหมู่ <span style="color: #ef4444;">*</span></label>
-                    <select name="category" required 
+                    <label for="udoc_category" style="color: #1e293b; font-weight: 600;">หมวดหมู่ <span style="color: #ef4444;">*</span></label>
+                    <select name="category" id="udoc_category" required 
                         style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1em;">
                         <option value="">-- เลือกหมวดหมู่ --</option>
                         <option value="คู่มือ">📘 คู่มือ</option>
@@ -591,15 +591,15 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 </div>
                 
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label style="color: #1e293b; font-weight: 600;">คำอธิบาย</label>
-                    <textarea name="description" rows="3" 
+                    <label for="udoc_description" style="color: #1e293b; font-weight: 600;">คำอธิบาย</label>
+                    <textarea name="description" id="udoc_description" rows="3" 
                         style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1em; resize: vertical;"
                         placeholder="รายละเอียดเอกสาร (ถ้ามี)"></textarea>
                 </div>
                 
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label style="color: #1e293b; font-weight: 600;">ไฟล์ <span style="color: #ef4444;">*</span></label>
-                    <input type="file" name="file" required 
+                    <label for="udoc_file" style="color: #1e293b; font-weight: 600;">ไฟล์ <span style="color: #ef4444;">*</span></label>
+                    <input type="file" name="file" id="udoc_file" required 
                         accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.zip"
                         style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1em;">
                     <small style="color: #64748b;">

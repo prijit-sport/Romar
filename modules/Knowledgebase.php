@@ -1004,7 +1004,7 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
                 </div>
                 
                 <div class="form-group">
-                    <label>
+                    <label for="title">
                         หัวข้อบทความ 
                         <span class="required">*</span>
                     </label>
@@ -1018,7 +1018,7 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
                 </div>
 
                 <div class="form-group">
-                    <label>
+                    <label for="category_id">
                         หมวดหมู่ 
                         <span class="required">*</span>
                     </label>
@@ -1034,7 +1034,7 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
                 </div>
 
                 <div class="form-group">
-                    <label>
+                    <label for="content">
                         เนื้อหา 
                         <span class="required">*</span>
                     </label>
@@ -1056,7 +1056,7 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
                 </div>
 
                 <div class="form-group">
-                    <label>Tags (คำค้นหา)</label>
+                    <label for="tags">Tags (คำค้นหา)</label>
                     <input type="text" 
                            name="tags" 
                            id="tags" 
