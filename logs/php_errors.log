@@ -2779,3 +2779,7 @@ Stack trace:
 [17-Feb-2026 15:13:22 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\announcements.php on line 521
 [17-Feb-2026 15:13:24 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\settings.php on line 412
 [17-Feb-2026 15:14:10 Asia/Bangkok] PHP Warning:  Undefined variable $current_page in C:\xampp\htdocs\Romar\admin\meeting-rooms.php on line 657
+[17-Feb-2026 16:00:29 Asia/Bangkok] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\Romar\modules\dashboard.php on line 751
+[17-Feb-2026 16:00:29 Asia/Bangkok] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\Romar\modules\dashboard.php on line 751
+[17-Feb-2026 16:14:15 Asia/Bangkok] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\Romar\modules\dashboard.php on line 751
+[17-Feb-2026 16:14:15 Asia/Bangkok] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\Romar\modules\dashboard.php on line 751

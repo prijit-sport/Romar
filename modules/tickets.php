@@ -1054,7 +1054,7 @@ function handleFileUploads($db, $ticketId, $files) {
                     <?php if ($isAdmin): ?>
                     <li>
                         <a href="../admin/dashboard.php">
-                            <i class="fas fa-arrow-left"></i> กลับ Dashboard
+                            <i class="fas fa-arrow-left"></i> กลับ Dashboard หลัก
                         </a>
                     </li>
                     <?php endif; ?>
