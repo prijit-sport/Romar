@@ -3,6 +3,8 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
+$current_page = basename($_SERVER['PHP_SELF']);
+
 // Check login and admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: ../auth/login.php');
@@ -711,6 +713,7 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 type="text" 
                 name="search" 
                 class="search-input" 
+                autocomplete="off"
                 placeholder="ค้นหาชื่อเอกสาร..."
                 value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>"
             >
@@ -787,12 +790,12 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     
                     <div class="form-group">
                         <label class="form-label" for="doc_title">ชื่อเอกสาร *</label>
-                        <input type="text" name="title" id="doc_title" class="form-control" required>
+                        <input type="text" name="title" id="doc_title" class="form-control" autocomplete="off" required>
                     </div>
 
                <div class="form-group">
     <label class="form-label" for="doc_category">หมวดหมู่ *</label>
-    <select name="category" id="doc_category" class="form-control" required>
+    <select name="category" id="doc_category" class="form-control" autocomplete="off" required>
         <option value="" disabled selected>--- เลือกหมวดหมู่ ---</option>
         <option value="คู่มือ">คู่มือ</option>
         <option value="แบบฟอร์ม">แบบฟอร์ม</option>
@@ -803,7 +806,7 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
                     <div class="form-group">
                         <label class="form-label" for="doc_description">รายละเอียด</label>
-                        <textarea name="description" id="doc_description" class="form-control"></textarea>
+                        <textarea name="description" id="doc_description" class="form-control" autocomplete="off"></textarea>
                     </div>
 
                     <div class="form-group">

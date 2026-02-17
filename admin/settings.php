@@ -3,6 +3,8 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
+$current_page = basename($_SERVER['PHP_SELF']);
+
 // Check login
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');

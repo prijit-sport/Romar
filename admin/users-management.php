@@ -3,6 +3,12 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
+// Generate CSRF token
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrfToken = $_SESSION['csrf_token'];
+
 // Check login and admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: ../auth/login.php');
@@ -12,34 +18,55 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 $db = getDB();
 $message = '';
 $messageType = '';
+$current_page = basename(__FILE__);
 
 // Handle Add/Edit User
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    // Validate CSRF token
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die('Invalid CSRF token');
+    }
     if ($_POST['action'] === 'add') {
         $username = sanitize($_POST['username']);
         $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
         $fullName = sanitize($_POST['full_name']);
         $email = sanitize($_POST['email']);
         $role = sanitize($_POST['role']);
-        
-        $stmt = $db->prepare("INSERT INTO users (username, password, full_name, email, role, is_active, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())");
-        $stmt->bind_param('sssss', $username, $password, $fullName, $email, $role);
-        
-        if ($stmt->execute()) {
-            $message = 'เพิ่มผู้ใช้สำเร็จ!';
-            $messageType = 'success';
-            logActivity($_SESSION['user_id'], 'เพิ่มผู้ใช้ใหม่', 'Users', "เพิ่มผู้ใช้: $username");
-        } else {
-            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $message = 'รูปแบบ Email ไม่ถูกต้อง';
             $messageType = 'error';
-        }
+        } elseif (!in_array($role, ['user', 'staff', 'admin'])) {
+            $message = 'บทบาทไม่ถูกต้อง';
+            $messageType = 'error';
+        
+        } else {
+            $stmt = $db->prepare("INSERT INTO users (username, password, full_name, email, role, is_active, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())");
+            $stmt->bind_param('sssss', $username, $password, $fullName, $email, $role);
+            
+            if ($stmt->execute()) {
+                $message = 'เพิ่มผู้ใช้สำเร็จ!';
+                $messageType = 'success';
+                logActivity($_SESSION['user_id'], 'เพิ่มผู้ใช้ใหม่', 'Users', "เพิ่มผู้ใช้: $username");
+            } else {
+                $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+                $messageType = 'error';
+            }
+        } // end email/role validation
     } elseif ($_POST['action'] === 'edit') {
         $userId = (int)$_POST['user_id'];
         $fullName = sanitize($_POST['full_name']);
         $email = sanitize($_POST['email']);
         $role = sanitize($_POST['role']);
         $isActive = isset($_POST['is_active']) ? 1 : 0;
-        
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $message = 'รูปแบบ Email ไม่ถูกต้อง';
+            $messageType = 'error';
+        } elseif (!in_array($role, ['user', 'staff', 'admin'])) {
+            $message = 'บทบาทไม่ถูกต้อง';
+            $messageType = 'error';
+        } else {
         if (!empty($_POST['password'])) {
             $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
             $stmt = $db->prepare("UPDATE users SET full_name = ?, email = ?, role = ?, is_active = ?, password = ? WHERE user_id = ?");
@@ -50,13 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
         
         if ($stmt->execute()) {
-            $message = 'แก้ไขผู้ใช้สำเร็จ!';
-            $messageType = 'success';
-            logActivity($_SESSION['user_id'], 'แก้ไขข้อมูลผู้ใช้', 'Users', "แก้ไขผู้ใช้ ID: $userId");
-        } else {
-            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
-            $messageType = 'error';
-        }
+                $message = 'แก้ไขผู้ใช้สำเร็จ!';
+                $messageType = 'success';
+                logActivity($_SESSION['user_id'], 'แก้ไขข้อมูลผู้ใช้', 'Users', "แก้ไขผู้ใช้ ID: $userId");
+            } else {
+                $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+                $messageType = 'error';
+            }
+        } // end email/role validation
     } elseif ($_POST['action'] === 'delete') {
         $userId = (int)$_POST['user_id'];
         
@@ -152,7 +180,7 @@ $currentUser = getCurrentUser();
         }
 
         .brand-subtitle {
-            color: #000000;
+            color: rgba(255, 255, 255, 0.75);
             font-size: 1em;
             opacity: 0.8;
         }
@@ -261,7 +289,7 @@ $currentUser = getCurrentUser();
         .search-input:focus {
             outline: none;
             border-color: #1ae424;
-            box-shadow: 0 0 0 3px rgb(0, 0, 0)
+            box-shadow: 0 0 0 3px rgba(16, 206, 48, 0.25);
         }
 
         /* Button */
@@ -657,8 +685,8 @@ $currentUser = getCurrentUser();
 
             <!-- Alert Messages -->
             <?php if ($message): ?>
-            <div class="alert alert-<?php echo $messageType; ?> show" id="alertMessage">
-                <?php echo $message; ?>
+            <div class="alert alert-<?php echo htmlspecialchars($messageType); ?> show" id="alertMessage">
+                <?php echo htmlspecialchars($message); ?>
             </div>
             <?php endif; ?>
 
@@ -757,6 +785,7 @@ $currentUser = getCurrentUser();
             <div class="modal-body">
                 <form method="POST" id="addForm">
                     <input type="hidden" name="action" value="add">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                     
                     <div class="form-group">
                         <label class="form-label" for="add_username">Username *</label>
@@ -807,6 +836,7 @@ $currentUser = getCurrentUser();
                 <form method="POST" id="editForm">
                     <input type="hidden" name="action" value="edit">
                     <input type="hidden" name="user_id" id="edit_user_id">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
                     
                     <div class="form-group">
                         <label class="form-label" for="edit_username">Username</label>
@@ -857,6 +887,7 @@ $currentUser = getCurrentUser();
     <form method="POST" id="deleteForm" style="display: none;">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="user_id" id="delete_user_id">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
     </form>
 
     <script>

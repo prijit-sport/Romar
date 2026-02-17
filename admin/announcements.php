@@ -3,6 +3,8 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
+$current_page = basename($_SERVER['PHP_SELF']);
+
 // Check login
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');
@@ -627,17 +629,17 @@ $currentUser = getCurrentUser();
                     
                     <div class="form-group">
                         <label class="form-label" for="add_title">หัวข้อ *</label>
-                        <input type="text" name="title" id="add_title" class="form-control" required>
+                        <input type="text" name="title" id="add_title" class="form-control" autocomplete="off" required>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="add_content">เนื้อหา *</label>
-                        <textarea name="content" id="add_content" class="form-control" required></textarea>
+                        <textarea name="content" id="add_content" class="form-control" autocomplete="off" required></textarea>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="add_priority">ระดับความสำคัญ *</label>
-                        <select name="priority" id="add_priority" class="form-control" required>
+                        <select name="priority" id="add_priority" class="form-control" autocomplete="off" required>
                             <option value="normal">🟢 ปกติ</option>
                             <option value="important">🟡 สำคัญ</option>
                             <option value="urgent">🔴 เร่งด่วน</option>
@@ -674,17 +676,17 @@ $currentUser = getCurrentUser();
                     
                     <div class="form-group">
                         <label class="form-label" for="edit_title">หัวข้อ *</label>
-                        <input type="text" name="title" id="edit_title" class="form-control" required>
+                        <input type="text" name="title" id="edit_title" class="form-control" autocomplete="off" required>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="edit_content">เนื้อหา *</label>
-                        <textarea name="content" id="edit_content" class="form-control" required></textarea>
+                        <textarea name="content" id="edit_content" class="form-control" autocomplete="off" required></textarea>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="edit_priority">ระดับความสำคัญ *</label>
-                        <select name="priority" id="edit_priority" class="form-control" required>
+                        <select name="priority" id="edit_priority" class="form-control" autocomplete="off" required>
                             <option value="normal">🟢 ปกติ</option>
                             <option value="important">🟡 สำคัญ</option>
                             <option value="urgent">🔴 เร่งด่วน</option>
