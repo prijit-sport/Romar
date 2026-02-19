@@ -727,9 +727,9 @@ $currentUser = getCurrentUser();
                                 </td>
                             </tr>
                             <?php else: ?>
-                            <?php foreach ($users as $user): ?>
+                            <?php $rank = 1; foreach ($users as $user): ?>
                             <tr>
-                                <td><strong>#<?php echo $user['user_id']; ?></strong></td>
+                                <td><strong>#<?php echo $rank++; ?></strong></td>
                                 <td><code><?php echo htmlspecialchars($user['username']); ?></code></td>
                                 <td><?php echo htmlspecialchars($user['full_name']); ?></td>
                                 <td>

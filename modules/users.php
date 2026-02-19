@@ -682,9 +682,9 @@ $stats = $db->query($statsSQL)->fetch_assoc();
                             </td>
                         </tr>
                         <?php else: ?>
-                            <?php foreach ($users as $user): ?>
+                            <?php $rank = 1; foreach ($users as $user): ?>
                             <tr>
-                                <td><?php echo $user['user_id']; ?></td>
+                                <td><strong>#<?php echo $rank++; ?></strong></td>
                                 <td><strong><?php echo htmlspecialchars($user['full_name'] ?? 'N/A'); ?></strong></td>
                                 <td><?php echo htmlspecialchars($user['username']); ?></td>
                                 <td><?php echo htmlspecialchars($user['email'] ?? 'N/A'); ?></td>

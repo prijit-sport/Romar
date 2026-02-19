@@ -2783,3 +2783,18 @@ Stack trace:
 [17-Feb-2026 16:00:29 Asia/Bangkok] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\Romar\modules\dashboard.php on line 751
 [17-Feb-2026 16:14:15 Asia/Bangkok] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\Romar\modules\dashboard.php on line 751
 [17-Feb-2026 16:14:15 Asia/Bangkok] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in C:\xampp\htdocs\Romar\modules\dashboard.php on line 751
+[19-Feb-2026 17:02:00 Asia/Bangkok] PHP Fatal error:  Uncaught mysqli_sql_exception: Duplicate entry 'staff' for key 'username' in C:\xampp\htdocs\Romar\admin\users-management.php:47
+Stack trace:
+#0 C:\xampp\htdocs\Romar\admin\users-management.php(47): mysqli_stmt->execute()
+#1 {main}
+  thrown in C:\xampp\htdocs\Romar\admin\users-management.php on line 47
+[19-Feb-2026 17:02:05 Asia/Bangkok] PHP Fatal error:  Uncaught mysqli_sql_exception: Duplicate entry 'staff' for key 'username' in C:\xampp\htdocs\Romar\admin\users-management.php:47
+Stack trace:
+#0 C:\xampp\htdocs\Romar\admin\users-management.php(47): mysqli_stmt->execute()
+#1 {main}
+  thrown in C:\xampp\htdocs\Romar\admin\users-management.php on line 47
+[19-Feb-2026 17:02:08 Asia/Bangkok] PHP Fatal error:  Uncaught mysqli_sql_exception: Duplicate entry 'staff' for key 'username' in C:\xampp\htdocs\Romar\admin\users-management.php:47
+Stack trace:
+#0 C:\xampp\htdocs\Romar\admin\users-management.php(47): mysqli_stmt->execute()
+#1 {main}
+  thrown in C:\xampp\htdocs\Romar\admin\users-management.php on line 47
