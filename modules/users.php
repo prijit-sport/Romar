@@ -418,6 +418,15 @@ $stats = $db->query($statsSQL)->fetch_assoc();
             color: white;
         }
 
+        .btn-view {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background: #38a169;
+        }
+
         /* Modal */
         .modal {
             display: none;
@@ -702,6 +711,9 @@ $stats = $db->query($statsSQL)->fetch_assoc();
                                 </td>
                                 <td>
                                     <div class="action-btns">
+                                        <a href="userProfile.php?id=<?php echo $user['user_id']; ?>" class="btn btn-view btn-sm" title="ดูข้อมูลผู้ใช้">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
                                         <button class="btn btn-edit btn-sm" onclick='editUser(<?php echo json_encode($user); ?>)'>
                                             <i class="fas fa-edit"></i>
                                         </button>

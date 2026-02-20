@@ -2798,3 +2798,8 @@ Stack trace:
 #0 C:\xampp\htdocs\Romar\admin\users-management.php(47): mysqli_stmt->execute()
 #1 {main}
   thrown in C:\xampp\htdocs\Romar\admin\users-management.php on line 47
+[20-Feb-2026 16:12:06 Asia/Bangkok] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'user_id' in 'where clause' in C:\xampp\htdocs\Romar\modules\userProfile.php:47
+Stack trace:
+#0 C:\xampp\htdocs\Romar\modules\userProfile.php(47): mysqli->prepare('SELECT \r\n      ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\userProfile.php on line 47
