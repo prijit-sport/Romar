@@ -11,8 +11,11 @@ if (!isset($_SESSION['user_id'])) {
 
 $db = getDB();
 $isAdmin = $_SESSION['role'] === 'admin';
-$message = '';
-$messageType = '';
+
+// ── Flash message (PRG pattern) ────────────────────────────────
+$message     = $_SESSION['flash_message'] ?? '';
+$messageType = $_SESSION['flash_type']    ?? '';
+unset($_SESSION['flash_message'], $_SESSION['flash_type']);
 
 // Handle Create Asset
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
@@ -72,6 +75,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $warrantySQL     = $warranty_expiry ? "'$warranty_expiry'" : 'NULL';
     $invDateSQL      = $last_inventory_date ? "'$last_inventory_date'" : 'NULL';
 
+    // ── ตรวจสอบ asset_tag ซ้ำก่อน INSERT ──────────────────────
+    $checkDuplicate = $db->query("SELECT asset_id FROM assets WHERE asset_tag = '$asset_tag'");
+    if ($checkDuplicate && $checkDuplicate->num_rows > 0) {
+        $_SESSION['flash_message'] = "Asset Tag \"$asset_tag\" มีในระบบแล้ว กรุณาใช้รหัสสินทรัพย์ใหม่";
+        $_SESSION['flash_type']    = 'error';
+        $cat = $_GET['cat'] ?? 'all';
+        header('Location: assets.php?cat=' . $cat);
+        exit;
+    } // not duplicate
+
     $dbResult = $db->query("INSERT INTO assets (
         asset_name, asset_tag, asset_type, brand, model, serial_number, inventory_number,
         location, department, asset_group, assigned_to, tech_in_charge, alternate_user,
@@ -90,13 +103,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         '$cpu',$cpuCoresSQL,$ramSQL,'$storage','$gpu','$monitor',NOW()
     )");
     if ($dbResult) {
-        $message = 'เพิ่มสินทรัพย์สำเร็จ!';
-        $messageType = 'success';
         logActivity($_SESSION['user_id'], 'เพิ่มสินทรัพย์', 'Assets', "เพิ่ม: $asset_name ($asset_tag)");
+        $_SESSION['flash_message'] = 'เพิ่มสินทรัพย์สำเร็จ!';
+        $_SESSION['flash_type']    = 'success';
     } else {
-        $message = 'เกิดข้อผิดพลาด: ' . $db->error;
-        $messageType = 'error';
+        $_SESSION['flash_message'] = 'เกิดข้อผิดพลาด: ' . $db->error;
+        $_SESSION['flash_type']    = 'error';
     }
+
+    $cat = $_GET['cat'] ?? 'all';
+    header('Location: assets.php?cat=' . $cat);
+    exit;
 }
 
 // Handle Update Asset
@@ -159,13 +176,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         WHERE asset_id=$asset_id");
 
     if ($dbResult) {
-        $message = 'อัปเดตสินทรัพย์สำเร็จ!';
-        $messageType = 'success';
         logActivity($_SESSION['user_id'], 'อัปเดตสินทรัพย์', 'Assets', "อัปเดต: $asset_name");
+        $_SESSION['flash_message'] = 'อัปเดตสินทรัพย์สำเร็จ!';
+        $_SESSION['flash_type']    = 'success';
     } else {
-        $message = 'เกิดข้อผิดพลาด: ' . $db->error;
-        $messageType = 'error';
+        $_SESSION['flash_message'] = 'เกิดข้อผิดพลาด: ' . $db->error;
+        $_SESSION['flash_type']    = 'error';
     }
+    $cat = $_GET['cat'] ?? 'all';
+    header('Location: assets.php?cat=' . $cat);
+    exit;
 }
 
 // Handle Delete Asset
@@ -176,13 +196,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $stmt->bind_param('i', $asset_id);
     
     if ($stmt->execute()) {
-        $message = 'ลบสินทรัพย์สำเร็จ!';
-        $messageType = 'success';
         logActivity($_SESSION['user_id'], 'ลบสินทรัพย์', 'Assets', "ลบ Asset ID: $asset_id");
+        $_SESSION['flash_message'] = 'ลบสินทรัพย์สำเร็จ!';
+        $_SESSION['flash_type']    = 'success';
     } else {
-        $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
-        $messageType = 'error';
+        $_SESSION['flash_message'] = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+        $_SESSION['flash_type']    = 'error';
     }
+    $cat = $_GET['cat'] ?? 'all';
+    header('Location: assets.php?cat=' . $cat);
+    exit;
 }
 
 // ── Category definitions (GLPI-style) ─────────────────────────
@@ -192,9 +215,9 @@ $ASSET_CATEGORIES = [
     'monitors'     => ['label'=>'จอมอนิเตอร์',        'icon'=>'fa-tv',             'types'=>['monitor'], 'color'=>'#38a169'],
     'network'      => ['label'=>'อุปกรณ์เครือข่าย',  'icon'=>'fa-network-wired',  'types'=>['network'], 'color'=>'#805ad5'],
     'printers'     => ['label'=>'เครื่องพิมพ์',       'icon'=>'fa-print',          'types'=>['printer'], 'color'=>'#dd6b20'],
-    'phones'       => ['label'=>'โทรศัพท์/มือถือ',    'icon'=>'fa-mobile-alt',     'types'=>['mobile','phone'], 'color'=>'#e53e3e'],
-    'software'     => ['label'=>'ซอฟต์แวร์',          'icon'=>'fa-compact-disc',   'types'=>['software'], 'color'=>'#3182ce'],
-    'other'        => ['label'=>'อื่นๆ',               'icon'=>'fa-cube',           'types'=>['other'], 'color'=>'#718096'],
+    'phones'       => ['label'=>'โทรศัพท์/มือถือ',    'icon'=>'fa-mobile-screen-button', 'types'=>['mobile','phone'], 'color'=>'#e53e3e'],
+    'software'     => ['label'=>'ซอฟต์แวร์',          'icon'=>'fa-floppy-disk',    'types'=>['software'], 'color'=>'#3182ce'],
+    'other'        => ['label'=>'อื่นๆ',               'icon'=>'fa-box',            'types'=>['other'], 'color'=>'#718096'],
 ];
 
 // Current category from URL
@@ -705,7 +728,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
             }
         }
 
-        /* Assets accordion sub-menu */
+        /* Assets popup flyout menu */
         .nav-parent {
             display: flex;
             align-items: center;
@@ -713,43 +736,75 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
             color: white;
             text-decoration: none;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: background 0.2s;
             justify-content: space-between;
             user-select: none;
+            position: relative;
         }
-        .nav-parent:hover {
-            background: rgba(255,255,255,0.1);
-        }
-        .nav-parent.open {
+        .nav-parent:hover, .nav-parent.open {
             background: rgba(255,255,255,0.12);
         }
         .nav-parent .arrow {
-            transition: transform 0.3s;
+            transition: transform 0.25s;
             font-size: 0.75em;
         }
         .nav-parent.open .arrow {
             transform: rotate(90deg);
         }
+        /* Remove old inline submenu */
         .nav-submenu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.35s ease, background 0.3s;
-            background: rgba(0,0,0,0.25);
+            display: none;
         }
-        .nav-submenu.open {
-            max-height: 600px;
+        /* Floating popup box */
+        .assets-popup {
+            display: none;
+            position: fixed;
+            left: 220px;
+            background: #1a472a;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            box-shadow: 4px 4px 20px rgba(0,0,0,0.5);
+            min-width: 230px;
+            z-index: 9999;
+            padding: 6px 0;
+            animation: popupFadeIn 0.18s ease;
         }
-        .nav-submenu li a {
-            padding: 10px 20px 10px 42px !important;
-            font-size: 0.93em !important;
+        .assets-popup.show { display: block; }
+        @keyframes popupFadeIn {
+            from { opacity:0; transform: translateX(-8px); }
+            to   { opacity:1; transform: translateX(0); }
         }
-        .nav-submenu li.active a {
-            background: linear-gradient(90deg, rgba(17,224,35,0.8), rgba(184,209,39,0.6)) !important;
-            border-left: 3px solid #fff !important;
-            color: white !important;
+        .assets-popup-title {
+            padding: 8px 16px 6px;
+            font-size: 0.75em;
+            font-weight: 700;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 4px;
+        }
+        .assets-popup a {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 16px;
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            font-size: 0.92em;
+            transition: background 0.15s;
+            gap: 8px;
+        }
+        .assets-popup a:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .assets-popup a.active-item {
+            background: linear-gradient(90deg, rgba(17,224,35,0.7), rgba(184,209,39,0.5));
+            color: white;
+            font-weight: 600;
+        }
+        .assets-popup a span.left-label {
+            display: flex; align-items: center; gap: 9px;
         }
         .submenu-badge {
             background: rgba(255,255,255,0.25);
@@ -805,13 +860,13 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                     <li><a href="tickets.php"><i class="fas fa-ticket-alt" style="width:18px;"></i> IT Tickets</a></li>
                     <li><a href="knowledgebase.php"><i class="fas fa-book" style="width:18px;"></i> Knowledge Base</a></li>
 
-                    <!-- Assets accordion parent -->
+                    <!-- Assets popup parent -->
                     <li class="menu-section">Assets</li>
 
-                    <!-- All Assets (parent toggle) -->
-                    <li>
-                        <div class="nav-parent <?= in_array($cat, array_keys($ASSET_CATEGORIES)) ? 'open' : '' ?>"
-                             onclick="toggleAssets(this)">
+                    <!-- Assets flyout trigger -->
+                    <li style="position:relative;">
+                        <div class="nav-parent <?= $cat !== '' ? 'open' : '' ?>" id="assetsToggle"
+                             onclick="toggleAssetsPopup(event, this)">
                             <span style="display:flex;align-items:center;gap:10px;">
                                 <i class="fas fa-boxes" style="width:18px;"></i>
                                 สินทรัพย์ทั้งหมด
@@ -821,26 +876,8 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                             </span>
                             <i class="fas fa-chevron-right arrow"></i>
                         </div>
-                        <ul class="nav-submenu <?= in_array($cat, array_keys($ASSET_CATEGORIES)) ? 'open' : '' ?>">
-                            <!-- All -->
-                            <li class="<?= $cat==='all' ? 'active' : '' ?>">
-                                <a href="assets.php?cat=all" style="display:flex;justify-content:space-between;align-items:center;">
-                                    <span><i class="fas fa-layer-group" style="width:16px;"></i> ทั้งหมด</span>
-                                    <span class="submenu-badge"><?= $catCounts['all'] ?></span>
-                                </a>
-                            </li>
-                            <?php foreach ($ASSET_CATEGORIES as $key => $catDef):
-                                if ($key === 'all') continue; ?>
-                            <li class="<?= $cat===$key ? 'active' : '' ?>">
-                                <a href="assets.php?cat=<?= $key ?>" style="display:flex;justify-content:space-between;align-items:center;">
-                                    <span><i class="fas <?= $catDef['icon'] ?>" style="width:16px;"></i> <?= $catDef['label'] ?></span>
-                                    <?php if ($catCounts[$key] > 0): ?>
-                                    <span class="submenu-badge"><?= $catCounts[$key] ?></span>
-                                    <?php endif; ?>
-                                </a>
-                            </li>
-                            <?php endforeach; ?>
-                        </ul>
+                        <!-- hidden old submenu (kept for compatibility) -->
+                        <ul class="nav-submenu" id="assetsSubmenu"></ul>
                     </li>
 
                     <?php if ($isAdmin): ?>
@@ -1215,6 +1252,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                             <select name="asset_type" class="form-control" required>
                                 <option value="desktop">Desktop</option>
                                 <option value="laptop">Laptop</option>
+                                <option value="monitor">Monitor (จอมอนิเตอร์)</option>
                                 <option value="server">Server</option>
                                 <option value="printer">Printer</option>
                                 <option value="network">Network Device</option>
@@ -1512,6 +1550,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                             <select name="asset_type" id="edit_asset_type" class="form-control" required>
                                 <option value="desktop">Desktop</option>
                                 <option value="laptop">Laptop</option>
+                                <option value="monitor">Monitor (จอมอนิเตอร์)</option>
                                 <option value="server">Server</option>
                                 <option value="printer">Printer</option>
                                 <option value="network">Network Device</option>
@@ -1764,12 +1803,82 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
     </form>
 
     <script>
-        // Toggle Assets accordion in sidebar
-        function toggleAssets(el) {
-            el.classList.toggle('open');
-            const submenu = el.nextElementSibling;
-            submenu.classList.toggle('open');
+
+        // ── Assets Popup Flyout ──────────────────────────────────
+        const POPUP_ITEMS = <?php
+            $items = [];
+            foreach ($ASSET_CATEGORIES as $key => $catDef) {
+                $items[] = [
+                    'key'   => $key,
+                    'label' => $catDef['label'],
+                    'icon'  => $catDef['icon'],
+                    'count' => $catCounts[$key] ?? 0,
+                ];
+            }
+            echo json_encode($items);
+        ?>;
+        const CURRENT_CAT = '<?= $cat ?>';
+
+        let popupEl = null;
+
+        function buildPopup() {
+            const div = document.createElement('div');
+            div.id = 'assetsPopup';
+            div.className = 'assets-popup';
+            div.innerHTML = '<div class="assets-popup-title"><i class="fas fa-boxes"></i> ประเภทสินทรัพย์</div>';
+            POPUP_ITEMS.forEach(item => {
+                const isAll  = item.key === 'all';
+                const active = item.key === CURRENT_CAT ? 'active-item' : '';
+                const badge  = item.count > 0 ? `<span class="submenu-badge">${item.count}</span>` : '';
+                const icon   = isAll ? 'fa-layer-group' : item.icon;
+                div.innerHTML += `
+                    <a href="assets.php?cat=${item.key}" class="${active}">
+                        <span class="left-label"><i class="fas ${icon}" style="width:16px;text-align:center;"></i> ${item.label}</span>
+                        ${badge}
+                    </a>`;
+            });
+            document.body.appendChild(div);
+            // close when clicking outside
+            setTimeout(() => {
+                document.addEventListener('click', closePopupOutside);
+            }, 10);
+            return div;
         }
+
+        function toggleAssetsPopup(e, triggerEl) {
+            e.stopPropagation();
+            if (popupEl && popupEl.classList.contains('show')) {
+                popupEl.classList.remove('show');
+                triggerEl.classList.remove('open');
+                document.removeEventListener('click', closePopupOutside);
+                return;
+            }
+            if (!popupEl) popupEl = buildPopup();
+            // Position next to trigger
+            const rect = triggerEl.getBoundingClientRect();
+            popupEl.style.top  = rect.top + 'px';
+            popupEl.style.left = '220px';
+            popupEl.classList.add('show');
+            triggerEl.classList.add('open');
+        }
+
+        function closePopupOutside(e) {
+            if (popupEl && !popupEl.contains(e.target) && !document.getElementById('assetsToggle').contains(e.target)) {
+                popupEl.classList.remove('show');
+                const toggle = document.getElementById('assetsToggle');
+                if (toggle) toggle.classList.remove('open');
+                document.removeEventListener('click', closePopupOutside);
+            }
+        }
+
+        // Auto-open popup on page load if on assets page
+        document.addEventListener('DOMContentLoaded', function() {
+            if (CURRENT_CAT !== '') {
+                const toggle = document.getElementById('assetsToggle');
+                if (toggle) toggle.classList.add('open');
+            }
+        });
+
 
         function openCreateModal() {
             switchModalTab('c','basic');

@@ -2808,3 +2808,8 @@ Stack trace:
 [23-Feb-2026 10:34:06 Asia/Bangkok] PHP Notice:  Only variables should be passed by reference in C:\xampp\htdocs\Romar\modules\assetsdetail.php on line 25
 [23-Feb-2026 10:34:06 Asia/Bangkok] PHP Notice:  Only variables should be passed by reference in C:\xampp\htdocs\Romar\modules\assetsdetail.php on line 26
 [23-Feb-2026 10:34:06 Asia/Bangkok] PHP Notice:  Only variables should be passed by reference in C:\xampp\htdocs\Romar\modules\assetsdetail.php on line 26
+[23-Feb-2026 16:26:09 Asia/Bangkok] PHP Fatal error:  Uncaught mysqli_sql_exception: Duplicate entry 'S2340L' for key 'unique_asset_tag' in C:\xampp\htdocs\Romar\modules\assets.php:75
+Stack trace:
+#0 C:\xampp\htdocs\Romar\modules\assets.php(75): mysqli->query('INSERT INTO ass...')
+#1 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\assets.php on line 75
