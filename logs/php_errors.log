@@ -2803,3 +2803,8 @@ Stack trace:
 #0 C:\xampp\htdocs\Romar\modules\userProfile.php(47): mysqli->prepare('SELECT \r\n      ...')
 #1 {main}
   thrown in C:\xampp\htdocs\Romar\modules\userProfile.php on line 47
+[23-Feb-2026 10:34:06 Asia/Bangkok] PHP Notice:  Only variables should be passed by reference in C:\xampp\htdocs\Romar\modules\assetsdetail.php on line 24
+[23-Feb-2026 10:34:06 Asia/Bangkok] PHP Notice:  Only variables should be passed by reference in C:\xampp\htdocs\Romar\modules\assetsdetail.php on line 25
+[23-Feb-2026 10:34:06 Asia/Bangkok] PHP Notice:  Only variables should be passed by reference in C:\xampp\htdocs\Romar\modules\assetsdetail.php on line 25
+[23-Feb-2026 10:34:06 Asia/Bangkok] PHP Notice:  Only variables should be passed by reference in C:\xampp\htdocs\Romar\modules\assetsdetail.php on line 26
+[23-Feb-2026 10:34:06 Asia/Bangkok] PHP Notice:  Only variables should be passed by reference in C:\xampp\htdocs\Romar\modules\assetsdetail.php on line 26

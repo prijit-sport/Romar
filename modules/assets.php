@@ -16,57 +16,154 @@ $messageType = '';
 
 // Handle Create Asset
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
-    $asset_name = sanitize($_POST['asset_name']);
-    $asset_tag = sanitize($_POST['asset_tag']);
-    $asset_type = sanitize($_POST['asset_type']);
-    $brand = sanitize($_POST['brand']);
-    $model = sanitize($_POST['model']);
-    $serial_number = sanitize($_POST['serial_number']);
-    $location = sanitize($_POST['location']);
-    $assigned_to = !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null;
-    $purchase_date = !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null;
-    $warranty_expiry = !empty($_POST['warranty_expiry']) ? $_POST['warranty_expiry'] : null;
-    $status = sanitize($_POST['status']);
-    $notes = sanitize($_POST['notes']);
-    
-    $stmt = $db->prepare("INSERT INTO assets (asset_name, asset_tag, asset_type, brand, model, serial_number, location, assigned_to, purchase_date, warranty_expiry, status, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param('sssssssissss', $asset_name, $asset_tag, $asset_type, $brand, $model, $serial_number, $location, $assigned_to, $purchase_date, $warranty_expiry, $status, $notes);
-    
-    if ($stmt->execute()) {
+    // ── Basic ──────────────────────────────────────────────
+    $asset_name        = sanitize($_POST['asset_name']);
+    $asset_tag         = sanitize($_POST['asset_tag']);
+    $asset_type        = sanitize($_POST['asset_type']);
+    $brand             = sanitize($_POST['brand']);
+    $model             = sanitize($_POST['model']);
+    $serial_number     = sanitize($_POST['serial_number']);
+    $inventory_number  = sanitize($_POST['inventory_number'] ?? '');
+    $location          = sanitize($_POST['location']);
+    $department        = sanitize($_POST['department'] ?? '');
+    $asset_group       = sanitize($_POST['asset_group'] ?? '');
+    $status            = sanitize($_POST['status']);
+    $condition         = sanitize($_POST['condition'] ?? 'good');
+    $notes             = sanitize($_POST['notes']);
+    // ── Personnel ──────────────────────────────────────────
+    $assigned_to       = !empty($_POST['assigned_to'])      ? (int)$_POST['assigned_to']      : null;
+    $tech_in_charge    = !empty($_POST['tech_in_charge'])   ? (int)$_POST['tech_in_charge']   : null;
+    $alternate_user    = sanitize($_POST['alternate_user'] ?? '');
+    // ── Purchase ───────────────────────────────────────────
+    $purchase_date     = !empty($_POST['purchase_date'])    ? $_POST['purchase_date']    : null;
+    $warranty_expiry   = !empty($_POST['warranty_expiry'])  ? $_POST['warranty_expiry']  : null;
+    $purchase_price    = !empty($_POST['purchase_price'])   ? (float)$_POST['purchase_price']  : null;
+    $salvage_value     = !empty($_POST['salvage_value'])    ? (float)$_POST['salvage_value']    : 0;
+    $useful_life_years = !empty($_POST['useful_life_years'])? (int)$_POST['useful_life_years']  : 5;
+    $supplier          = sanitize($_POST['supplier'] ?? '');
+    $last_inventory_date = !empty($_POST['last_inventory_date']) ? $_POST['last_inventory_date'] : null;
+    // ── OS ─────────────────────────────────────────────────
+    $os_name           = sanitize($_POST['os_name'] ?? '');
+    $os_version        = sanitize($_POST['os_version'] ?? '');
+    $os_architecture   = sanitize($_POST['os_architecture'] ?? '');
+    $os_service_pack   = sanitize($_POST['os_service_pack'] ?? '');
+    $os_product_key    = sanitize($_POST['os_product_key'] ?? '');
+    // ── Network ────────────────────────────────────────────
+    $ip_address        = sanitize($_POST['ip_address'] ?? '');
+    $mac_address       = sanitize($_POST['mac_address'] ?? '');
+    $network_domain    = sanitize($_POST['network_domain'] ?? '');
+    $gateway           = sanitize($_POST['gateway'] ?? '');
+    $dns_server        = sanitize($_POST['dns_server'] ?? '');
+    // ── Hardware ───────────────────────────────────────────
+    $cpu               = sanitize($_POST['cpu'] ?? '');
+    $cpu_cores         = !empty($_POST['cpu_cores']) ? (int)$_POST['cpu_cores'] : null;
+    $ram_gb            = !empty($_POST['ram_gb'])    ? (int)$_POST['ram_gb']    : null;
+    $storage           = sanitize($_POST['storage'] ?? '');
+    $gpu               = sanitize($_POST['gpu'] ?? '');
+    $monitor           = sanitize($_POST['monitor'] ?? '');
+
+    // Build INSERT
+    $assignedSQL     = $assigned_to     ? $assigned_to     : 'NULL';
+    $techSQL         = $tech_in_charge  ? $tech_in_charge  : 'NULL';
+    $cpuCoresSQL     = $cpu_cores       ? $cpu_cores       : 'NULL';
+    $ramSQL          = $ram_gb          ? $ram_gb          : 'NULL';
+    $priceSQL        = $purchase_price  ? $purchase_price  : 'NULL';
+    $purchaseDateSQL = $purchase_date   ? "'$purchase_date'"   : 'NULL';
+    $warrantySQL     = $warranty_expiry ? "'$warranty_expiry'" : 'NULL';
+    $invDateSQL      = $last_inventory_date ? "'$last_inventory_date'" : 'NULL';
+
+    $dbResult = $db->query("INSERT INTO assets (
+        asset_name, asset_tag, asset_type, brand, model, serial_number, inventory_number,
+        location, department, asset_group, assigned_to, tech_in_charge, alternate_user,
+        purchase_date, warranty_expiry, purchase_price, salvage_value, useful_life_years, supplier,
+        last_inventory_date, condition_status, status, notes,
+        os_name, os_version, os_architecture, os_service_pack, os_product_key,
+        ip_address, mac_address, network_domain, gateway, dns_server,
+        cpu, cpu_cores, ram_gb, storage, gpu, monitor, created_at
+    ) VALUES (
+        '$asset_name','$asset_tag','$asset_type','$brand','$model','$serial_number','$inventory_number',
+        '$location','$department','$asset_group',$assignedSQL,$techSQL,'$alternate_user',
+        $purchaseDateSQL,$warrantySQL,$priceSQL,$salvage_value,$useful_life_years,'$supplier',
+        $invDateSQL,'$condition','$status','$notes',
+        '$os_name','$os_version','$os_architecture','$os_service_pack','$os_product_key',
+        '$ip_address','$mac_address','$network_domain','$gateway','$dns_server',
+        '$cpu',$cpuCoresSQL,$ramSQL,'$storage','$gpu','$monitor',NOW()
+    )");
+    if ($dbResult) {
         $message = 'เพิ่มสินทรัพย์สำเร็จ!';
         $messageType = 'success';
         logActivity($_SESSION['user_id'], 'เพิ่มสินทรัพย์', 'Assets', "เพิ่ม: $asset_name ($asset_tag)");
     } else {
-        $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+        $message = 'เกิดข้อผิดพลาด: ' . $db->error;
         $messageType = 'error';
     }
 }
 
 // Handle Update Asset
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
-    $asset_id = (int)$_POST['asset_id'];
-    $asset_name = sanitize($_POST['asset_name']);
-    $asset_tag = sanitize($_POST['asset_tag']);
-    $asset_type = sanitize($_POST['asset_type']);
-    $brand = sanitize($_POST['brand']);
-    $model = sanitize($_POST['model']);
-    $serial_number = sanitize($_POST['serial_number']);
-    $location = sanitize($_POST['location']);
-    $assigned_to = !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null;
-    $purchase_date = !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null;
-    $warranty_expiry = !empty($_POST['warranty_expiry']) ? $_POST['warranty_expiry'] : null;
-    $status = sanitize($_POST['status']);
-    $notes = sanitize($_POST['notes']);
-    
-    $stmt = $db->prepare("UPDATE assets SET asset_name = ?, asset_tag = ?, asset_type = ?, brand = ?, model = ?, serial_number = ?, location = ?, assigned_to = ?, purchase_date = ?, warranty_expiry = ?, status = ?, notes = ? WHERE asset_id = ?");
-    $stmt->bind_param('ssssssssssssi', $asset_name, $asset_tag, $asset_type, $brand, $model, $serial_number, $location, $assigned_to, $purchase_date, $warranty_expiry, $status, $notes, $asset_id);
-    
-    if ($stmt->execute()) {
+    $asset_id          = (int)$_POST['asset_id'];
+    $asset_name        = sanitize($_POST['asset_name']);
+    $asset_tag         = sanitize($_POST['asset_tag']);
+    $asset_type        = sanitize($_POST['asset_type']);
+    $brand             = sanitize($_POST['brand']);
+    $model             = sanitize($_POST['model']);
+    $serial_number     = sanitize($_POST['serial_number']);
+    $inventory_number  = sanitize($_POST['inventory_number'] ?? '');
+    $location          = sanitize($_POST['location']);
+    $department        = sanitize($_POST['department'] ?? '');
+    $asset_group       = sanitize($_POST['asset_group'] ?? '');
+    $status            = sanitize($_POST['status']);
+    $condition         = sanitize($_POST['condition'] ?? 'good');
+    $notes             = sanitize($_POST['notes']);
+    $assigned_to       = !empty($_POST['assigned_to'])      ? (int)$_POST['assigned_to']      : 'NULL';
+    $tech_in_charge    = !empty($_POST['tech_in_charge'])   ? (int)$_POST['tech_in_charge']   : 'NULL';
+    $alternate_user    = sanitize($_POST['alternate_user'] ?? '');
+    $purchase_date     = !empty($_POST['purchase_date'])    ? "'".$_POST['purchase_date']."'"   : 'NULL';
+    $warranty_expiry   = !empty($_POST['warranty_expiry'])  ? "'".$_POST['warranty_expiry']."'" : 'NULL';
+    $purchase_price    = !empty($_POST['purchase_price'])   ? (float)$_POST['purchase_price']   : 'NULL';
+    $salvage_value     = !empty($_POST['salvage_value'])    ? (float)$_POST['salvage_value']    : 0;
+    $useful_life_years = !empty($_POST['useful_life_years'])? (int)$_POST['useful_life_years']  : 5;
+    $supplier          = sanitize($_POST['supplier'] ?? '');
+    $last_inventory_date = !empty($_POST['last_inventory_date']) ? "'".$_POST['last_inventory_date']."'" : 'NULL';
+    $os_name           = sanitize($_POST['os_name'] ?? '');
+    $os_version        = sanitize($_POST['os_version'] ?? '');
+    $os_architecture   = sanitize($_POST['os_architecture'] ?? '');
+    $os_service_pack   = sanitize($_POST['os_service_pack'] ?? '');
+    $os_product_key    = sanitize($_POST['os_product_key'] ?? '');
+    $ip_address        = sanitize($_POST['ip_address'] ?? '');
+    $mac_address       = sanitize($_POST['mac_address'] ?? '');
+    $network_domain    = sanitize($_POST['network_domain'] ?? '');
+    $gateway           = sanitize($_POST['gateway'] ?? '');
+    $dns_server        = sanitize($_POST['dns_server'] ?? '');
+    $cpu               = sanitize($_POST['cpu'] ?? '');
+    $cpu_cores         = !empty($_POST['cpu_cores']) ? (int)$_POST['cpu_cores'] : 'NULL';
+    $ram_gb            = !empty($_POST['ram_gb'])    ? (int)$_POST['ram_gb']    : 'NULL';
+    $storage           = sanitize($_POST['storage'] ?? '');
+    $gpu               = sanitize($_POST['gpu'] ?? '');
+    $monitor           = sanitize($_POST['monitor'] ?? '');
+
+    $dbResult = $db->query("UPDATE assets SET
+        asset_name='$asset_name', asset_tag='$asset_tag', asset_type='$asset_type',
+        brand='$brand', model='$model', serial_number='$serial_number', inventory_number='$inventory_number',
+        location='$location', department='$department', asset_group='$asset_group',
+        assigned_to=$assigned_to, tech_in_charge=$tech_in_charge, alternate_user='$alternate_user',
+        purchase_date=$purchase_date, warranty_expiry=$warranty_expiry,
+        purchase_price=$purchase_price, salvage_value=$salvage_value, useful_life_years=$useful_life_years,
+        supplier='$supplier', last_inventory_date=$last_inventory_date,
+        condition_status='$condition', status='$status', notes='$notes',
+        os_name='$os_name', os_version='$os_version', os_architecture='$os_architecture',
+        os_service_pack='$os_service_pack', os_product_key='$os_product_key',
+        ip_address='$ip_address', mac_address='$mac_address', network_domain='$network_domain',
+        gateway='$gateway', dns_server='$dns_server',
+        cpu='$cpu', cpu_cores=$cpu_cores, ram_gb=$ram_gb, storage='$storage', gpu='$gpu', monitor='$monitor'
+        WHERE asset_id=$asset_id");
+
+    if ($dbResult) {
         $message = 'อัปเดตสินทรัพย์สำเร็จ!';
         $messageType = 'success';
         logActivity($_SESSION['user_id'], 'อัปเดตสินทรัพย์', 'Assets', "อัปเดต: $asset_name");
     } else {
-        $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+        $message = 'เกิดข้อผิดพลาด: ' . $db->error;
         $messageType = 'error';
     }
 }
@@ -88,26 +185,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// ── Category definitions (GLPI-style) ─────────────────────────
+$ASSET_CATEGORIES = [
+    'all'          => ['label'=>'สินทรัพย์ทั้งหมด',  'icon'=>'fa-boxes',          'types'=>[], 'color'=>'#667eea'],
+    'computers'    => ['label'=>'คอมพิวเตอร์',        'icon'=>'fa-desktop',        'types'=>['desktop','laptop'], 'color'=>'#4299e1'],
+    'monitors'     => ['label'=>'จอมอนิเตอร์',        'icon'=>'fa-tv',             'types'=>['monitor'], 'color'=>'#38a169'],
+    'network'      => ['label'=>'อุปกรณ์เครือข่าย',  'icon'=>'fa-network-wired',  'types'=>['network'], 'color'=>'#805ad5'],
+    'printers'     => ['label'=>'เครื่องพิมพ์',       'icon'=>'fa-print',          'types'=>['printer'], 'color'=>'#dd6b20'],
+    'phones'       => ['label'=>'โทรศัพท์/มือถือ',    'icon'=>'fa-mobile-alt',     'types'=>['mobile','phone'], 'color'=>'#e53e3e'],
+    'software'     => ['label'=>'ซอฟต์แวร์',          'icon'=>'fa-compact-disc',   'types'=>['software'], 'color'=>'#3182ce'],
+    'other'        => ['label'=>'อื่นๆ',               'icon'=>'fa-cube',           'types'=>['other'], 'color'=>'#718096'],
+];
+
+// Current category from URL
+$cat = isset($_GET['cat']) ? sanitize($_GET['cat']) : 'all';
+if (!array_key_exists($cat, $ASSET_CATEGORIES)) $cat = 'all';
+$currentCat = $ASSET_CATEGORIES[$cat];
+
+// Count per category for sidebar badges
+$catCounts = [];
+foreach ($ASSET_CATEGORIES as $key => $catDef) {
+    if ($key === 'all') {
+        $r = $db->query("SELECT COUNT(*) as cnt FROM assets");
+    } else {
+        $typeList = implode("','", $catDef['types']);
+        $r = $db->query("SELECT COUNT(*) as cnt FROM assets WHERE asset_type IN ('$typeList')");
+    }
+    $catCounts[$key] = $r ? $r->fetch_assoc()['cnt'] : 0;
+}
+
 // Get Assets with filters
 $search = isset($_GET['search']) ? sanitize($_GET['search']) : '';
 $type = isset($_GET['type']) ? sanitize($_GET['type']) : '';
 $status = isset($_GET['status']) ? sanitize($_GET['status']) : '';
 $location = isset($_GET['location']) ? sanitize($_GET['location']) : '';
 
-$sql = "SELECT a.*, u.full_name as assigned_user_name 
+$sql = "SELECT a.*, 
+               u.full_name as assigned_user_name,
+               t.full_name as tech_name
         FROM assets a 
         LEFT JOIN users u ON a.assigned_to = u.user_id 
+        LEFT JOIN users t ON a.tech_in_charge = t.user_id
         WHERE 1=1";
 $params = [];
 $types = '';
 
+// Apply category filter
+if ($cat !== 'all' && !empty($currentCat['types'])) {
+    $typeList = implode("','", $currentCat['types']);
+    $sql .= " AND a.asset_type IN ('$typeList')";
+}
+
 if ($search) {
-    $sql .= " AND (a.asset_name LIKE ? OR a.asset_tag LIKE ? OR a.serial_number LIKE ?)";
+    $sql .= " AND (a.asset_name LIKE ? OR a.asset_tag LIKE ? OR a.serial_number LIKE ? OR a.ip_address LIKE ? OR a.os_name LIKE ? OR a.inventory_number LIKE ?)";
     $searchTerm = "%$search%";
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $types .= 'sss';
+    $params[] = $searchTerm; $params[] = $searchTerm; $params[] = $searchTerm;
+    $params[] = $searchTerm; $params[] = $searchTerm; $params[] = $searchTerm;
+    $types .= 'ssssss';
 }
 
 if ($type) {
@@ -136,6 +270,14 @@ if ($params) {
 }
 $stmt->execute();
 $assets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// Group assets by assigned user (for "by user" view)
+$assetsByUser = [];
+foreach ($assets as $a) {
+    $key = $a['assigned_to'] ? $a['assigned_user_name'] : '— ไม่ได้มอบหมาย —';
+    $assetsByUser[$key][] = $a;
+}
+ksort($assetsByUser);
 
 // Get Statistics
 $statsSQL = "SELECT 
@@ -562,11 +704,81 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Assets accordion sub-menu */
+        .nav-parent {
+            display: flex;
+            align-items: center;
+            padding: 13px 20px;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            justify-content: space-between;
+            user-select: none;
+        }
+        .nav-parent:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .nav-parent.open {
+            background: rgba(255,255,255,0.12);
+        }
+        .nav-parent .arrow {
+            transition: transform 0.3s;
+            font-size: 0.75em;
+        }
+        .nav-parent.open .arrow {
+            transform: rotate(90deg);
+        }
+        .nav-submenu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease, background 0.3s;
+            background: rgba(0,0,0,0.25);
+        }
+        .nav-submenu.open {
+            max-height: 600px;
+        }
+        .nav-submenu li a {
+            padding: 10px 20px 10px 42px !important;
+            font-size: 0.93em !important;
+        }
+        .nav-submenu li.active a {
+            background: linear-gradient(90deg, rgba(17,224,35,0.8), rgba(184,209,39,0.6)) !important;
+            border-left: 3px solid #fff !important;
+            color: white !important;
+        }
+        .submenu-badge {
+            background: rgba(255,255,255,0.25);
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-size: 0.78em;
+            font-weight: 700;
+        }
+        .modal-tab {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            background: none;
+            font-size: 0.88em;
+            font-weight: 600;
+            cursor: pointer;
+            color: #718096;
+            font-family: 'Sarabun', sans-serif;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .modal-tab:hover { background: #e2e8f0; color: #2d3748; }
+        .modal-tab.active-tab { background: linear-gradient(135deg, #10ce30, #000); color: white; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Sidebar (same as users.php) -->
         <div class="sidebar">
             <div class="sidebar-brand">
                 <div>
@@ -587,25 +799,64 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                         </a>
                     </li>
                     <?php endif; ?>
-                    
+
                     <li class="menu-section">หลัก</li>
-                    <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
-                    <li><a href="tickets.php"><i class="fas fa-ticket-alt"></i> IT Tickets</a></li>
-                    <li class="active"><a href="assets.php"><i class="fas fa-box"></i> สินทรัพย์</a></li>
-                    <li><a href="knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
+                    <li><a href="dashboard.php"><i class="fas fa-home" style="width:18px;"></i> Dashboard</a></li>
+                    <li><a href="tickets.php"><i class="fas fa-ticket-alt" style="width:18px;"></i> IT Tickets</a></li>
+                    <li><a href="knowledgebase.php"><i class="fas fa-book" style="width:18px;"></i> Knowledge Base</a></li>
+
+                    <!-- Assets accordion parent -->
+                    <li class="menu-section">Assets</li>
+
+                    <!-- All Assets (parent toggle) -->
+                    <li>
+                        <div class="nav-parent <?= in_array($cat, array_keys($ASSET_CATEGORIES)) ? 'open' : '' ?>"
+                             onclick="toggleAssets(this)">
+                            <span style="display:flex;align-items:center;gap:10px;">
+                                <i class="fas fa-boxes" style="width:18px;"></i>
+                                สินทรัพย์ทั้งหมด
+                                <?php if ($catCounts['all'] > 0): ?>
+                                <span class="submenu-badge"><?= $catCounts['all'] ?></span>
+                                <?php endif; ?>
+                            </span>
+                            <i class="fas fa-chevron-right arrow"></i>
+                        </div>
+                        <ul class="nav-submenu <?= in_array($cat, array_keys($ASSET_CATEGORIES)) ? 'open' : '' ?>">
+                            <!-- All -->
+                            <li class="<?= $cat==='all' ? 'active' : '' ?>">
+                                <a href="assets.php?cat=all" style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span><i class="fas fa-layer-group" style="width:16px;"></i> ทั้งหมด</span>
+                                    <span class="submenu-badge"><?= $catCounts['all'] ?></span>
+                                </a>
+                            </li>
+                            <?php foreach ($ASSET_CATEGORIES as $key => $catDef):
+                                if ($key === 'all') continue; ?>
+                            <li class="<?= $cat===$key ? 'active' : '' ?>">
+                                <a href="assets.php?cat=<?= $key ?>" style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span><i class="fas <?= $catDef['icon'] ?>" style="width:16px;"></i> <?= $catDef['label'] ?></span>
+                                    <?php if ($catCounts[$key] > 0): ?>
+                                    <span class="submenu-badge"><?= $catCounts[$key] ?></span>
+                                    <?php endif; ?>
+                                </a>
+                            </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </li>
+
                     <?php if ($isAdmin): ?>
                     <li class="menu-section">จัดการ</li>
-                    <li><a href="users.php"><i class="fas fa-users"></i> ผู้ใช้งาน</a></li>
-                    <li><a href="reports.php"><i class="fas fa-chart-bar"></i> รายงาน</a></li>
-                    <li><a href="slaconfig.php"><i class="fas fa-clock"></i> ตั้งค่า SLA</a></li>
+                    <li><a href="users.php"><i class="fas fa-users" style="width:18px;"></i> ผู้ใช้งาน</a></li>
+                    <li><a href="reports.php"><i class="fas fa-chart-bar" style="width:18px;"></i> รายงาน</a></li>
+                    <li><a href="assetsreports.php"><i class="fas fa-chart-line" style="width:18px;"></i> รายงานสินทรัพย์</a></li>
+                    <li><a href="slaconfig.php"><i class="fas fa-clock" style="width:18px;"></i> ตั้งค่า SLA</a></li>
                     <?php endif; ?>
-                    
+
                     <li class="menu-section">ระบบ</li>
                     <?php if ($isAdmin): ?>
-                    <li><a href="settings.php"><i class="fas fa-cog"></i> ตั้งค่า</a></li>
+                    <li><a href="settings.php"><i class="fas fa-cog" style="width:18px;"></i> ตั้งค่า</a></li>
                     <?php endif; ?>
                     <li><a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">
-                        <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+                        <i class="fas fa-sign-out-alt" style="width:18px;"></i> ออกจากระบบ
                     </a></li>
                 </ul>
             </nav>
@@ -615,16 +866,27 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
         <div class="main-content">
             <!-- Breadcrumb -->
             <div class="breadcrumb-nav">
-                <a href="dashboard.php" style="color: #667eea; text-decoration: none;">Dashboard</a> › 
-                <span style="color: #2d3748; font-weight: 600;">จัดการสินทรัพย์</span>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <a href="dashboard.php" style="color:#667eea;text-decoration:none;"><i class="fas fa-home"></i></a>
+                    <span style="color:#ccc;">›</span>
+                    <a href="assets.php?cat=all" style="color:#667eea;text-decoration:none;">Assets</a>
+                    <?php if ($cat !== 'all'): ?>
+                    <span style="color:#ccc;">›</span>
+                    <span style="color:#2d3748;font-weight:600;"><i class="fas <?= $currentCat['icon'] ?>"></i> <?= $currentCat['label'] ?></span>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <!-- Page Header -->
             <div class="page-header">
-                <h1><i class="fas fa-box"></i> จัดการสินทรัพย์</h1>
+                <h1>
+                    <i class="fas <?= $currentCat['icon'] ?>" style="color:<?= $currentCat['color'] ?>;"></i>
+                    <?= $currentCat['label'] ?>
+                    <span style="font-size:0.55em;background:#e2e8f0;color:#4a5568;padding:4px 12px;border-radius:20px;margin-left:10px;font-weight:500;"><?= count($assets) ?> รายการ</span>
+                </h1>
                 <?php if ($isAdmin): ?>
                 <button class="btn btn-primary" onclick="openCreateModal()">
-                    <i class="fas fa-plus"></i> เพิ่มสินทรัพย์
+                    <i class="fas fa-plus"></i> เพิ่ม<?= $cat !== 'all' ? $currentCat['label'] : 'สินทรัพย์' ?>
                 </button>
                 <?php endif; ?>
             </div>
@@ -691,59 +953,56 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <?php endif; ?>
             </div>
 
-            <!-- Filter Bar -->
-            <div class="filter-bar">
-                <form method="GET">
-                    <div class="filter-grid">
-                        <input type="text" name="search" class="form-control" placeholder="🔍 ค้นหาชื่อ, Asset Tag, Serial Number..." value="<?php echo htmlspecialchars($search); ?>">
-                        
-                        <select name="type" class="form-control" onchange="this.form.submit()">
-                            <option value="">ทุกประเภท</option>
-                            <option value="desktop" <?php echo $type === 'desktop' ? 'selected' : ''; ?>>Desktop</option>
-                            <option value="laptop" <?php echo $type === 'laptop' ? 'selected' : ''; ?>>Laptop</option>
-                            <option value="server" <?php echo $type === 'server' ? 'selected' : ''; ?>>Server</option>
-                            <option value="printer" <?php echo $type === 'printer' ? 'selected' : ''; ?>>Printer</option>
-                            <option value="network" <?php echo $type === 'network' ? 'selected' : ''; ?>>Network</option>
-                            <option value="mobile" <?php echo $type === 'mobile' ? 'selected' : ''; ?>>Mobile</option>
-                            <option value="software" <?php echo $type === 'software' ? 'selected' : ''; ?>>Software</option>
-                            <option value="other" <?php echo $type === 'other' ? 'selected' : ''; ?>>Other</option>
-                        </select>
-
-                        <select name="status" class="form-control" onchange="this.form.submit()">
+            <!-- Assets Table -->
+            <div class="card" id="tableView">
+                <div style="padding:15px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <strong style="color:#4a5568;white-space:nowrap;">
+                        <i class="fas <?= $currentCat['icon'] ?>" style="color:<?= $currentCat['color'] ?>;"></i>
+                        <?= $currentCat['label'] ?>
+                        <span style="background:#e2e8f0;color:#718096;padding:2px 10px;border-radius:12px;font-size:0.85em;font-weight:500;margin-left:8px;"><?= count($assets) ?></span>
+                    </strong>
+                    <!-- Inline search -->
+                    <form method="GET" style="display:flex;gap:8px;align-items:center;flex:1;max-width:600px;">
+                        <input type="hidden" name="cat" value="<?= htmlspecialchars($cat) ?>">
+                        <div style="position:relative;flex:1;">
+                            <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#a0aec0;font-size:0.85em;"></i>
+                            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
+                                   placeholder="ค้นหาชื่อ, Asset Tag, IP, Serial..."
+                                   style="width:100%;padding:9px 12px 9px 34px;border:1px solid #e2e8f0;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:0.9em;">
+                        </div>
+                        <select name="status" onchange="this.form.submit()"
+                                style="padding:9px 10px;border:1px solid #e2e8f0;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:0.9em;min-width:130px;">
                             <option value="">ทุกสถานะ</option>
-                            <option value="active" <?php echo $status === 'active' ? 'selected' : ''; ?>>Active</option>
-                            <option value="inactive" <?php echo $status === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
-                            <option value="maintenance" <?php echo $status === 'maintenance' ? 'selected' : ''; ?>>Maintenance</option>
-                            <option value="retired" <?php echo $status === 'retired' ? 'selected' : ''; ?>>Retired</option>
+                            <option value="active"      <?= $status==='active'     ?'selected':'' ?>>Active</option>
+                            <option value="inactive"    <?= $status==='inactive'   ?'selected':'' ?>>Inactive</option>
+                            <option value="maintenance" <?= $status==='maintenance'?'selected':'' ?>>Maintenance</option>
+                            <option value="retired"     <?= $status==='retired'    ?'selected':'' ?>>Retired</option>
                         </select>
-
-                        <select name="location" class="form-control" onchange="this.form.submit()">
-                            <option value="">ทุกสถานที่</option>
-                            <?php foreach ($locations as $loc): ?>
-                            <option value="<?php echo htmlspecialchars($loc['location']); ?>" <?php echo $location === $loc['location'] ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($loc['location']); ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" style="padding:9px 16px;white-space:nowrap;">
                             <i class="fas fa-search"></i> ค้นหา
                         </button>
+                    </form>
+                    <div style="display:flex;gap:6px;">
+                        <button onclick="switchView('table')" id="btnTableView" class="btn btn-primary btn-sm" style="font-size:0.82em;padding:7px 12px;">
+                            <i class="fas fa-list"></i> รายการ
+                        </button>
+                        <button onclick="switchView('user')" id="btnUserView" class="btn btn-sm" style="font-size:0.82em;padding:7px 12px;background:#e2e8f0;">
+                            <i class="fas fa-users"></i> แยกตามผู้รับผิดชอบ
+                        </button>
                     </div>
-                </form>
-            </div>
-
-            <!-- Assets Table -->
-            <div class="card">
+                </div>
+                <div id="viewTable">
                 <table>
                     <thead>
                         <tr>
-                            <th>Asset Tag</th>
-                            <th>ชื่อสินทรัพย์</th>
+                            <th>Asset Tag / Inventory</th>
+                            <th>ชื่ออุปกรณ์</th>
                             <th>ประเภท</th>
-                            <th>Brand/Model</th>
-                            <th>Location</th>
-                            <th>Assigned To</th>
+                            <th>Brand / Model</th>
+                            <th>OS</th>
+                            <th>IP Address</th>
+                            <th>Location / แผนก</th>
+                            <th>ผู้รับผิดชอบ</th>
                             <th>Warranty</th>
                             <th>สถานะ</th>
                             <th>การกระทำ</th>
@@ -752,7 +1011,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                     <tbody>
                         <?php if (empty($assets)): ?>
                         <tr>
-                            <td colspan="9" style="text-align: center; padding: 40px; color: #718096;">
+                            <td colspan="11" style="text-align: center; padding: 40px; color: #718096;">
                                 <i class="fas fa-box" style="font-size: 3em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
                                 ไม่พบข้อมูลสินทรัพย์
                             </td>
@@ -760,26 +1019,65 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                         <?php else: ?>
                             <?php foreach ($assets as $asset): ?>
                             <tr>
-                                <td><strong><?php echo htmlspecialchars($asset['asset_tag']); ?></strong></td>
-                                <td><?php echo htmlspecialchars($asset['asset_name']); ?></td>
+                                <td>
+                                    <strong><?php echo htmlspecialchars($asset['asset_tag']); ?></strong>
+                                    <?php if (!empty($asset['inventory_number'])): ?>
+                                    <br><small style="color:#718096;">INV: <?= htmlspecialchars($asset['inventory_number']) ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php echo htmlspecialchars($asset['asset_name']); ?>
+                                    <?php if (!empty($asset['serial_number'])): ?>
+                                    <br><small style="color:#999;">S/N: <?= htmlspecialchars($asset['serial_number']) ?></small>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <span class="type-badge type-<?php echo $asset['asset_type']; ?>">
                                         <?php echo strtoupper($asset['asset_type']); ?>
                                     </span>
                                 </td>
                                 <td>
-                                    <?php echo htmlspecialchars($asset['brand'] ?? 'N/A'); ?><br>
+                                    <strong><?php echo htmlspecialchars($asset['brand'] ?? 'N/A'); ?></strong><br>
                                     <small style="color: #718096;"><?php echo htmlspecialchars($asset['model'] ?? ''); ?></small>
                                 </td>
-                                <td><?php echo htmlspecialchars($asset['location'] ?? 'N/A'); ?></td>
-                                <td><?php echo htmlspecialchars($asset['assigned_user_name'] ?? 'ไม่ได้มอบหมาย'); ?></td>
+                                <td>
+                                    <?php if (!empty($asset['os_name'])): ?>
+                                        <small style="color:#2b6cb0;font-weight:600;"><?= htmlspecialchars($asset['os_name']) ?></small>
+                                        <?php if (!empty($asset['os_version'])): ?>
+                                        <br><small style="color:#718096;"><?= htmlspecialchars($asset['os_version']) ?></small>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <small style="color:#ccc;">—</small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($asset['ip_address'])): ?>
+                                        <code style="font-size:0.85em;background:#edf2f7;padding:2px 6px;border-radius:4px;"><?= htmlspecialchars($asset['ip_address']) ?></code>
+                                    <?php else: ?>
+                                        <small style="color:#ccc;">—</small>
+                                    <?php endif; ?>
+                                    <?php if (!empty($asset['mac_address'])): ?>
+                                    <br><small style="color:#999;"><?= htmlspecialchars($asset['mac_address']) ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php echo htmlspecialchars($asset['location'] ?? 'N/A'); ?>
+                                    <?php if (!empty($asset['department'])): ?>
+                                    <br><small style="color:#10ce30;font-weight:600;"><?= htmlspecialchars($asset['department']) ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php echo htmlspecialchars($asset['assigned_user_name'] ?? 'ไม่ได้มอบหมาย'); ?>
+                                    <?php if (!empty($asset['tech_name'])): ?>
+                                    <br><small style="color:#718096;"><i class="fas fa-tools"></i> <?= htmlspecialchars($asset['tech_name']) ?></small>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php if ($asset['warranty_expiry']): ?>
                                         <?php 
                                         $warr_date = strtotime($asset['warranty_expiry']);
                                         $now = time();
                                         $days_diff = ($warr_date - $now) / 86400;
-                                        
                                         if ($days_diff < 0) {
                                             echo '<span class="warranty-expired">หมดอายุแล้ว</span>';
                                         } elseif ($days_diff <= 30) {
@@ -799,11 +1097,14 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                                 </td>
                                 <td>
                                     <div class="action-btns">
+                                        <a href="assetsdetail.php?id=<?php echo $asset['asset_id']; ?>" class="btn btn-sm" style="background:linear-gradient(135deg,#10ce30,#38a169);color:white;" title="ดูรายละเอียด">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
                                         <?php if ($isAdmin): ?>
-                                        <button class="btn btn-edit btn-sm" onclick='editAsset(<?php echo json_encode($asset); ?>)'>
+                                        <button class="btn btn-edit btn-sm" onclick='editAsset(<?php echo json_encode($asset); ?>)' title="แก้ไข">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn btn-delete btn-sm" onclick="deleteAsset(<?php echo $asset['asset_id']; ?>, '<?php echo htmlspecialchars($asset['asset_name']); ?>')">
+                                        <button class="btn btn-delete btn-sm" onclick="deleteAsset(<?php echo $asset['asset_id']; ?>, '<?php echo htmlspecialchars($asset['asset_name']); ?>')" title="ลบ">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                         <?php endif; ?>
@@ -814,107 +1115,346 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                         <?php endif; ?>
                     </tbody>
                 </table>
+                </div>
+
+                <!-- Grouped by User View -->
+                <div id="viewUser" style="display:none;padding:20px;">
+                <?php foreach ($assetsByUser as $userName => $userAssets): ?>
+                    <div style="margin-bottom:25px;">
+                        <div style="background:linear-gradient(135deg,#10ce30,#000);color:white;padding:12px 18px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <span><i class="fas fa-user" style="margin-right:8px;"></i><strong><?= htmlspecialchars($userName) ?></strong></span>
+                            <span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:0.85em;"><?= count($userAssets) ?> รายการ</span>
+                        </div>
+                        <table style="margin:0;">
+                            <thead>
+                                <tr>
+                                    <th>Asset Tag</th>
+                                    <th>ชื่อสินทรัพย์</th>
+                                    <th>ประเภท</th>
+                                    <th>Brand/Model</th>
+                                    <th>Location</th>
+                                    <th>S/N</th>
+                                    <th>สถานะ</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($userAssets as $ua): ?>
+                            <tr>
+                                <td><strong><?= htmlspecialchars($ua['asset_tag']) ?></strong></td>
+                                <td><?= htmlspecialchars($ua['asset_name']) ?></td>
+                                <td><span class="type-badge type-<?= $ua['asset_type'] ?>"><?= strtoupper($ua['asset_type']) ?></span></td>
+                                <td><?= htmlspecialchars($ua['brand']??'N/A') ?><br><small style="color:#718096;"><?= htmlspecialchars($ua['model']??'') ?></small></td>
+                                <td><?= htmlspecialchars($ua['location']??'N/A') ?></td>
+                                <td><small><?= htmlspecialchars($ua['serial_number']??'N/A') ?></small></td>
+                                <td><span class="badge badge-<?= $ua['status'] ?>"><?= strtoupper($ua['status']) ?></span></td>
+                                <td>
+                                    <a href="assetsdetail.php?id=<?= $ua['asset_id'] ?>" class="btn btn-sm" style="background:linear-gradient(135deg,#10ce30,#38a169);color:white;">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endforeach; ?>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Create Asset Modal -->
     <div id="createModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width:820px;">
             <div class="modal-header">
                 <h2><i class="fas fa-plus-circle"></i> เพิ่มสินทรัพย์ใหม่</h2>
                 <button class="close-btn" onclick="closeCreateModal()">&times;</button>
             </div>
             <form method="POST">
                 <input type="hidden" name="action" value="create">
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="create_asset_tag">Asset Tag <span style="color: red;">*</span></label>
-                        <input type="text" name="asset_tag" id="create_asset_tag" class="form-control" required placeholder="e.g., IT-DT-001">
+
+                <!-- Tab Navigation -->
+                <div style="display:flex;gap:4px;background:#f7fafc;padding:6px;border-radius:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <button type="button" onclick="switchModalTab('c','basic')" id="c_tab_basic" class="modal-tab active-tab">
+                        <i class="fas fa-info-circle"></i> ข้อมูลทั่วไป
+                    </button>
+                    <button type="button" onclick="switchModalTab('c','os')" id="c_tab_os" class="modal-tab">
+                        <i class="fab fa-windows"></i> OS
+                    </button>
+                    <button type="button" onclick="switchModalTab('c','hw')" id="c_tab_hw" class="modal-tab">
+                        <i class="fas fa-microchip"></i> Hardware
+                    </button>
+                    <button type="button" onclick="switchModalTab('c','net')" id="c_tab_net" class="modal-tab">
+                        <i class="fas fa-network-wired"></i> Network
+                    </button>
+                    <button type="button" onclick="switchModalTab('c','purchase')" id="c_tab_purchase" class="modal-tab">
+                        <i class="fas fa-shopping-cart"></i> การจัดซื้อ
+                    </button>
+                </div>
+
+                <!-- Tab: Basic -->
+                <div id="c_section_basic">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Asset Tag <span style="color:red;">*</span></label>
+                            <input type="text" name="asset_tag" class="form-control" required placeholder="e.g., IT-DT-001">
+                        </div>
+                        <div class="form-group">
+                            <label>Inventory Number</label>
+                            <input type="text" name="inventory_number" class="form-control" placeholder="หมายเลขครุภัณฑ์">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ชื่ออุปกรณ์ <span style="color:red;">*</span></label>
+                            <input type="text" name="asset_name" class="form-control" required placeholder="e.g., pc-romar001.romar.co.th">
+                        </div>
+                        <div class="form-group">
+                            <label>ประเภท <span style="color:red;">*</span></label>
+                            <select name="asset_type" class="form-control" required>
+                                <option value="desktop">Desktop</option>
+                                <option value="laptop">Laptop</option>
+                                <option value="server">Server</option>
+                                <option value="printer">Printer</option>
+                                <option value="network">Network Device</option>
+                                <option value="mobile">Mobile</option>
+                                <option value="software">Software</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Manufacturer / Brand</label>
+                            <input type="text" name="brand" class="form-control" placeholder="e.g., HP, Dell, Lenovo">
+                        </div>
+                        <div class="form-group">
+                            <label>Model</label>
+                            <input type="text" name="model" class="form-control" placeholder="e.g., ProDesk 400 G5">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Serial Number</label>
+                            <input type="text" name="serial_number" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>สถานะ <span style="color:red;">*</span></label>
+                            <select name="status" class="form-control" required>
+                                <option value="active">Active - ใช้งานอยู่</option>
+                                <option value="inactive">Inactive - ไม่ได้ใช้งาน</option>
+                                <option value="maintenance">Maintenance - ซ่อมบำรุง</option>
+                                <option value="retired">Retired - เลิกใช้งาน</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Location (ห้อง/สถานที่)</label>
+                            <input type="text" name="location" class="form-control" placeholder="e.g., IT Room, ฝ่ายผลิต">
+                        </div>
+                        <div class="form-group">
+                            <label>แผนก/ฝ่าย</label>
+                            <input type="text" name="department" class="form-control" placeholder="e.g., IT, HR, Production">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ผู้รับผิดชอบ (Assigned To / User)</label>
+                            <select name="assigned_to" class="form-control">
+                                <option value="">ไม่ได้มอบหมาย</option>
+                                <?php foreach ($users as $u): ?>
+                                <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>ช่างเทคนิค (Technician in Charge)</label>
+                            <select name="tech_in_charge" class="form-control">
+                                <option value="">— เลือกช่าง —</option>
+                                <?php foreach ($users as $u): ?>
+                                <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Alternate Username</label>
+                            <input type="text" name="alternate_user" class="form-control" placeholder="ชื่อผู้ใช้สำรอง">
+                        </div>
+                        <div class="form-group">
+                            <label>กลุ่ม/ทีม</label>
+                            <input type="text" name="asset_group" class="form-control" placeholder="e.g., IT Team, Admin">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>สภาพอุปกรณ์</label>
+                            <select name="condition" class="form-control">
+                                <option value="good">Good - ดี</option>
+                                <option value="fair">Fair - พอใช้</option>
+                                <option value="poor">Poor - แย่</option>
+                                <option value="damaged">Damaged - เสียหาย</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>วันที่ Inventory ล่าสุด</label>
+                            <input type="date" name="last_inventory_date" class="form-control">
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="create_asset_name">ชื่อสินทรัพย์ <span style="color: red;">*</span></label>
-                        <input type="text" name="asset_name" id="create_asset_name" class="form-control" required placeholder="e.g., Desktop Computer">
+                        <label>Comments / หมายเหตุ</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="create_asset_type">ประเภท <span style="color: red;">*</span></label>
-                        <select name="asset_type" id="create_asset_type" class="form-control" required>
-                            <option value="desktop">Desktop</option>
-                            <option value="laptop">Laptop</option>
-                            <option value="server">Server</option>
-                            <option value="printer">Printer</option>
-                            <option value="network">Network</option>
-                            <option value="mobile">Mobile</option>
-                            <option value="software">Software</option>
-                            <option value="other">Other</option>
-                        </select>
+                <!-- Tab: OS -->
+                <div id="c_section_os" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Operating System</label>
+                            <select name="os_name" class="form-control">
+                                <option value="">— เลือก OS —</option>
+                                <option>Windows 11 Pro</option>
+                                <option>Windows 11 Enterprise</option>
+                                <option>Windows 10 Pro</option>
+                                <option>Windows 10 Enterprise</option>
+                                <option>Windows Server 2022</option>
+                                <option>Windows Server 2019</option>
+                                <option>Windows Server 2016</option>
+                                <option>Ubuntu 22.04</option>
+                                <option>Ubuntu 20.04</option>
+                                <option>CentOS 7</option>
+                                <option>macOS Ventura</option>
+                                <option>macOS Sonoma</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>OS Version</label>
+                            <input type="text" name="os_version" class="form-control" placeholder="e.g., 22H2, 21H2">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Architecture</label>
+                            <select name="os_architecture" class="form-control">
+                                <option value="">—</option>
+                                <option value="64-bit">64-bit</option>
+                                <option value="32-bit">32-bit</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Service Pack / Update</label>
+                            <input type="text" name="os_service_pack" class="form-control" placeholder="e.g., SP1, 23H2">
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="create_status">สถานะ <span style="color: red;">*</span></label>
-                        <select name="status" id="create_status" class="form-control" required>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="maintenance">Maintenance</option>
-                            <option value="retired">Retired</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="create_brand">Brand</label>
-                        <input type="text" name="brand" id="create_brand" class="form-control" placeholder="e.g., Dell, HP">
-                    </div>
-                    <div class="form-group">
-                        <label for="create_model">Model</label>
-                        <input type="text" name="model" id="create_model" class="form-control" placeholder="e.g., OptiPlex 7080">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="create_serial_number">Serial Number</label>
-                    <input type="text" name="serial_number" id="create_serial_number" class="form-control" placeholder="e.g., SN123456789">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="create_location">Location</label>
-                        <input type="text" name="location" id="create_location" class="form-control" placeholder="e.g., IT Room 301">
-                    </div>
-                    <div class="form-group">
-                        <label for="create_assigned_to">Assigned To</label>
-                        <select name="assigned_to" id="create_assigned_to" class="form-control">
-                            <option value="">ไม่ได้มอบหมาย</option>
-                            <?php foreach ($users as $u): ?>
-                            <option value="<?php echo $u['user_id']; ?>"><?php echo htmlspecialchars($u['full_name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <label>OS Product Key</label>
+                        <input type="text" name="os_product_key" class="form-control" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="create_purchase_date">Purchase Date</label>
-                        <input type="date" name="purchase_date" id="create_purchase_date" class="form-control">
+                <!-- Tab: Hardware -->
+                <div id="c_section_hw" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>CPU</label>
+                            <input type="text" name="cpu" class="form-control" placeholder="e.g., Intel Core i5-10500">
+                        </div>
+                        <div class="form-group">
+                            <label>CPU Cores</label>
+                            <input type="number" name="cpu_cores" class="form-control" placeholder="6" min="1">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="create_warranty_expiry">Warranty Expiry</label>
-                        <input type="date" name="warranty_expiry" id="create_warranty_expiry" class="form-control">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>RAM (GB)</label>
+                            <input type="number" name="ram_gb" class="form-control" placeholder="8" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Storage</label>
+                            <input type="text" name="storage" class="form-control" placeholder="e.g., 256GB SSD, 1TB HDD">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>GPU / Graphics Card</label>
+                            <input type="text" name="gpu" class="form-control" placeholder="e.g., Intel UHD 630">
+                        </div>
+                        <div class="form-group">
+                            <label>Monitor</label>
+                            <input type="text" name="monitor" class="form-control" placeholder="e.g., HP 22fw 21.5 inch">
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="create_notes">Notes</label>
-                    <textarea name="notes" id="create_notes" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
+                <!-- Tab: Network -->
+                <div id="c_section_net" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>IP Address</label>
+                            <input type="text" name="ip_address" class="form-control" placeholder="e.g., 192.168.1.100">
+                        </div>
+                        <div class="form-group">
+                            <label>MAC Address</label>
+                            <input type="text" name="mac_address" class="form-control" placeholder="e.g., AA:BB:CC:DD:EE:FF">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Network / Domain</label>
+                            <input type="text" name="network_domain" class="form-control" placeholder="e.g., romar.co.th">
+                        </div>
+                        <div class="form-group">
+                            <label>Gateway</label>
+                            <input type="text" name="gateway" class="form-control" placeholder="e.g., 192.168.1.1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>DNS Server</label>
+                        <input type="text" name="dns_server" class="form-control" placeholder="e.g., 8.8.8.8, 8.8.4.4">
+                    </div>
                 </div>
 
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" class="btn" onclick="closeCreateModal()" style="background: #e2e8f0;">ยกเลิก</button>
-                    <button type="submit" class="btn btn-primary">บันทึก</button>
+                <!-- Tab: Purchase -->
+                <div id="c_section_purchase" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Purchase Date (วันที่ซื้อ)</label>
+                            <input type="date" name="purchase_date" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Warranty Expiry (วันหมดประกัน)</label>
+                            <input type="date" name="warranty_expiry" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ราคาซื้อ (บาท)</label>
+                            <input type="number" name="purchase_price" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>มูลค่าซาก (บาท)</label>
+                            <input type="number" name="salvage_value" class="form-control" step="0.01" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>อายุการใช้งาน (ปี)</label>
+                            <input type="number" name="useful_life_years" class="form-control" value="5" min="1" max="30">
+                        </div>
+                        <div class="form-group">
+                            <label>ผู้จัดจำหน่าย (Supplier)</label>
+                            <input type="text" name="supplier" class="form-control" placeholder="ชื่อบริษัทผู้ขาย">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:15px;">
+                    <button type="button" class="btn" onclick="closeCreateModal()" style="background:#e2e8f0;">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> บันทึกสินทรัพย์</button>
                 </div>
             </form>
         </div>
@@ -922,7 +1462,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
 
     <!-- Edit Asset Modal -->
     <div id="editModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width:820px;">
             <div class="modal-header">
                 <h2><i class="fas fa-edit"></i> แก้ไขสินทรัพย์</h2>
                 <button class="close-btn" onclick="closeEditModal()">&times;</button>
@@ -930,94 +1470,288 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
             <form method="POST">
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="asset_id" id="edit_asset_id">
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit_asset_tag">Asset Tag <span style="color: red;">*</span></label>
-                        <input type="text" name="asset_tag" id="edit_asset_tag" class="form-control" required>
+
+                <!-- Tab Navigation -->
+                <div style="display:flex;gap:4px;background:#f7fafc;padding:6px;border-radius:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <button type="button" onclick="switchModalTab('e','basic')" id="e_tab_basic" class="modal-tab active-tab">
+                        <i class="fas fa-info-circle"></i> ข้อมูลทั่วไป
+                    </button>
+                    <button type="button" onclick="switchModalTab('e','os')" id="e_tab_os" class="modal-tab">
+                        <i class="fab fa-windows"></i> OS
+                    </button>
+                    <button type="button" onclick="switchModalTab('e','hw')" id="e_tab_hw" class="modal-tab">
+                        <i class="fas fa-microchip"></i> Hardware
+                    </button>
+                    <button type="button" onclick="switchModalTab('e','net')" id="e_tab_net" class="modal-tab">
+                        <i class="fas fa-network-wired"></i> Network
+                    </button>
+                    <button type="button" onclick="switchModalTab('e','purchase')" id="e_tab_purchase" class="modal-tab">
+                        <i class="fas fa-shopping-cart"></i> การจัดซื้อ
+                    </button>
+                </div>
+
+                <!-- Tab: Basic -->
+                <div id="e_section_basic">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Asset Tag <span style="color:red;">*</span></label>
+                            <input type="text" name="asset_tag" id="edit_asset_tag" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Inventory Number</label>
+                            <input type="text" name="inventory_number" id="edit_inventory_number" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ชื่ออุปกรณ์ <span style="color:red;">*</span></label>
+                            <input type="text" name="asset_name" id="edit_asset_name" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>ประเภท <span style="color:red;">*</span></label>
+                            <select name="asset_type" id="edit_asset_type" class="form-control" required>
+                                <option value="desktop">Desktop</option>
+                                <option value="laptop">Laptop</option>
+                                <option value="server">Server</option>
+                                <option value="printer">Printer</option>
+                                <option value="network">Network Device</option>
+                                <option value="mobile">Mobile</option>
+                                <option value="software">Software</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Manufacturer / Brand</label>
+                            <input type="text" name="brand" id="edit_brand" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Model</label>
+                            <input type="text" name="model" id="edit_model" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Serial Number</label>
+                            <input type="text" name="serial_number" id="edit_serial_number" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>สถานะ <span style="color:red;">*</span></label>
+                            <select name="status" id="edit_status" class="form-control" required>
+                                <option value="active">Active - ใช้งานอยู่</option>
+                                <option value="inactive">Inactive - ไม่ได้ใช้งาน</option>
+                                <option value="maintenance">Maintenance - ซ่อมบำรุง</option>
+                                <option value="retired">Retired - เลิกใช้งาน</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Location</label>
+                            <input type="text" name="location" id="edit_location" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>แผนก/ฝ่าย</label>
+                            <input type="text" name="department" id="edit_department" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ผู้รับผิดชอบ (User)</label>
+                            <select name="assigned_to" id="edit_assigned_to" class="form-control">
+                                <option value="">ไม่ได้มอบหมาย</option>
+                                <?php foreach ($users as $u): ?>
+                                <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>ช่างเทคนิค (Technician)</label>
+                            <select name="tech_in_charge" id="edit_tech_in_charge" class="form-control">
+                                <option value="">— เลือกช่าง —</option>
+                                <?php foreach ($users as $u): ?>
+                                <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Alternate Username</label>
+                            <input type="text" name="alternate_user" id="edit_alternate_user" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>กลุ่ม/ทีม</label>
+                            <input type="text" name="asset_group" id="edit_asset_group" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>สภาพอุปกรณ์</label>
+                            <select name="condition" id="edit_condition" class="form-control">
+                                <option value="good">Good - ดี</option>
+                                <option value="fair">Fair - พอใช้</option>
+                                <option value="poor">Poor - แย่</option>
+                                <option value="damaged">Damaged - เสียหาย</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>วันที่ Inventory ล่าสุด</label>
+                            <input type="date" name="last_inventory_date" id="edit_last_inventory_date" class="form-control">
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="edit_asset_name">ชื่อสินทรัพย์ <span style="color: red;">*</span></label>
-                        <input type="text" name="asset_name" id="edit_asset_name" class="form-control" required>
+                        <label>Comments / หมายเหตุ</label>
+                        <textarea name="notes" id="edit_notes" class="form-control" rows="3"></textarea>
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit_asset_type">ประเภท <span style="color: red;">*</span></label>
-                        <select name="asset_type" id="edit_asset_type" class="form-control" required>
-                            <option value="desktop">Desktop</option>
-                            <option value="laptop">Laptop</option>
-                            <option value="server">Server</option>
-                            <option value="printer">Printer</option>
-                            <option value="network">Network</option>
-                            <option value="mobile">Mobile</option>
-                            <option value="software">Software</option>
-                            <option value="other">Other</option>
-                        </select>
+                <!-- Tab: OS -->
+                <div id="e_section_os" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Operating System</label>
+                            <select name="os_name" id="edit_os_name" class="form-control">
+                                <option value="">— เลือก OS —</option>
+                                <option>Windows 11 Pro</option>
+                                <option>Windows 11 Enterprise</option>
+                                <option>Windows 10 Pro</option>
+                                <option>Windows 10 Enterprise</option>
+                                <option>Windows Server 2022</option>
+                                <option>Windows Server 2019</option>
+                                <option>Windows Server 2016</option>
+                                <option>Ubuntu 22.04</option>
+                                <option>Ubuntu 20.04</option>
+                                <option>CentOS 7</option>
+                                <option>macOS Ventura</option>
+                                <option>macOS Sonoma</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>OS Version</label>
+                            <input type="text" name="os_version" id="edit_os_version" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Architecture</label>
+                            <select name="os_architecture" id="edit_os_architecture" class="form-control">
+                                <option value="">—</option>
+                                <option value="64-bit">64-bit</option>
+                                <option value="32-bit">32-bit</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Service Pack / Update</label>
+                            <input type="text" name="os_service_pack" id="edit_os_service_pack" class="form-control">
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="edit_status">สถานะ <span style="color: red;">*</span></label>
-                        <select name="status" id="edit_status" class="form-control" required>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="maintenance">Maintenance</option>
-                            <option value="retired">Retired</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit_brand">Brand</label>
-                        <input type="text" name="brand" id="edit_brand" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_model">Model</label>
-                        <input type="text" name="model" id="edit_model" class="form-control">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="edit_serial_number">Serial Number</label>
-                    <input type="text" name="serial_number" id="edit_serial_number" class="form-control">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit_location">Location</label>
-                        <input type="text" name="location" id="edit_location" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_assigned_to">Assigned To</label>
-                        <select name="assigned_to" id="edit_assigned_to" class="form-control">
-                            <option value="">ไม่ได้มอบหมาย</option>
-                            <?php foreach ($users as $u): ?>
-                            <option value="<?php echo $u['user_id']; ?>"><?php echo htmlspecialchars($u['full_name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <label>OS Product Key</label>
+                        <input type="text" name="os_product_key" id="edit_os_product_key" class="form-control">
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit_purchase_date">Purchase Date</label>
-                        <input type="date" name="purchase_date" id="edit_purchase_date" class="form-control">
+                <!-- Tab: Hardware -->
+                <div id="e_section_hw" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>CPU</label>
+                            <input type="text" name="cpu" id="edit_cpu" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>CPU Cores</label>
+                            <input type="number" name="cpu_cores" id="edit_cpu_cores" class="form-control" min="1">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="edit_warranty_expiry">Warranty Expiry</label>
-                        <input type="date" name="warranty_expiry" id="edit_warranty_expiry" class="form-control">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>RAM (GB)</label>
+                            <input type="number" name="ram_gb" id="edit_ram_gb" class="form-control" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Storage</label>
+                            <input type="text" name="storage" id="edit_storage" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>GPU / Graphics Card</label>
+                            <input type="text" name="gpu" id="edit_gpu" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Monitor</label>
+                            <input type="text" name="monitor" id="edit_monitor" class="form-control">
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="edit_notes">Notes</label>
-                    <textarea name="notes" id="edit_notes" class="form-control" rows="3"></textarea>
+                <!-- Tab: Network -->
+                <div id="e_section_net" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>IP Address</label>
+                            <input type="text" name="ip_address" id="edit_ip_address" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>MAC Address</label>
+                            <input type="text" name="mac_address" id="edit_mac_address" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Network / Domain</label>
+                            <input type="text" name="network_domain" id="edit_network_domain" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Gateway</label>
+                            <input type="text" name="gateway" id="edit_gateway" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>DNS Server</label>
+                        <input type="text" name="dns_server" id="edit_dns_server" class="form-control">
+                    </div>
                 </div>
 
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" class="btn" onclick="closeEditModal()" style="background: #e2e8f0;">ยกเลิก</button>
-                    <button type="submit" class="btn btn-primary">บันทึก</button>
+                <!-- Tab: Purchase -->
+                <div id="e_section_purchase" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Purchase Date</label>
+                            <input type="date" name="purchase_date" id="edit_purchase_date" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Warranty Expiry</label>
+                            <input type="date" name="warranty_expiry" id="edit_warranty_expiry" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ราคาซื้อ (บาท)</label>
+                            <input type="number" name="purchase_price" id="edit_purchase_price" class="form-control" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>มูลค่าซาก (บาท)</label>
+                            <input type="number" name="salvage_value" id="edit_salvage_value" class="form-control" step="0.01" min="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>อายุการใช้งาน (ปี)</label>
+                            <input type="number" name="useful_life_years" id="edit_useful_life" class="form-control" min="1" max="30">
+                        </div>
+                        <div class="form-group">
+                            <label>ผู้จัดจำหน่าย (Supplier)</label>
+                            <input type="text" name="supplier" id="edit_supplier" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:15px;">
+                    <button type="button" class="btn" onclick="closeEditModal()" style="background:#e2e8f0;">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> บันทึกการแก้ไข</button>
                 </div>
             </form>
         </div>
@@ -1030,33 +1764,82 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
     </form>
 
     <script>
-        function openCreateModal() {
-            document.getElementById('createModal').classList.add('show');
+        // Toggle Assets accordion in sidebar
+        function toggleAssets(el) {
+            el.classList.toggle('open');
+            const submenu = el.nextElementSibling;
+            submenu.classList.toggle('open');
         }
 
-        function closeCreateModal() {
-            document.getElementById('createModal').classList.remove('show');
+        function openCreateModal() {
+            switchModalTab('c','basic');
+            document.getElementById('createModal').classList.add('show');
+        }
+        function closeCreateModal() { document.getElementById('createModal').classList.remove('show'); }
+        function closeEditModal()   { document.getElementById('editModal').classList.remove('show'); }
+
+        // Switch tabs inside create (c) or edit (e) modal
+        function switchModalTab(prefix, tab) {
+            const sections = ['basic','os','hw','net','purchase'];
+            sections.forEach(s => {
+                const el = document.getElementById(prefix + '_section_' + s);
+                const btn = document.getElementById(prefix + '_tab_' + s);
+                if (el) el.style.display = (s === tab) ? '' : 'none';
+                if (btn) btn.classList.toggle('active-tab', s === tab);
+            });
         }
 
         function editAsset(asset) {
-            document.getElementById('edit_asset_id').value = asset.asset_id;
-            document.getElementById('edit_asset_tag').value = asset.asset_tag;
-            document.getElementById('edit_asset_name').value = asset.asset_name;
-            document.getElementById('edit_asset_type').value = asset.asset_type;
-            document.getElementById('edit_status').value = asset.status;
-            document.getElementById('edit_brand').value = asset.brand || '';
-            document.getElementById('edit_model').value = asset.model || '';
-            document.getElementById('edit_serial_number').value = asset.serial_number || '';
-            document.getElementById('edit_location').value = asset.location || '';
-            document.getElementById('edit_assigned_to').value = asset.assigned_to || '';
-            document.getElementById('edit_purchase_date').value = asset.purchase_date || '';
-            document.getElementById('edit_warranty_expiry').value = asset.warranty_expiry || '';
-            document.getElementById('edit_notes').value = asset.notes || '';
-            document.getElementById('editModal').classList.add('show');
-        }
+            // Reset to basic tab
+            switchModalTab('e','basic');
 
-        function closeEditModal() {
-            document.getElementById('editModal').classList.remove('show');
+            // Basic
+            document.getElementById('edit_asset_id').value           = asset.asset_id;
+            document.getElementById('edit_asset_tag').value          = asset.asset_tag || '';
+            document.getElementById('edit_inventory_number').value   = asset.inventory_number || '';
+            document.getElementById('edit_asset_name').value         = asset.asset_name || '';
+            document.getElementById('edit_asset_type').value         = asset.asset_type || '';
+            document.getElementById('edit_brand').value              = asset.brand || '';
+            document.getElementById('edit_model').value              = asset.model || '';
+            document.getElementById('edit_serial_number').value      = asset.serial_number || '';
+            document.getElementById('edit_status').value             = asset.status || 'active';
+            document.getElementById('edit_location').value           = asset.location || '';
+            document.getElementById('edit_department').value         = asset.department || '';
+            document.getElementById('edit_assigned_to').value        = asset.assigned_to || '';
+            document.getElementById('edit_tech_in_charge').value     = asset.tech_in_charge || '';
+            document.getElementById('edit_alternate_user').value     = asset.alternate_user || '';
+            document.getElementById('edit_asset_group').value        = asset.asset_group || '';
+            document.getElementById('edit_condition').value          = asset.condition_status || 'good';
+            document.getElementById('edit_last_inventory_date').value= asset.last_inventory_date || '';
+            document.getElementById('edit_notes').value              = asset.notes || '';
+            // OS
+            document.getElementById('edit_os_name').value            = asset.os_name || '';
+            document.getElementById('edit_os_version').value         = asset.os_version || '';
+            document.getElementById('edit_os_architecture').value    = asset.os_architecture || '';
+            document.getElementById('edit_os_service_pack').value    = asset.os_service_pack || '';
+            document.getElementById('edit_os_product_key').value     = asset.os_product_key || '';
+            // Hardware
+            document.getElementById('edit_cpu').value                = asset.cpu || '';
+            document.getElementById('edit_cpu_cores').value          = asset.cpu_cores || '';
+            document.getElementById('edit_ram_gb').value             = asset.ram_gb || '';
+            document.getElementById('edit_storage').value            = asset.storage || '';
+            document.getElementById('edit_gpu').value                = asset.gpu || '';
+            document.getElementById('edit_monitor').value            = asset.monitor || '';
+            // Network
+            document.getElementById('edit_ip_address').value         = asset.ip_address || '';
+            document.getElementById('edit_mac_address').value        = asset.mac_address || '';
+            document.getElementById('edit_network_domain').value     = asset.network_domain || '';
+            document.getElementById('edit_gateway').value            = asset.gateway || '';
+            document.getElementById('edit_dns_server').value         = asset.dns_server || '';
+            // Purchase
+            document.getElementById('edit_purchase_date').value      = asset.purchase_date || '';
+            document.getElementById('edit_warranty_expiry').value    = asset.warranty_expiry || '';
+            document.getElementById('edit_purchase_price').value     = asset.purchase_price || '';
+            document.getElementById('edit_salvage_value').value      = asset.salvage_value || 0;
+            document.getElementById('edit_useful_life').value        = asset.useful_life_years || 5;
+            document.getElementById('edit_supplier').value           = asset.supplier || '';
+
+            document.getElementById('editModal').classList.add('show');
         }
 
         function deleteAsset(assetId, name) {
@@ -1066,11 +1849,26 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
             }
         }
 
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.classList.remove('show');
+        function switchView(mode) {
+            const tableDiv = document.getElementById('viewTable');
+            const userDiv  = document.getElementById('viewUser');
+            const btnTable = document.getElementById('btnTableView');
+            const btnUser  = document.getElementById('btnUserView');
+            if (mode === 'table') {
+                tableDiv.style.display = 'block'; userDiv.style.display = 'none';
+                btnTable.style.background = 'linear-gradient(180deg, #10ce30 0%, #000000)';
+                btnTable.style.color = 'white';
+                btnUser.style.background = '#e2e8f0'; btnUser.style.color = '#4a5568';
+            } else {
+                tableDiv.style.display = 'none'; userDiv.style.display = 'block';
+                btnUser.style.background = 'linear-gradient(180deg, #10ce30 0%, #000000)';
+                btnUser.style.color = 'white';
+                btnTable.style.background = '#e2e8f0'; btnTable.style.color = '#4a5568';
             }
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) event.target.classList.remove('show');
         }
     </script>
 </body>
