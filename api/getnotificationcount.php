@@ -23,4 +23,5 @@ $stmt->bind_param('i', $userId);
 $stmt->execute();
 $row = $stmt->get_result()->fetch_assoc();
 
-echo json_encode(['count' => (int)($row['cnt'] ?? 0)])
+echo json_encode(['count' => (int)$row['cnt']]);
+?>

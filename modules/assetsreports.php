@@ -11,6 +11,45 @@ $isAdmin = $_SESSION['role'] === 'admin';
 $year  = isset($_GET['year'])  ? (int)$_GET['year']  : (int)date('Y');
 $month = isset($_GET['month']) ? (int)$_GET['month'] : 0;
 
+// ── Export Excel ──────────────────────────────────────────────
+if (isset($_GET['export']) && $_GET['export'] === 'excel') {
+    $monthFilter = $month ? " AND MONTH(r.repair_date) = $month" : '';
+    $exportRows = $db->query("
+        SELECT r.repair_date, a.asset_tag, a.asset_name, a.asset_type,
+               r.problem_desc, r.repair_cost, r.technician, r.vendor,
+               IF(r.warranty_claim=1,'ใช่','ไม่') as warranty_claim,
+               r.status
+        FROM asset_repairs r
+        JOIN assets a ON r.asset_id = a.asset_id
+        WHERE YEAR(r.repair_date) = $year $monthFilter
+        ORDER BY r.repair_date DESC
+    ")->fetch_all(MYSQLI_ASSOC);
+    header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+    header('Content-Disposition: attachment; filename="repair_report_' . $year . ($month ? "_$month" : '') . '.xls"');
+    header('Cache-Control: max-age=0');
+    echo "\xEF\xBB\xBF";
+    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    echo '<head><meta charset="UTF-8"></head><body>';
+    echo '<table border="1">';
+    echo '<tr style="background:#2d6a4f;color:#fff;font-weight:bold;">
+        <th>วันที่ซ่อม</th><th>Asset Tag</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th>
+        <th>รายละเอียดปัญหา</th><th>ค่าซ่อม (฿)</th><th>ช่างเทคนิค</th>
+        <th>ผู้รับจ้าง</th><th>เบิกประกัน</th><th>สถานะ</th>
+    </tr>';
+    foreach ($exportRows as $r) {
+        $e = fn($v) => htmlspecialchars($v ?? '', ENT_QUOTES);
+        echo "<tr>
+            <td>{$e($r['repair_date'])}</td><td>{$e($r['asset_tag'])}</td>
+            <td>{$e($r['asset_name'])}</td><td>{$e($r['asset_type'])}</td>
+            <td>{$e($r['problem_desc'])}</td><td>{$e($r['repair_cost'])}</td>
+            <td>{$e($r['technician'])}</td><td>{$e($r['vendor'])}</td>
+            <td>{$e($r['warranty_claim'])}</td><td>{$e($r['status'])}</td>
+        </tr>";
+    }
+    echo '</table></body></html>';
+    exit;
+}
+
 // ── 1. ค่าซ่อมรายเดือน (ปีที่เลือก) ─────────────────────────
 $monthlyRepairs = [];
 for ($m = 1; $m <= 12; $m++) {
@@ -182,7 +221,16 @@ $monthNames = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','
                 <h1><i class="fas fa-chart-line"></i> รายงานสินทรัพย์ IT</h1>
                 <p style="color:#555;margin-top:5px;">ค่าซ่อม, การยืม-คืน และการเสื่อมราคา</p>
             </div>
-            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> พิมพ์รายงาน</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <a href="?year=<?= $year ?>&month=<?= $month ?>&export=excel"
+                   class="btn btn-primary"
+                   style="background:#38a169;border-color:#38a169;text-decoration:none;">
+                    <i class="fas fa-file-excel"></i> Export Excel
+                </a>
+                <button id="btn_print" name="btn_print" class="btn btn-primary" onclick="printReport()" style="background:#e53e3e;border-color:#e53e3e;">
+                    <i class="fas fa-file-pdf"></i> Export PDF
+                </button>
+            </div>
         </div>
 
         <!-- Stats -->
@@ -209,19 +257,20 @@ $monthNames = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','
         <div class="filter-bar">
             <form method="GET">
                 <div class="filter-grid">
-                    <label style="font-weight:600;">กรองข้อมูล:</label>
-                    <select name="year" class="form-control">
+                    <label for="filter_year" style="font-weight:600;">กรองข้อมูล:</label>
+                    <select name="year" id="filter_year" class="form-control">
                         <?php for ($y = date('Y'); $y >= date('Y')-5; $y--): ?>
                         <option value="<?= $y ?>" <?= $y==$year?'selected':'' ?>>ปี <?= $y ?></option>
                         <?php endfor; ?>
                     </select>
-                    <select name="month" class="form-control">
+                    <label for="filter_month" style="font-weight:600;">เดือน:</label>
+                    <select name="month" id="filter_month" class="form-control">
                         <option value="0">ทุกเดือน</option>
                         <?php for ($m=1;$m<=12;$m++): ?>
                         <option value="<?= $m ?>" <?= $m==$month?'selected':'' ?>><?= $monthNames[$m] ?></option>
                         <?php endfor; ?>
                     </select>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> กรองข้อมูล</button>
+                    <button type="submit" id="btn_filter" name="btn_filter" class="btn btn-primary"><i class="fas fa-filter"></i> กรองข้อมูล</button>
                 </div>
             </form>
         </div>
@@ -231,12 +280,12 @@ $monthNames = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','
             <!-- Monthly Bar Chart -->
             <div class="card">
                 <div class="card-header"><div class="card-title"><i class="fas fa-chart-bar"></i> ค่าซ่อมรายเดือน (ปี <?= $year ?>)</div></div>
-                <div class="card-body"><div class="chart-wrap"><canvas id="monthlyChart"></canvas></div></div>
+                <div class="card-body"><div class="chart-wrap"><canvas id="monthlyChart" role="img" aria-label="กราฟค่าซ่อมรายเดือน"></canvas></div></div>
             </div>
             <!-- By Type Pie -->
             <div class="card">
                 <div class="card-header"><div class="card-title"><i class="fas fa-chart-pie"></i> ค่าซ่อมตามประเภทอุปกรณ์</div></div>
-                <div class="card-body"><div class="chart-wrap"><canvas id="typeChart"></canvas></div></div>
+                <div class="card-body"><div class="chart-wrap"><canvas id="typeChart" role="img" aria-label="กราฟค่าซ่อมตามประเภทอุปกรณ์"></canvas></div></div>
             </div>
         </div>
 
@@ -365,7 +414,10 @@ new Chart(document.getElementById('monthlyChart'), {
             backgroundColor: 'rgba(16,206,48,0.7)', borderColor: '#10ce30', borderWidth: 2, borderRadius: 6 }]
     },
     options: { responsive:true, maintainAspectRatio:false,
-        plugins: { legend: { display:false } },
+        plugins: {
+            legend: { display:false },
+            title: { display: false, text: 'ค่าซ่อมรายเดือน' }
+        },
         scales: { y: { beginAtZero:true, ticks: { callback: v => '฿'+v.toLocaleString() } } }
     }
 });
@@ -382,9 +434,91 @@ new Chart(document.getElementById('typeChart'), {
             backgroundColor: colors, borderWidth: 2 }]
     },
     options: { responsive:true, maintainAspectRatio:false,
-        plugins: { legend: { position:'right' } }
+        plugins: {
+            legend: { position:'right' },
+            title: { display: false, text: 'ค่าซ่อมตามประเภทอุปกรณ์' }
+        }
     }
 });
+
+function printReport() {
+    const d = new Date();
+    const dateStr = d.toLocaleDateString('th-TH', {year:'numeric',month:'long',day:'numeric'});
+    document.body.setAttribute('data-print-date', dateStr);
+    setTimeout(() => window.print(), 100);
+}
 </script>
+<style>
+@media print {
+    /* ซ่อนส่วนที่ไม่ต้องการ */
+    .sidebar,
+    .breadcrumb-nav,
+    .back-button,
+    .filter-bar,
+    .page-header button,
+    .page-header a,
+    form, nav { display: none !important; }
+
+    /* Reset layout - ไม่มี sidebar */
+    body { background: #fff !important; margin: 0 !important; }
+    .main-content { margin-left: 0 !important; padding: 10px !important; }
+
+    /* Page settings */
+    @page {
+        size: A4 landscape;
+        margin: 12mm 10mm;
+    }
+
+    /* Header */
+    .page-header {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 10px 0 !important;
+        margin-bottom: 10px !important;
+    }
+    .page-header h1 { font-size: 1.4em !important; }
+
+    /* Cards */
+    .card, .stat-card {
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+        border-radius: 8px !important;
+        page-break-inside: avoid;
+    }
+
+    /* Stats grid */
+    .stats-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 8px !important;
+        margin-bottom: 12px !important;
+    }
+    .stat-card { padding: 12px !important; }
+
+    /* Charts - ให้แสดงแบบ side-by-side */
+    .charts-row, .charts-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+    }
+    .chart-wrap { height: 180px !important; }
+    canvas { max-height: 180px !important; }
+
+    /* Table */
+    table { width: 100% !important; font-size: 0.8em !important; border-collapse: collapse !important; }
+    th, td { padding: 5px 8px !important; border: 1px solid #ddd !important; }
+    thead { background: #e2e8f0 !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* Print title */
+    body::before {
+        content: "รายงานสินทรัพย์ IT - พิมพ์วันที่ " attr(data-print-date);
+        display: block;
+        font-size: 0.8em;
+        color: #666;
+        text-align: right;
+        margin-bottom: 5px;
+    }
+}
+</style>
 </body>
 </html>

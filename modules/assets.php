@@ -217,7 +217,9 @@ $ASSET_CATEGORIES = [
     'printers'     => ['label'=>'เครื่องพิมพ์',       'icon'=>'fa-print',          'types'=>['printer'], 'color'=>'#dd6b20'],
     'phones'       => ['label'=>'โทรศัพท์/มือถือ',    'icon'=>'fa-mobile-screen-button', 'types'=>['mobile','phone'], 'color'=>'#e53e3e'],
     'software'     => ['label'=>'ซอฟต์แวร์',          'icon'=>'fa-floppy-disk',    'types'=>['software'], 'color'=>'#3182ce'],
-    'other'        => ['label'=>'อื่นๆ',               'icon'=>'fa-box',            'types'=>['other'], 'color'=>'#718096'],
+    'infrastructure'=> ['label'=>'โครงสร้างพื้นฐาน',  'icon'=>'fa-server',         'types'=>['rack','enclosure','pdu','passive_device'], 'color'=>'#2d3748'],
+    'connectivity' => ['label'=>'อุปกรณ์เชื่อมต่อ',  'icon'=>'fa-plug',           'types'=>['cable','simcard'], 'color'=>'#319795'],
+    'consumables'  => ['label'=>'วัสดุสิ้นเปลือง',    'icon'=>'fa-droplet',        'types'=>['ink_cartridge','consumable','addon'], 'color'=>'#b7791f'],
 ];
 
 // Current category from URL
@@ -311,6 +313,62 @@ $statsSQL = "SELECT
     SUM(CASE WHEN warranty_expiry BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as warranty_expiring_count
     FROM assets";
 $stats = $db->query($statsSQL)->fetch_assoc();
+
+// Get warranty expiring assets (within 90 days)
+$warrantyAlerts = $db->query("
+    SELECT a.asset_id, a.asset_name, a.asset_tag, a.asset_type, a.warranty_expiry,
+           a.location, u.full_name as assigned_user_name,
+           DATEDIFF(a.warranty_expiry, NOW()) as days_left
+    FROM assets a
+    LEFT JOIN users u ON a.assigned_to = u.user_id
+    WHERE a.warranty_expiry IS NOT NULL
+      AND a.warranty_expiry >= NOW()
+      AND a.warranty_expiry <= DATE_ADD(NOW(), INTERVAL 90 DAY)
+    ORDER BY a.warranty_expiry ASC
+")->fetch_all(MYSQLI_ASSOC);
+
+// ── Export Excel ──────────────────────────────────────────────
+if (isset($_GET['export']) && $_GET['export'] === 'excel') {
+    $exportRows = $db->query("
+        SELECT a.asset_tag, a.inventory_number, a.asset_name, a.asset_type,
+               a.brand, a.model, a.serial_number, a.status, a.location, a.department,
+               u.full_name as assigned_user_name, a.ip_address, a.mac_address,
+               a.os_name, a.warranty_expiry, a.purchase_price, a.notes
+        FROM assets a
+        LEFT JOIN users u ON a.assigned_to = u.user_id
+        ORDER BY a.asset_tag
+    ")->fetch_all(MYSQLI_ASSOC);
+    header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+    header('Content-Disposition: attachment; filename="assets_' . date('Ymd_His') . '.xls"');
+    header('Cache-Control: max-age=0');
+    echo "\xEF\xBB\xBF";
+    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    echo '<head><meta charset="UTF-8"></head><body>';
+    echo '<table border="1">';
+    echo '<tr style="background:#2d6a4f;color:#fff;font-weight:bold;">
+        <th>Asset Tag</th><th>Inventory No.</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th>
+        <th>Brand</th><th>Model</th><th>Serial Number</th><th>สถานะ</th>
+        <th>Location</th><th>แผนก</th><th>ผู้รับผิดชอบ</th>
+        <th>IP Address</th><th>MAC Address</th><th>OS</th>
+        <th>Warranty Expiry</th><th>ราคาซื้อ (฿)</th><th>หมายเหตุ</th>
+    </tr>';
+    foreach ($exportRows as $r) {
+        $e = fn($v) => htmlspecialchars($v ?? '', ENT_QUOTES);
+        echo "<tr>
+            <td>{$e($r['asset_tag'])}</td><td>{$e($r['inventory_number'])}</td>
+            <td>{$e($r['asset_name'])}</td><td>{$e($r['asset_type'])}</td>
+            <td>{$e($r['brand'])}</td><td>{$e($r['model'])}</td>
+            <td>{$e($r['serial_number'])}</td><td>{$e($r['status'])}</td>
+            <td>{$e($r['location'])}</td><td>{$e($r['department'])}</td>
+            <td>{$e($r['assigned_user_name'])}</td><td>{$e($r['ip_address'])}</td>
+            <td>{$e($r['mac_address'])}</td><td>{$e($r['os_name'])}</td>
+            <td>{$e($r['warranty_expiry'])}</td><td>{$e($r['purchase_price'])}</td>
+            <td>{$e($r['notes'])}</td>
+        </tr>";
+    }
+    echo '</table></body></html>';
+    exit;
+}
 
 // Get Users for Assignment
 $users = $db->query("SELECT user_id, full_name FROM users WHERE status = 'active' ORDER BY full_name")->fetch_all(MYSQLI_ASSOC);
@@ -593,16 +651,33 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
         .type-printer { background: #fef5e7; color: #d69e2e; }
         .type-network { background: #e9d8fd; color: #553c9a; }
         .type-mobile { background: #c6f6d5; color: #2f855a; }
+        .type-monitor { background: #c6f6d5; color: #38d3d3; }
+        .type-software { background: #fef9c3; color: #a16207; }
 
-        .warranty-warning {
-            color: #ed8936;
-            font-weight: 600;
-        }
+        .warranty-warning { color: #ed8936; font-weight: 600; }
+        .warranty-expired  { color: #f56565; font-weight: 600; }
 
-        .warranty-expired {
-            color: #f56565;
-            font-weight: 600;
+        .warranty-alert-banner {
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+            border: 1px solid #f6d860;
+            border-left: 5px solid #d69e2e;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
         }
+        .warranty-alert-banner .alert-header {
+            display: flex; justify-content: space-between;
+            align-items: center; cursor: pointer; user-select: none;
+        }
+        .warranty-alert-banner .alert-title { font-weight: 700; color: #92400e; font-size: 1em; }
+        .warranty-alert-table { width:100%; border-collapse:collapse; margin-top:12px; font-size:0.88em; }
+        .warranty-alert-table th { background:#fde68a; color:#78350f; padding:7px 10px; text-align:left; font-weight:600; }
+        .warranty-alert-table td { padding:7px 10px; border-bottom:1px solid #fde68a; color:#44403c; }
+        .warranty-alert-table tr:last-child td { border-bottom:none; }
+        .days-badge { padding:3px 10px; border-radius:12px; font-weight:700; font-size:0.9em; }
+        .days-critical { background:#fee2e2; color:#991b1b; }
+        .days-warning  { background:#fef3c7; color:#92400e; }
+        .days-ok       { background:#d1fae5; color:#065f46; }
 
         .action-btns {
             display: flex;
@@ -990,6 +1065,48 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <?php endif; ?>
             </div>
 
+            <!-- Warranty Alert Banner -->
+            <?php if (!empty($warrantyAlerts)): ?>
+            <div class="warranty-alert-banner">
+                <div class="alert-header" onclick="toggleWarrantyAlert()">
+                    <div class="alert-title">
+                        <i class="fas fa-bell"></i>
+                        ประกันใกล้หมดอายุ — <?= count($warrantyAlerts) ?> รายการ (ภายใน 90 วัน)
+                    </div>
+                    <span id="warrantyToggleIcon" style="color:#92400e;font-size:0.85em;">
+                        <i class="fas fa-chevron-down"></i> ดูรายละเอียด
+                    </span>
+                </div>
+                <div id="warrantyAlertBody" style="display:none;">
+                    <table class="warranty-alert-table">
+                        <thead>
+                            <tr>
+                                <th>Asset Tag</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th>
+                                <th>ผู้รับผิดชอบ</th><th>Location</th>
+                                <th>วันหมดประกัน</th><th>เหลือ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($warrantyAlerts as $wa):
+                            $d = (int)$wa['days_left'];
+                            $bc = $d <= 14 ? 'days-critical' : ($d <= 30 ? 'days-warning' : 'days-ok');
+                        ?>
+                            <tr>
+                                <td><strong><?= htmlspecialchars($wa['asset_tag']) ?></strong></td>
+                                <td><?= htmlspecialchars($wa['asset_name']) ?></td>
+                                <td><span class="type-badge type-<?= $wa['asset_type'] ?>"><?= strtoupper($wa['asset_type']) ?></span></td>
+                                <td><?= htmlspecialchars($wa['assigned_user_name'] ?? '—') ?></td>
+                                <td><?= htmlspecialchars($wa['location'] ?? '—') ?></td>
+                                <td><?= date('d/m/Y', strtotime($wa['warranty_expiry'])) ?></td>
+                                <td><span class="days-badge <?= $bc ?>"><?= $d ?> วัน</span></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <!-- Assets Table -->
             <div class="card" id="tableView">
                 <div style="padding:15px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -1026,6 +1143,9 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                         <button onclick="switchView('user')" id="btnUserView" class="btn btn-sm" style="font-size:0.82em;padding:7px 12px;background:#e2e8f0;">
                             <i class="fas fa-users"></i> แยกตามผู้รับผิดชอบ
                         </button>
+                        <a href="?export=excel" class="btn btn-sm" style="font-size:0.82em;padding:7px 12px;background:#38a169;color:#fff;text-decoration:none;border-radius:6px;display:inline-flex;align-items:center;gap:5px;">
+                            <i class="fas fa-file-excel"></i> Export Excel
+                        </a>
                     </div>
                 </div>
                 <div id="viewTable">
@@ -1234,52 +1354,61 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div id="c_section_basic">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Asset Tag <span style="color:red;">*</span></label>
-                            <input type="text" name="asset_tag" class="form-control" required placeholder="e.g., IT-DT-001">
+                            <label for="create_asset_tag">Asset Tag <span style="color:red;">*</span></label>
+                            <input type="text" name="asset_tag" id="create_asset_tag" class="form-control" required placeholder="e.g., IT-DT-001">
                         </div>
                         <div class="form-group">
-                            <label>Inventory Number</label>
-                            <input type="text" name="inventory_number" class="form-control" placeholder="หมายเลขครุภัณฑ์">
+                            <label for="create_inventory_number">Inventory Number</label>
+                            <input type="text" name="inventory_number" id="create_inventory_number" class="form-control" placeholder="หมายเลขครุภัณฑ์">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>ชื่ออุปกรณ์ <span style="color:red;">*</span></label>
-                            <input type="text" name="asset_name" class="form-control" required placeholder="e.g., pc-romar001.romar.co.th">
+                            <label for="create_asset_name">ชื่ออุปกรณ์ <span style="color:red;">*</span></label>
+                            <input type="text" name="asset_name" id="create_asset_name" class="form-control" required placeholder="e.g., pc-romar001.romar.co.th">
                         </div>
                         <div class="form-group">
-                            <label>ประเภท <span style="color:red;">*</span></label>
-                            <select name="asset_type" class="form-control" required>
-                                <option value="desktop">Desktop</option>
-                                <option value="laptop">Laptop</option>
-                                <option value="monitor">Monitor (จอมอนิเตอร์)</option>
-                                <option value="server">Server</option>
-                                <option value="printer">Printer</option>
-                                <option value="network">Network Device</option>
-                                <option value="mobile">Mobile</option>
-                                <option value="software">Software</option>
-                                <option value="other">Other</option>
+                            <label for="create_asset_type">ประเภท <span style="color:red;">*</span></label>
+                            <select name="asset_type" id="create_asset_type" class="form-control" required>
+                                <option value="desktop">Desktop - คอมพิวเตอร์ตั้งโต๊ะ</option>
+                                <option value="laptop">Laptop - โน้ตบุ๊ค</option>
+                                <option value="monitor">Monitor - จอมอนิเตอร์</option>
+                                <option value="server">Server - เซิร์ฟเวอร์</option>
+                                <option value="printer">Printer - เครื่องพิมพ์</option>
+                                <option value="network">Network Device - อุปกรณ์เครือข่าย</option>
+                                <option value="mobile">Mobile - มือถือ</option>
+                                <option value="phone">Phone - โทรศัพท์บ้าน</option>
+                                <option value="software">Software - ซอฟต์แวร์/โปรแกรม</option>
+                                <option value="rack">Rack - แร็ควางอุปกรณ์</option>
+                                <option value="enclosure">Enclosure - กล่องอุปกรณ์</option>
+                                <option value="pdu">PDU - แหล่งจ่ายไฟ</option>
+                                <option value="passive_device">Passive Device - อุปกรณ์พาสซีฟ</option>
+                                <option value="cable">Cable - สายเชื่อมต่อ</option>
+                                <option value="simcard">Simcard - ซิมการ์ด</option>
+                                <option value="ink_cartridge">สแตนหมึก - ตลับหมึก</option>
+                                <option value="consumable">วัสดุสิ้นเปลือง - Consumables</option>
+                                <option value="addon">อุปกรณ์เพิ่มเติม - Add-on</option>
                             </select>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Manufacturer / Brand</label>
-                            <input type="text" name="brand" class="form-control" placeholder="e.g., HP, Dell, Lenovo">
+                            <label for="create_brand">Manufacturer / Brand</label>
+                            <input type="text" name="brand" id="create_brand" class="form-control" placeholder="e.g., HP, Dell, Lenovo">
                         </div>
                         <div class="form-group">
-                            <label>Model</label>
-                            <input type="text" name="model" class="form-control" placeholder="e.g., ProDesk 400 G5">
+                            <label for="create_model">Model</label>
+                            <input type="text" name="model" id="create_model" class="form-control" placeholder="e.g., ProDesk 400 G5">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Serial Number</label>
-                            <input type="text" name="serial_number" class="form-control">
+                            <label for="create_serial_number">Serial Number</label>
+                            <input type="text" name="serial_number" id="create_serial_number" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>สถานะ <span style="color:red;">*</span></label>
-                            <select name="status" class="form-control" required>
+                            <label for="create_status">สถานะ <span style="color:red;">*</span></label>
+                            <select name="status" id="create_status" class="form-control" required>
                                 <option value="active">Active - ใช้งานอยู่</option>
                                 <option value="inactive">Inactive - ไม่ได้ใช้งาน</option>
                                 <option value="maintenance">Maintenance - ซ่อมบำรุง</option>
@@ -1289,18 +1418,18 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Location (ห้อง/สถานที่)</label>
-                            <input type="text" name="location" class="form-control" placeholder="e.g., IT Room, ฝ่ายผลิต">
+                            <label for="create_location">Location (ห้อง/สถานที่)</label>
+                            <input type="text" name="location" id="create_location" class="form-control" placeholder="e.g., IT Room, ฝ่ายผลิต">
                         </div>
                         <div class="form-group">
-                            <label>แผนก/ฝ่าย</label>
-                            <input type="text" name="department" class="form-control" placeholder="e.g., IT, HR, Production">
+                            <label for="create_department">แผนก/ฝ่าย</label>
+                            <input type="text" name="department" id="create_department" class="form-control" placeholder="e.g., IT, HR, Production">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>ผู้รับผิดชอบ (Assigned To / User)</label>
-                            <select name="assigned_to" class="form-control">
+                            <label for="create_assigned_to">ผู้รับผิดชอบ (Assigned To / User)</label>
+                            <select name="assigned_to" id="create_assigned_to" class="form-control">
                                 <option value="">ไม่ได้มอบหมาย</option>
                                 <?php foreach ($users as $u): ?>
                                 <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
@@ -1308,8 +1437,8 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>ช่างเทคนิค (Technician in Charge)</label>
-                            <select name="tech_in_charge" class="form-control">
+                            <label for="create_tech_in_charge">ช่างเทคนิค (Technician in Charge)</label>
+                            <select name="tech_in_charge" id="create_tech_in_charge" class="form-control">
                                 <option value="">— เลือกช่าง —</option>
                                 <?php foreach ($users as $u): ?>
                                 <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
@@ -1319,18 +1448,18 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Alternate Username</label>
-                            <input type="text" name="alternate_user" class="form-control" placeholder="ชื่อผู้ใช้สำรอง">
+                            <label for="create_alternate_user">Alternate Username</label>
+                            <input type="text" name="alternate_user" id="create_alternate_user" class="form-control" placeholder="ชื่อผู้ใช้สำรอง">
                         </div>
                         <div class="form-group">
-                            <label>กลุ่ม/ทีม</label>
-                            <input type="text" name="asset_group" class="form-control" placeholder="e.g., IT Team, Admin">
+                            <label for="create_asset_group">กลุ่ม/ทีม</label>
+                            <input type="text" name="asset_group" id="create_asset_group" class="form-control" placeholder="e.g., IT Team, Admin">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>สภาพอุปกรณ์</label>
-                            <select name="condition" class="form-control">
+                            <label for="create_condition">สภาพอุปกรณ์</label>
+                            <select name="condition" id="create_condition" class="form-control">
                                 <option value="good">Good - ดี</option>
                                 <option value="fair">Fair - พอใช้</option>
                                 <option value="poor">Poor - แย่</option>
@@ -1338,13 +1467,13 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>วันที่ Inventory ล่าสุด</label>
-                            <input type="date" name="last_inventory_date" class="form-control">
+                            <label for="create_last_inventory_date">วันที่ Inventory ล่าสุด</label>
+                            <input type="date" name="last_inventory_date" id="create_last_inventory_date" class="form-control">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Comments / หมายเหตุ</label>
-                        <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
+                        <label for="create_notes">Comments / หมายเหตุ</label>
+                        <textarea name="notes" id="create_notes" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
                     </div>
                 </div>
 
@@ -1352,8 +1481,8 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div id="c_section_os" style="display:none;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Operating System</label>
-                            <select name="os_name" class="form-control">
+                            <label for="create_os_name">Operating System</label>
+                            <select name="os_name" id="create_os_name" class="form-control">
                                 <option value="">— เลือก OS —</option>
                                 <option>Windows 11 Pro</option>
                                 <option>Windows 11 Enterprise</option>
@@ -1370,27 +1499,27 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>OS Version</label>
-                            <input type="text" name="os_version" class="form-control" placeholder="e.g., 22H2, 21H2">
+                            <label for="create_os_version">OS Version</label>
+                            <input type="text" name="os_version" id="create_os_version" class="form-control" placeholder="e.g., 22H2, 21H2">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Architecture</label>
-                            <select name="os_architecture" class="form-control">
+                            <label for="create_os_architecture">Architecture</label>
+                            <select name="os_architecture" id="create_os_architecture" class="form-control">
                                 <option value="">—</option>
                                 <option value="64-bit">64-bit</option>
                                 <option value="32-bit">32-bit</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Service Pack / Update</label>
-                            <input type="text" name="os_service_pack" class="form-control" placeholder="e.g., SP1, 23H2">
+                            <label for="create_os_service_pack">Service Pack / Update</label>
+                            <input type="text" name="os_service_pack" id="create_os_service_pack" class="form-control" placeholder="e.g., SP1, 23H2">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>OS Product Key</label>
-                        <input type="text" name="os_product_key" class="form-control" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">
+                        <label for="create_os_product_key">OS Product Key</label>
+                        <input type="text" name="os_product_key" id="create_os_product_key" class="form-control" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">
                     </div>
                 </div>
 
@@ -1398,32 +1527,32 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div id="c_section_hw" style="display:none;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>CPU</label>
-                            <input type="text" name="cpu" class="form-control" placeholder="e.g., Intel Core i5-10500">
+                            <label for="create_cpu">CPU</label>
+                            <input type="text" name="cpu" id="create_cpu" class="form-control" placeholder="e.g., Intel Core i5-10500">
                         </div>
                         <div class="form-group">
-                            <label>CPU Cores</label>
-                            <input type="number" name="cpu_cores" class="form-control" placeholder="6" min="1">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>RAM (GB)</label>
-                            <input type="number" name="ram_gb" class="form-control" placeholder="8" min="1">
-                        </div>
-                        <div class="form-group">
-                            <label>Storage</label>
-                            <input type="text" name="storage" class="form-control" placeholder="e.g., 256GB SSD, 1TB HDD">
+                            <label for="create_cpu_cores">CPU Cores</label>
+                            <input type="number" name="cpu_cores" id="create_cpu_cores" class="form-control" placeholder="6" min="1">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>GPU / Graphics Card</label>
-                            <input type="text" name="gpu" class="form-control" placeholder="e.g., Intel UHD 630">
+                            <label for="create_ram_gb">RAM (GB)</label>
+                            <input type="number" name="ram_gb" id="create_ram_gb" class="form-control" placeholder="8" min="1">
                         </div>
                         <div class="form-group">
-                            <label>Monitor</label>
-                            <input type="text" name="monitor" class="form-control" placeholder="e.g., HP 22fw 21.5 inch">
+                            <label for="create_storage">Storage</label>
+                            <input type="text" name="storage" id="create_storage" class="form-control" placeholder="e.g., 256GB SSD, 1TB HDD">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="create_gpu">GPU / Graphics Card</label>
+                            <input type="text" name="gpu" id="create_gpu" class="form-control" placeholder="e.g., Intel UHD 630">
+                        </div>
+                        <div class="form-group">
+                            <label for="create_monitor">Monitor</label>
+                            <input type="text" name="monitor" id="create_monitor" class="form-control" placeholder="e.g., HP 22fw 21.5 inch">
                         </div>
                     </div>
                 </div>
@@ -1432,27 +1561,27 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div id="c_section_net" style="display:none;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>IP Address</label>
-                            <input type="text" name="ip_address" class="form-control" placeholder="e.g., 192.168.1.100">
+                            <label for="create_ip_address">IP Address</label>
+                            <input type="text" name="ip_address" id="create_ip_address" class="form-control" placeholder="e.g., 192.168.1.100">
                         </div>
                         <div class="form-group">
-                            <label>MAC Address</label>
-                            <input type="text" name="mac_address" class="form-control" placeholder="e.g., AA:BB:CC:DD:EE:FF">
+                            <label for="create_mac_address">MAC Address</label>
+                            <input type="text" name="mac_address" id="create_mac_address" class="form-control" placeholder="e.g., AA:BB:CC:DD:EE:FF">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Network / Domain</label>
-                            <input type="text" name="network_domain" class="form-control" placeholder="e.g., romar.co.th">
+                            <label for="create_network_domain">Network / Domain</label>
+                            <input type="text" name="network_domain" id="create_network_domain" class="form-control" placeholder="e.g., romar.co.th">
                         </div>
                         <div class="form-group">
-                            <label>Gateway</label>
-                            <input type="text" name="gateway" class="form-control" placeholder="e.g., 192.168.1.1">
+                            <label for="create_gateway">Gateway</label>
+                            <input type="text" name="gateway" id="create_gateway" class="form-control" placeholder="e.g., 192.168.1.1">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>DNS Server</label>
-                        <input type="text" name="dns_server" class="form-control" placeholder="e.g., 8.8.8.8, 8.8.4.4">
+                        <label for="create_dns_server">DNS Server</label>
+                        <input type="text" name="dns_server" id="create_dns_server" class="form-control" placeholder="e.g., 8.8.8.8, 8.8.4.4">
                     </div>
                 </div>
 
@@ -1460,32 +1589,32 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div id="c_section_purchase" style="display:none;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Purchase Date (วันที่ซื้อ)</label>
-                            <input type="date" name="purchase_date" class="form-control">
+                            <label for="create_purchase_date">Purchase Date (วันที่ซื้อ)</label>
+                            <input type="date" name="purchase_date" id="create_purchase_date" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>Warranty Expiry (วันหมดประกัน)</label>
-                            <input type="date" name="warranty_expiry" class="form-control">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>ราคาซื้อ (บาท)</label>
-                            <input type="number" name="purchase_price" class="form-control" step="0.01" min="0" placeholder="0.00">
-                        </div>
-                        <div class="form-group">
-                            <label>มูลค่าซาก (บาท)</label>
-                            <input type="number" name="salvage_value" class="form-control" step="0.01" min="0" value="0">
+                            <label for="create_warranty_expiry">Warranty Expiry (วันหมดประกัน)</label>
+                            <input type="date" name="warranty_expiry" id="create_warranty_expiry" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>อายุการใช้งาน (ปี)</label>
-                            <input type="number" name="useful_life_years" class="form-control" value="5" min="1" max="30">
+                            <label for="create_purchase_price">ราคาซื้อ (บาท)</label>
+                            <input type="number" name="purchase_price" id="create_purchase_price" class="form-control" step="0.01" min="0" placeholder="0.00">
                         </div>
                         <div class="form-group">
-                            <label>ผู้จัดจำหน่าย (Supplier)</label>
-                            <input type="text" name="supplier" class="form-control" placeholder="ชื่อบริษัทผู้ขาย">
+                            <label for="create_salvage_value">มูลค่าซาก (บาท)</label>
+                            <input type="number" name="salvage_value" id="create_salvage_value" class="form-control" step="0.01" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="create_useful_life_years">อายุการใช้งาน (ปี)</label>
+                            <input type="number" name="useful_life_years" id="create_useful_life_years" class="form-control" value="5" min="1" max="30">
+                        </div>
+                        <div class="form-group">
+                            <label for="create_supplier">ผู้จัดจำหน่าย (Supplier)</label>
+                            <input type="text" name="supplier" id="create_supplier" class="form-control" placeholder="ชื่อบริษัทผู้ขาย">
                         </div>
                     </div>
                 </div>
@@ -1532,51 +1661,60 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div id="e_section_basic">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Asset Tag <span style="color:red;">*</span></label>
+                            <label for="edit_asset_tag">Asset Tag <span style="color:red;">*</span></label>
                             <input type="text" name="asset_tag" id="edit_asset_tag" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label>Inventory Number</label>
+                            <label for="edit_inventory_number">Inventory Number</label>
                             <input type="text" name="inventory_number" id="edit_inventory_number" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>ชื่ออุปกรณ์ <span style="color:red;">*</span></label>
+                            <label for="edit_asset_name">ชื่ออุปกรณ์ <span style="color:red;">*</span></label>
                             <input type="text" name="asset_name" id="edit_asset_name" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label>ประเภท <span style="color:red;">*</span></label>
+                            <label for="edit_asset_type">ประเภท <span style="color:red;">*</span></label>
                             <select name="asset_type" id="edit_asset_type" class="form-control" required>
-                                <option value="desktop">Desktop</option>
-                                <option value="laptop">Laptop</option>
-                                <option value="monitor">Monitor (จอมอนิเตอร์)</option>
-                                <option value="server">Server</option>
-                                <option value="printer">Printer</option>
-                                <option value="network">Network Device</option>
-                                <option value="mobile">Mobile</option>
-                                <option value="software">Software</option>
-                                <option value="other">Other</option>
+                                <option value="desktop">Desktop - คอมพิวเตอร์ตั้งโต๊ะ</option>
+                                <option value="laptop">Laptop - โน้ตบุ๊ค</option>
+                                <option value="monitor">Monitor - จอมอนิเตอร์</option>
+                                <option value="server">Server - เซิร์ฟเวอร์</option>
+                                <option value="printer">Printer - เครื่องพิมพ์</option>
+                                <option value="network">Network Device - อุปกรณ์เครือข่าย</option>
+                                <option value="mobile">Mobile - มือถือ</option>
+                                <option value="phone">Phone - โทรศัพท์บ้าน</option>
+                                <option value="software">Software - ซอฟต์แวร์/โปรแกรม</option>
+                                <option value="rack">Rack - แร็ควางอุปกรณ์</option>
+                                <option value="enclosure">Enclosure - กล่องอุปกรณ์</option>
+                                <option value="pdu">PDU - แหล่งจ่ายไฟ</option>
+                                <option value="passive_device">Passive Device - อุปกรณ์พาสซีฟ</option>
+                                <option value="cable">Cable - สายเชื่อมต่อ</option>
+                                <option value="simcard">Simcard - ซิมการ์ด</option>
+                                <option value="ink_cartridge">สแตนหมึก - ตลับหมึก</option>
+                                <option value="consumable">วัสดุสิ้นเปลือง - Consumables</option>
+                                <option value="addon">อุปกรณ์เพิ่มเติม - Add-on</option>
                             </select>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Manufacturer / Brand</label>
+                            <label for="edit_brand">Manufacturer / Brand</label>
                             <input type="text" name="brand" id="edit_brand" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>Model</label>
+                            <label for="edit_model">Model</label>
                             <input type="text" name="model" id="edit_model" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Serial Number</label>
+                            <label for="edit_serial_number">Serial Number</label>
                             <input type="text" name="serial_number" id="edit_serial_number" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>สถานะ <span style="color:red;">*</span></label>
+                            <label for="edit_status">สถานะ <span style="color:red;">*</span></label>
                             <select name="status" id="edit_status" class="form-control" required>
                                 <option value="active">Active - ใช้งานอยู่</option>
                                 <option value="inactive">Inactive - ไม่ได้ใช้งาน</option>
@@ -1587,17 +1725,17 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Location</label>
+                            <label for="edit_location">Location</label>
                             <input type="text" name="location" id="edit_location" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>แผนก/ฝ่าย</label>
+                            <label for="edit_department">แผนก/ฝ่าย</label>
                             <input type="text" name="department" id="edit_department" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>ผู้รับผิดชอบ (User)</label>
+                            <label for="edit_assigned_to">ผู้รับผิดชอบ (User)</label>
                             <select name="assigned_to" id="edit_assigned_to" class="form-control">
                                 <option value="">ไม่ได้มอบหมาย</option>
                                 <?php foreach ($users as $u): ?>
@@ -1606,7 +1744,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>ช่างเทคนิค (Technician)</label>
+                            <label for="edit_tech_in_charge">ช่างเทคนิค (Technician)</label>
                             <select name="tech_in_charge" id="edit_tech_in_charge" class="form-control">
                                 <option value="">— เลือกช่าง —</option>
                                 <?php foreach ($users as $u): ?>
@@ -1617,17 +1755,17 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Alternate Username</label>
+                            <label for="edit_alternate_user">Alternate Username</label>
                             <input type="text" name="alternate_user" id="edit_alternate_user" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>กลุ่ม/ทีม</label>
+                            <label for="edit_asset_group">กลุ่ม/ทีม</label>
                             <input type="text" name="asset_group" id="edit_asset_group" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>สภาพอุปกรณ์</label>
+                            <label for="edit_condition">สภาพอุปกรณ์</label>
                             <select name="condition" id="edit_condition" class="form-control">
                                 <option value="good">Good - ดี</option>
                                 <option value="fair">Fair - พอใช้</option>
@@ -1636,12 +1774,12 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>วันที่ Inventory ล่าสุด</label>
+                            <label for="edit_last_inventory_date">วันที่ Inventory ล่าสุด</label>
                             <input type="date" name="last_inventory_date" id="edit_last_inventory_date" class="form-control">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Comments / หมายเหตุ</label>
+                        <label for="edit_notes">Comments / หมายเหตุ</label>
                         <textarea name="notes" id="edit_notes" class="form-control" rows="3"></textarea>
                     </div>
                 </div>
@@ -1650,7 +1788,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div id="e_section_os" style="display:none;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Operating System</label>
+                            <label for="edit_os_name">Operating System</label>
                             <select name="os_name" id="edit_os_name" class="form-control">
                                 <option value="">— เลือก OS —</option>
                                 <option>Windows 11 Pro</option>
@@ -1668,13 +1806,13 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>OS Version</label>
+                            <label for="edit_os_version">OS Version</label>
                             <input type="text" name="os_version" id="edit_os_version" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Architecture</label>
+                            <label for="edit_os_architecture">Architecture</label>
                             <select name="os_architecture" id="edit_os_architecture" class="form-control">
                                 <option value="">—</option>
                                 <option value="64-bit">64-bit</option>
@@ -1682,12 +1820,12 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Service Pack / Update</label>
+                            <label for="edit_os_service_pack">Service Pack / Update</label>
                             <input type="text" name="os_service_pack" id="edit_os_service_pack" class="form-control">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>OS Product Key</label>
+                        <label for="edit_os_product_key">OS Product Key</label>
                         <input type="text" name="os_product_key" id="edit_os_product_key" class="form-control">
                     </div>
                 </div>
@@ -1696,31 +1834,31 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div id="e_section_hw" style="display:none;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>CPU</label>
+                            <label for="edit_cpu">CPU</label>
                             <input type="text" name="cpu" id="edit_cpu" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>CPU Cores</label>
+                            <label for="edit_cpu_cores">CPU Cores</label>
                             <input type="number" name="cpu_cores" id="edit_cpu_cores" class="form-control" min="1">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>RAM (GB)</label>
+                            <label for="edit_ram_gb">RAM (GB)</label>
                             <input type="number" name="ram_gb" id="edit_ram_gb" class="form-control" min="1">
                         </div>
                         <div class="form-group">
-                            <label>Storage</label>
+                            <label for="edit_storage">Storage</label>
                             <input type="text" name="storage" id="edit_storage" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>GPU / Graphics Card</label>
+                            <label for="edit_gpu">GPU / Graphics Card</label>
                             <input type="text" name="gpu" id="edit_gpu" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>Monitor</label>
+                            <label for="edit_monitor">Monitor</label>
                             <input type="text" name="monitor" id="edit_monitor" class="form-control">
                         </div>
                     </div>
@@ -1730,26 +1868,26 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div id="e_section_net" style="display:none;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>IP Address</label>
+                            <label for="edit_ip_address">IP Address</label>
                             <input type="text" name="ip_address" id="edit_ip_address" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>MAC Address</label>
+                            <label for="edit_mac_address">MAC Address</label>
                             <input type="text" name="mac_address" id="edit_mac_address" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Network / Domain</label>
+                            <label for="edit_network_domain">Network / Domain</label>
                             <input type="text" name="network_domain" id="edit_network_domain" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>Gateway</label>
+                            <label for="edit_gateway">Gateway</label>
                             <input type="text" name="gateway" id="edit_gateway" class="form-control">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>DNS Server</label>
+                        <label for="edit_dns_server">DNS Server</label>
                         <input type="text" name="dns_server" id="edit_dns_server" class="form-control">
                     </div>
                 </div>
@@ -1758,31 +1896,31 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div id="e_section_purchase" style="display:none;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Purchase Date</label>
+                            <label for="edit_purchase_date">Purchase Date</label>
                             <input type="date" name="purchase_date" id="edit_purchase_date" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label>Warranty Expiry</label>
+                            <label for="edit_warranty_expiry">Warranty Expiry</label>
                             <input type="date" name="warranty_expiry" id="edit_warranty_expiry" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>ราคาซื้อ (บาท)</label>
+                            <label for="edit_purchase_price">ราคาซื้อ (บาท)</label>
                             <input type="number" name="purchase_price" id="edit_purchase_price" class="form-control" step="0.01" min="0">
                         </div>
                         <div class="form-group">
-                            <label>มูลค่าซาก (บาท)</label>
+                            <label for="edit_salvage_value">มูลค่าซาก (บาท)</label>
                             <input type="number" name="salvage_value" id="edit_salvage_value" class="form-control" step="0.01" min="0">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>อายุการใช้งาน (ปี)</label>
+                            <label for="edit_useful_life">อายุการใช้งาน (ปี)</label>
                             <input type="number" name="useful_life_years" id="edit_useful_life" class="form-control" min="1" max="30">
                         </div>
                         <div class="form-group">
-                            <label>ผู้จัดจำหน่าย (Supplier)</label>
+                            <label for="edit_supplier">ผู้จัดจำหน่าย (Supplier)</label>
                             <input type="text" name="supplier" id="edit_supplier" class="form-control">
                         </div>
                     </div>
@@ -1978,6 +2116,18 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
 
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) event.target.classList.remove('show');
+        }
+
+        function toggleWarrantyAlert() {
+            const body = document.getElementById('warrantyAlertBody');
+            const icon = document.getElementById('warrantyToggleIcon');
+            if (body.style.display === 'none') {
+                body.style.display = 'block';
+                icon.innerHTML = '<i class="fas fa-chevron-up"></i> ซ่อน';
+            } else {
+                body.style.display = 'none';
+                icon.innerHTML = '<i class="fas fa-chevron-down"></i> ดูรายละเอียด';
+            }
         }
     </script>
 </body>

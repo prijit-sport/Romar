@@ -2813,3 +2813,28 @@ Stack trace:
 #0 C:\xampp\htdocs\Romar\modules\assets.php(75): mysqli->query('INSERT INTO ass...')
 #1 {main}
   thrown in C:\xampp\htdocs\Romar\modules\assets.php on line 75
+[24-Feb-2026 08:56:06 Asia/Bangkok] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'assigned_user_name' in 'field list' in C:\xampp\htdocs\Romar\modules\assets.php:319
+Stack trace:
+#0 C:\xampp\htdocs\Romar\modules\assets.php(319): mysqli->query('\r\n    SELECT as...')
+#1 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\assets.php on line 319
+[24-Feb-2026 08:56:27 Asia/Bangkok] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'assigned_user_name' in 'field list' in C:\xampp\htdocs\Romar\modules\assets.php:319
+Stack trace:
+#0 C:\xampp\htdocs\Romar\modules\assets.php(319): mysqli->query('\r\n    SELECT as...')
+#1 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\assets.php on line 319
+[24-Feb-2026 08:56:29 Asia/Bangkok] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'assigned_user_name' in 'field list' in C:\xampp\htdocs\Romar\modules\assets.php:319
+Stack trace:
+#0 C:\xampp\htdocs\Romar\modules\assets.php(319): mysqli->query('\r\n    SELECT as...')
+#1 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\assets.php on line 319
+[24-Feb-2026 09:07:55 Asia/Bangkok] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'assigned_user_name' in 'field list' in C:\xampp\htdocs\Romar\modules\assets.php:319
+Stack trace:
+#0 C:\xampp\htdocs\Romar\modules\assets.php(319): mysqli->query('\r\n    SELECT as...')
+#1 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\assets.php on line 319
+[24-Feb-2026 09:09:37 Asia/Bangkok] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 't.user_id' in 'on clause' in C:\xampp\htdocs\Romar\modules\reports.php:31
+Stack trace:
+#0 C:\xampp\htdocs\Romar\modules\reports.php(31): mysqli->prepare('SELECT t.ticket...')
+#1 {main}
+  thrown in C:\xampp\htdocs\Romar\modules\reports.php on line 31

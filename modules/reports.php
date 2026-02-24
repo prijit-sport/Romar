@@ -13,9 +13,49 @@ $db = getDB();
 $isAdmin = $_SESSION['role'] === 'admin';
 
 // Get Date Range
-$startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-01'); // First day of current month
-$endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d'); // Today
+$startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-01');
+$endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
 $reportType = isset($_GET['report_type']) ? $_GET['report_type'] : 'summary';
+
+// ── Export Excel ──────────────────────────────────────────────
+if (isset($_GET['export']) && $_GET['export'] === 'excel') {
+    $exportSQL = "SELECT t.ticket_id, t.title, t.category, t.priority, t.status,
+                         t.created_at, t.resolved_at,
+                         u2.full_name as assigned_to_name,
+                         t.description, t.resolution_notes
+                  FROM tickets t
+                  LEFT JOIN users u2 ON t.assigned_to = u2.user_id
+                  WHERE DATE(t.created_at) BETWEEN ? AND ?
+                  ORDER BY t.created_at DESC";
+    $stmt = $db->prepare($exportSQL);
+    $stmt->bind_param('ss', $startDate, $endDate);
+    $stmt->execute();
+    $exportRows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+    header('Content-Disposition: attachment; filename="tickets_' . $startDate . '_' . $endDate . '.xls"');
+    header('Cache-Control: max-age=0');
+    echo "\xEF\xBB\xBF";
+    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    echo '<head><meta charset="UTF-8"></head><body>';
+    echo '<table border="1">';
+    echo '<tr style="background:#2b6cb0;color:#fff;font-weight:bold;">
+        <th>Ticket ID</th><th>หัวข้อ</th><th>หมวดหมู่</th><th>Priority</th>
+        <th>สถานะ</th><th>ผู้รับผิดชอบ</th><th>วันที่สร้าง</th>
+        <th>วันที่แก้ไข</th><th>รายละเอียด</th><th>วิธีแก้ไข</th>
+    </tr>';
+    foreach ($exportRows as $r) {
+        $e = fn($v) => htmlspecialchars($v ?? '', ENT_QUOTES);
+        echo "<tr>
+            <td>{$e($r['ticket_id'])}</td><td>{$e($r['title'])}</td>
+            <td>{$e($r['category'])}</td><td>{$e($r['priority'])}</td>
+            <td>{$e($r['status'])}</td><td>{$e($r['assigned_to_name'])}</td>
+            <td>{$e($r['created_at'])}</td><td>{$e($r['resolved_at'])}</td>
+            <td>{$e($r['description'])}</td><td>{$e($r['resolution_notes'])}</td>
+        </tr>";
+    }
+    echo '</table></body></html>';
+    exit;
+}
 
 // Summary Statistics
 $summarySQL = "SELECT 
@@ -548,12 +588,17 @@ if ($slaCompliance['total'] > 0) {
                                 <option value="detailed" <?php echo $reportType === 'detailed' ? 'selected' : ''; ?>>รายละเอียด</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" id="btn_search" name="btn_search" class="btn btn-primary">
                             <i class="fas fa-search"></i> ดูรายงาน
                         </button>
-                        <div style="text-align: right;">
-                            <button type="button" class="btn btn-primary" onclick="window.print()">
-                                <i class="fas fa-print"></i> พิมพ์รายงาน
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <a href="?start_date=<?= $startDate ?>&end_date=<?= $endDate ?>&report_type=<?= $reportType ?>&export=excel"
+                               style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;background:#38a169;color:#fff;border-radius:8px;text-decoration:none;font-size:0.9em;font-weight:600;">
+                                <i class="fas fa-file-excel"></i> Export Excel
+                            </a>
+                            <button type="button" id="btn_pdf" name="btn_pdf" onclick="setTimeout(()=>window.print(),100)"
+                                    style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;background:#e53e3e;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.9em;font-weight:600;font-family:'Sarabun',sans-serif;">
+                                <i class="fas fa-file-pdf"></i> Export PDF
                             </button>
                         </div>
                     </div>
@@ -630,7 +675,7 @@ if ($slaCompliance['total'] > 0) {
                     <div class="chart-header">
                         <h3 class="chart-title"><i class="fas fa-folder"></i> Tickets ตามหมวดหมู่</h3>
                     </div>
-                    <canvas id="categoryChart"></canvas>
+                    <canvas id="categoryChart" role="img" aria-label="กราฟ Tickets ตามหมวดหมู่"></canvas>
                 </div>
 
                 <!-- Priority Chart -->
@@ -638,7 +683,7 @@ if ($slaCompliance['total'] > 0) {
                     <div class="chart-header">
                         <h3 class="chart-title"><i class="fas fa-exclamation-circle"></i> Tickets ตาม Priority</h3>
                     </div>
-                    <canvas id="priorityChart"></canvas>
+                    <canvas id="priorityChart" role="img" aria-label="กราฟ Tickets ตาม Priority"></canvas>
                 </div>
 
                 <!-- Status Chart -->
@@ -646,7 +691,7 @@ if ($slaCompliance['total'] > 0) {
                     <div class="chart-header">
                         <h3 class="chart-title"><i class="fas fa-tasks"></i> Tickets ตาม Status</h3>
                     </div>
-                    <canvas id="statusChart"></canvas>
+                    <canvas id="statusChart" role="img" aria-label="กราฟ Tickets ตาม Status"></canvas>
                 </div>
 
                 <!-- Trend Chart -->
@@ -654,7 +699,7 @@ if ($slaCompliance['total'] > 0) {
                     <div class="chart-header">
                         <h3 class="chart-title"><i class="fas fa-chart-line"></i> แนวโน้ม 30 วันล่าสุด</h3>
                     </div>
-                    <canvas id="trendChart"></canvas>
+                    <canvas id="trendChart" role="img" aria-label="กราฟแนวโน้ม Tickets 30 วันล่าสุด"></canvas>
                 </div>
             </div>
 
@@ -731,9 +776,8 @@ if ($slaCompliance['total'] > 0) {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
+                    legend: { position: 'bottom' },
+                    title: { display: false, text: 'Tickets ตามหมวดหมู่' }
                 }
             }
         });
@@ -754,15 +798,10 @@ if ($slaCompliance['total'] > 0) {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: {
-                        display: false
-                    }
+                    legend: { display: false },
+                    title: { display: false, text: 'Tickets ตาม Priority' }
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
+                scales: { y: { beginAtZero: true } }
             }
         });
 
@@ -781,9 +820,8 @@ if ($slaCompliance['total'] > 0) {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
+                    legend: { position: 'bottom' },
+                    title: { display: false, text: 'Tickets ตาม Status' }
                 }
             }
         });
@@ -807,17 +845,77 @@ if ($slaCompliance['total'] > 0) {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: {
-                        display: false
-                    }
+                    legend: { display: false },
+                    title: { display: false, text: 'แนวโน้ม Tickets 30 วันล่าสุด' }
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
+                scales: { y: { beginAtZero: true } }
             }
         });
     </script>
+    <style>
+    @media print {
+        /* ซ่อนส่วนที่ไม่ต้องพิมพ์ */
+        .sidebar,
+        .breadcrumb-nav,
+        .filter-section,
+        nav, form button, form a { display: none !important; }
+
+        /* Reset layout - ลบ margin-left ของ sidebar ออก */
+        body {
+            background: #fff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .container {
+            display: block !important;
+        }
+
+        .main-content {
+            margin-left: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+        }
+
+        /* ตั้งค่า Page */
+        @page {
+            size: A4 portrait;
+            margin: 15mm 15mm 15mm 15mm;
+        }
+
+        /* Card & Chart */
+        .card, .chart-card {
+            box-shadow: none !important;
+            border: 1px solid #ddd !important;
+            page-break-inside: avoid;
+            margin-bottom: 15px !important;
+        }
+
+        /* Stats Grid - 2 คอลัมน์ใน A4 */
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+            margin-bottom: 15px !important;
+        }
+
+        /* Charts Grid - 2 คอลัมน์ */
+        .charts-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+            margin-bottom: 15px !important;
+        }
+
+        /* Page Header */
+        .page-header {
+            box-shadow: none !important;
+            border: 1px solid #ddd !important;
+            padding: 15px !important;
+            margin-bottom: 15px !important;
+        }
+
+        h1 { color: #1a202c !important; font-size: 1.4em !important; }
+        .card-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+    </style>
 </body>
 </html>

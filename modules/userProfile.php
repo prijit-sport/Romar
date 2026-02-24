@@ -968,45 +968,45 @@ function statusLabel($s) {
             <button onclick="closeEditModal()" style="background:none; border:none; font-size:1.5em; cursor:pointer; color:#718096;">&times;</button>
         </div>
         <form method="POST" action="users.php">
-            <input type="hidden" name="action" value="update">
-            <input type="hidden" name="user_id" id="edit_user_id">
+            <input type="hidden" name="action" value="update" autocomplete="off">
+            <input type="hidden" name="user_id" id="edit_user_id" autocomplete="off">
 
             <div style="margin-bottom:14px;">
-                <label style="display:block; margin-bottom:6px; font-weight:600;">ชื่อ-นามสกุล *</label>
-                <input type="text" name="full_name" id="edit_full_name" required
+                <label for="edit_full_name" style="display:block; margin-bottom:6px; font-weight:600;">ชื่อ-นามสกุล *</label>
+                <input type="text" name="full_name" id="edit_full_name" required autocomplete="name"
                     style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-family:'Sarabun',sans-serif; font-size:1em;">
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
                 <div>
-                    <label style="display:block; margin-bottom:6px; font-weight:600;">อีเมล</label>
-                    <input type="email" name="email" id="edit_email"
+                    <label for="edit_email" style="display:block; margin-bottom:6px; font-weight:600;">อีเมล</label>
+                    <input type="email" name="email" id="edit_email" autocomplete="email"
                         style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-family:'Sarabun',sans-serif; font-size:1em;">
                 </div>
                 <div>
-                    <label style="display:block; margin-bottom:6px; font-weight:600;">เบอร์โทร</label>
-                    <input type="text" name="phone" id="edit_phone"
+                    <label for="edit_phone" style="display:block; margin-bottom:6px; font-weight:600;">เบอร์โทร</label>
+                    <input type="text" name="phone" id="edit_phone" autocomplete="tel"
                         style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-family:'Sarabun',sans-serif; font-size:1em;">
                 </div>
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
                 <div>
-                    <label style="display:block; margin-bottom:6px; font-weight:600;">แผนก</label>
-                    <input type="text" name="department" id="edit_department"
+                    <label for="edit_department" style="display:block; margin-bottom:6px; font-weight:600;">แผนก</label>
+                    <input type="text" name="department" id="edit_department" autocomplete="organization"
                         style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-family:'Sarabun',sans-serif; font-size:1em;">
                 </div>
                 <div>
-                    <label style="display:block; margin-bottom:6px; font-weight:600;">ตำแหน่ง</label>
-                    <input type="text" name="position" id="edit_position"
+                    <label for="edit_position" style="display:block; margin-bottom:6px; font-weight:600;">ตำแหน่ง</label>
+                    <input type="text" name="position" id="edit_position" autocomplete="organization-title"
                         style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-family:'Sarabun',sans-serif; font-size:1em;">
                 </div>
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px;">
                 <div>
-                    <label style="display:block; margin-bottom:6px; font-weight:600;">บทบาท *</label>
-                    <select name="role" id="edit_role" required
+                    <label for="edit_role" style="display:block; margin-bottom:6px; font-weight:600;">บทบาท *</label>
+                    <select name="role" id="edit_role" required autocomplete="off"
                         style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-family:'Sarabun',sans-serif; font-size:1em;">
                         <option value="user">User</option>
                         <option value="staff">Staff</option>
@@ -1014,8 +1014,8 @@ function statusLabel($s) {
                     </select>
                 </div>
                 <div>
-                    <label style="display:block; margin-bottom:6px; font-weight:600;">สถานะ *</label>
-                    <select name="status" id="edit_status" required
+                    <label for="edit_status" style="display:block; margin-bottom:6px; font-weight:600;">สถานะ *</label>
+                    <select name="status" id="edit_status" required autocomplete="off"
                         style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-family:'Sarabun',sans-serif; font-size:1em;">
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
