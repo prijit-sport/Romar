@@ -1096,7 +1096,7 @@ function handleFileUploads($db, $ticketId, $files) {
 <body>
     <div class="container">
         <!-- Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar">  
             <div class="sidebar-brand">
                 <div>
                     <div class="brand-title">
