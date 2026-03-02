@@ -5,6 +5,19 @@ require_once '../includes/functions.php';
 
 if (!isset($_SESSION['user_id'])) { header('Location: ../auth/login.php'); exit; }
 
+// CSRF helper
+if (empty($_SESSION['csrf_token'])) {
+    try {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    } catch (Exception $e) {
+        $_SESSION['csrf_token'] = md5(uniqid('', true));
+    }
+}
+
+function validate_csrf($token) {
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
 $db      = getDB();
 $isAdmin = $_SESSION['role'] === 'admin';
 $assetId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -35,117 +48,174 @@ $action = $_POST['action'] ?? '';
 
 // เพิ่มประวัติซ่อม
 if ($action === 'add_repair') {
-    $stmt = $db->prepare("INSERT INTO asset_repairs (asset_id,repair_date,problem_desc,repair_detail,repair_cost,vendor,technician,status,warranty_claim,created_by) VALUES (?,?,?,?,?,?,?,?,?,?)");
-    $cost = (float)$_POST['repair_cost'];
-    $wc   = isset($_POST['warranty_claim']) ? 1 : 0;
-    $repairDate   = $_POST['repair_date'];
-    $problemDesc  = sanitize($_POST['problem_desc']);
-    $repairDetail = sanitize($_POST['repair_detail']);
-    $vendor       = sanitize($_POST['vendor']);
-    $technician   = sanitize($_POST['technician']);
-    $repairStatus = sanitize($_POST['repair_status']);
-    $userId       = $_SESSION['user_id'];
-    $stmt->bind_param('isssdsssii',
-        $assetId, $repairDate, $problemDesc,
-        $repairDetail, $cost, $vendor,
-        $technician, $repairStatus,
-        $wc, $userId
-    );
-    if ($stmt->execute()) {
-        // ถ้า status = in_progress → อัปเดตสถานะอุปกรณ์เป็น maintenance
-        if ($_POST['repair_status'] === 'in_progress') {
-            $db->query("UPDATE assets SET status='maintenance' WHERE asset_id=$assetId");
-        }
-        logActivity($_SESSION['user_id'], 'เพิ่มประวัติซ่อม', 'Assets', "Asset ID: $assetId");
-        $message = 'บันทึกประวัติการซ่อมเรียบร้อย'; $messageType = 'success';
-    } else { $message = 'เกิดข้อผิดพลาด: '.$stmt->error; $messageType = 'error'; }
+    // CSRF check
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $message = 'Invalid CSRF token'; $messageType = 'error';
+    } else {
+        $stmt = $db->prepare("INSERT INTO asset_repairs (asset_id,repair_date,problem_desc,repair_detail,repair_cost,vendor,technician,status,warranty_claim,created_by) VALUES (?,?,?,?,?,?,?,?,?,?)");
+        $cost = (float)$_POST['repair_cost'];
+        $wc   = isset($_POST['warranty_claim']) ? 1 : 0;
+        $repairDate   = $_POST['repair_date'];
+        $problemDesc  = sanitize($_POST['problem_desc']);
+        $repairDetail = sanitize($_POST['repair_detail']);
+        $vendor       = sanitize($_POST['vendor']);
+        $technician   = sanitize($_POST['technician']);
+        $repairStatus = sanitize($_POST['repair_status']);
+        $userId       = $_SESSION['user_id'];
+        $stmt->bind_param('isssdsssii',
+            $assetId, $repairDate, $problemDesc,
+            $repairDetail, $cost, $vendor,
+            $technician, $repairStatus,
+            $wc, $userId
+        );
+        if ($stmt->execute()) {
+            // ถ้า status = in_progress → อัปเดตสถานะอุปกรณ์เป็น maintenance
+            if ($_POST['repair_status'] === 'in_progress') {
+                $upd = $db->prepare("UPDATE assets SET status = 'maintenance' WHERE asset_id = ?");
+                $upd->bind_param('i', $assetId);
+                $upd->execute();
+            }
+            logActivity($_SESSION['user_id'], 'เพิ่มประวัติซ่อม', 'Assets', "Asset ID: $assetId");
+            $message = 'บันทึกประวัติการซ่อมเรียบร้อย'; $messageType = 'success';
+        } else { $message = 'เกิดข้อผิดพลาด: '.$stmt->error; $messageType = 'error'; }
+    }
 }
 
 // เพิ่มการยืม
 if ($action === 'add_borrow') {
-    $stmt = $db->prepare("INSERT INTO asset_borrows (asset_id,borrower_id,approved_by,borrow_date,expected_return,purpose,condition_out,created_by) VALUES (?,?,?,?,?,?,?,?)");
-    $borrowerId = (int)$_POST['borrower_id'];
-    $approvedBy = $isAdmin ? $_SESSION['user_id'] : null;
-    $borrowDate     = $_POST['borrow_date'];
-    $expectedReturn = !empty($_POST['expected_return']) ? $_POST['expected_return'] : null;
-    $purpose        = sanitize($_POST['purpose']);
-    $conditionOut   = sanitize($_POST['condition_out']);
-    $userId         = $_SESSION['user_id'];
-    $stmt->bind_param('iiissssi',
-        $assetId, $borrowerId, $approvedBy,
-        $borrowDate, $expectedReturn,
-        $purpose, $conditionOut,
-        $userId
-    );
-    // fix bind
-    $stmt = $db->prepare("INSERT INTO asset_borrows (asset_id,borrower_id,approved_by,borrow_date,expected_return,purpose,condition_out,created_by,status) VALUES (?,?,?,?,?,?,?,?,'borrowed')");
-    $stmt->bind_param('iiissssi',
-        $assetId, $borrowerId, $approvedBy,
-        $_POST['borrow_date'], $_POST['expected_return'],
-        sanitize($_POST['purpose']), sanitize($_POST['condition_out']),
-        $_SESSION['user_id']
-    );
-    if ($stmt->execute()) {
-        $db->query("UPDATE assets SET status='inactive' WHERE asset_id=$assetId");
-        logActivity($_SESSION['user_id'], 'บันทึกการยืม', 'Assets', "Asset ID: $assetId ผู้ยืม: $borrowerId");
-        $message = 'บันทึกการยืมเรียบร้อย'; $messageType = 'success';
-    } else { $message = 'เกิดข้อผิดพลาด: '.$stmt->error; $messageType = 'error'; }
+    // CSRF check
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $message = 'Invalid CSRF token'; $messageType = 'error';
+    } else {
+        $stmt = $db->prepare("INSERT INTO asset_borrows (asset_id,borrower_id,approved_by,borrow_date,expected_return,purpose,condition_out,created_by,status) VALUES (?,?,?,?,?,?,?,?,'borrowed')");
+        $borrowerId = (int)$_POST['borrower_id'];
+        $approvedBy = $isAdmin ? $_SESSION['user_id'] : null;
+        $borrowDate     = $_POST['borrow_date'];
+        $expectedReturn = !empty($_POST['expected_return']) ? $_POST['expected_return'] : null;
+        $purpose        = sanitize($_POST['purpose']);
+        $conditionOut   = sanitize($_POST['condition_out']);
+        $userId         = $_SESSION['user_id'];
+        $stmt->bind_param('iiissssi',
+            $assetId, $borrowerId, $approvedBy,
+            $borrowDate, $expectedReturn,
+            $purpose, $conditionOut,
+            $userId
+        );
+        if ($stmt->execute()) {
+            $upd = $db->prepare("UPDATE assets SET status = 'inactive' WHERE asset_id = ?");
+            $upd->bind_param('i', $assetId);
+            $upd->execute();
+            logActivity($_SESSION['user_id'], 'บันทึกการยืม', 'Assets', "Asset ID: $assetId ผู้ยืม: $borrowerId");
+            $message = 'บันทึกการยืมเรียบร้อย'; $messageType = 'success';
+        } else { $message = 'เกิดข้อผิดพลาด: '.$stmt->error; $messageType = 'error'; }
+    }
 }
 
 // คืนอุปกรณ์
 if ($action === 'return_asset') {
-    $borrowId    = (int)$_POST['borrow_id'];
-    $condIn      = sanitize($_POST['condition_in']);
-    $returnDate  = $_POST['actual_return'];
-    $stmt = $db->prepare("UPDATE asset_borrows SET actual_return=?, condition_in=?, status='returned' WHERE borrow_id=?");
-    $stmt->bind_param('ssi', $returnDate, $condIn, $borrowId);
-    if ($stmt->execute()) {
-        $db->query("UPDATE assets SET status='active' WHERE asset_id=$assetId");
-        logActivity($_SESSION['user_id'], 'คืนอุปกรณ์', 'Assets', "Asset ID: $assetId");
-        $message = 'บันทึกการคืนเรียบร้อย'; $messageType = 'success';
+    // CSRF check
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $message = 'Invalid CSRF token'; $messageType = 'error';
+    } else {
+        $borrowId    = (int)$_POST['borrow_id'];
+        $condIn      = sanitize($_POST['condition_in']);
+        $returnDate  = $_POST['actual_return'];
+        $stmt = $db->prepare("UPDATE asset_borrows SET actual_return=?, condition_in=?, status='returned' WHERE borrow_id=?");
+        $stmt->bind_param('ssi', $returnDate, $condIn, $borrowId);
+        if ($stmt->execute()) {
+            $upd = $db->prepare("UPDATE assets SET status = 'active' WHERE asset_id = ?");
+            $upd->bind_param('i', $assetId);
+            $upd->execute();
+            logActivity($_SESSION['user_id'], 'คืนอุปกรณ์', 'Assets', "Asset ID: $assetId");
+            $message = 'บันทึกการคืนเรียบร้อย'; $messageType = 'success';
+        }
     }
 }
 
 // โอนย้าย
 if ($action === 'add_transfer') {
-    $fromUser    = !empty($_POST['from_user_id']) ? (int)$_POST['from_user_id'] : null;
-    $toUser      = !empty($_POST['to_user_id'])   ? (int)$_POST['to_user_id']   : null;
-    $fromLoc     = sanitize($_POST['from_location']);
-    $toLoc       = sanitize($_POST['to_location']);
-    $fromDept    = sanitize($_POST['from_dept']);
-    $toDept      = sanitize($_POST['to_dept']);
-    $transDate   = $_POST['transfer_date'];
-    $reason      = sanitize($_POST['reason']);
-    $byUser      = $_SESSION['user_id'];
+    // CSRF check
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $message = 'Invalid CSRF token'; $messageType = 'error';
+    } else {
+        $fromUser    = !empty($_POST['from_user_id']) ? (int)$_POST['from_user_id'] : null;
+        $toUser      = !empty($_POST['to_user_id'])   ? (int)$_POST['to_user_id']   : null;
+        $fromLoc     = sanitize($_POST['from_location']);
+        $toLoc       = sanitize($_POST['to_location']);
+        $fromDept    = sanitize($_POST['from_dept']);
+        $toDept      = sanitize($_POST['to_dept']);
+        $transDate   = $_POST['transfer_date'];
+        $reason      = sanitize($_POST['reason']);
+        $byUser      = $_SESSION['user_id'];
 
-    $stmt = $db->prepare("INSERT INTO asset_transfers (asset_id,from_user_id,to_user_id,from_location,to_location,from_dept,to_dept,transfer_date,reason,transferred_by) VALUES (?,?,?,?,?,?,?,?,?,?)");
-    $stmt->bind_param('iiissssss i', $assetId, $fromUser, $toUser, $fromLoc, $toLoc, $fromDept, $toDept, $transDate, $reason, $byUser);
-    // Use clean query approach
-    $fromUserSQL = $fromUser ? (int)$fromUser : 'NULL';
-    $toUserSQL   = $toUser   ? (int)$toUser   : 'NULL';
-    $db->query("INSERT INTO asset_transfers (asset_id,from_user_id,to_user_id,from_location,to_location,from_dept,to_dept,transfer_date,reason,transferred_by) VALUES ($assetId,$fromUserSQL,$toUserSQL,'$fromLoc','$toLoc','$fromDept','$toDept','$transDate','$reason',$byUser)");
+        $stmt = $db->prepare("INSERT INTO asset_transfers (
+            asset_id,from_user_id,to_user_id,from_location,to_location,
+            from_dept,to_dept,transfer_date,reason,transferred_by
+        ) VALUES (?,?,?,?,?,?,?,?,?,?)");
+        $stmt->bind_param('iiissssssi',
+            $assetId, $fromUser, $toUser, $fromLoc, $toLoc,
+            $fromDept, $toDept, $transDate, $reason, $byUser
+        );
+        $stmt->execute();
 
-    // Update asset location & assigned_to
-    $updates = [];
-    if ($toUser)  $updates[] = "assigned_to=$toUserSQL";
-    if ($toLoc)   $updates[] = "location='$toLoc'";
-    if ($toDept)  $updates[] = "department='$toDept'";
-    if ($updates) $db->query("UPDATE assets SET " . implode(',', $updates) . " WHERE asset_id=$assetId");
+        // Update asset details if provided
+        $updates = [];
+        $params = [];
+        $typesUpdate = '';
+        if ($toUser !== null) {
+            $updates[] = "assigned_to = ?";
+            $typesUpdate .= 'i';
+            $params[] = $toUser;
+        }
+        if ($toLoc !== '') {
+            $updates[] = "location = ?";
+            $typesUpdate .= 's';
+            $params[] = $toLoc;
+        }
+        if ($toDept !== '') {
+            $updates[] = "department = ?";
+            $typesUpdate .= 's';
+            $params[] = $toDept;
+        }
+        if ($updates) {
+            $sql = "UPDATE assets SET " . implode(', ', $updates) . " WHERE asset_id = ?";
+            $params[] = $assetId;
+            $typesUpdate .= 'i';
+            $updStmt = $db->prepare($sql);
+            $updStmt->bind_param($typesUpdate, ...$params);
+            $updStmt->execute();
+        }
 
-    logActivity($byUser, 'โอนย้ายสินทรัพย์', 'Assets', "Asset ID: $assetId → $toLoc");
-    $message = 'บันทึกการโอนย้ายเรียบร้อย'; $messageType = 'success';
+        logActivity($byUser, 'โอนย้ายสินทรัพย์', 'Assets', "Asset ID: $assetId → $toLoc");
+        $message = 'บันทึกการโอนย้ายเรียบร้อย'; $messageType = 'success';
+    }
 }
 
 // ── Load Asset ────────────────────────────────────────────────
-$assetRes = $db->query("SELECT a.*, u.full_name as assigned_name FROM assets a LEFT JOIN users u ON a.assigned_to=u.user_id WHERE a.asset_id=$assetId LIMIT 1");
+$stmt = $db->prepare("SELECT a.*, u.full_name as assigned_name FROM assets a LEFT JOIN users u ON a.assigned_to=u.user_id WHERE a.asset_id = ? LIMIT 1");
+$stmt->bind_param('i', $assetId);
+$stmt->execute();
+$assetRes = $stmt->get_result();
 if (!$assetRes || $assetRes->num_rows === 0) { header('Location: assets.php'); exit; }
 $asset = $assetRes->fetch_assoc();
 
 // Load sub-data
-$repairs   = $db->query("SELECT r.*, u.full_name as created_by_name FROM asset_repairs r LEFT JOIN users u ON r.created_by=u.user_id WHERE r.asset_id=$assetId ORDER BY r.repair_date DESC")->fetch_all(MYSQLI_ASSOC);
-$borrows   = $db->query("SELECT b.*, u.full_name as borrower_name, a.full_name as approved_name FROM asset_borrows b LEFT JOIN users u ON b.borrower_id=u.user_id LEFT JOIN users a ON b.approved_by=a.user_id WHERE b.asset_id=$assetId ORDER BY b.borrow_date DESC")->fetch_all(MYSQLI_ASSOC);
-$transfers = $db->query("SELECT t.*, fu.full_name as from_name, tu.full_name as to_name, by_u.full_name as by_name FROM asset_transfers t LEFT JOIN users fu ON t.from_user_id=fu.user_id LEFT JOIN users tu ON t.to_user_id=tu.user_id LEFT JOIN users by_u ON t.transferred_by=by_u.user_id WHERE t.asset_id=$assetId ORDER BY t.transfer_date DESC")->fetch_all(MYSQLI_ASSOC);
-$users     = $db->query("SELECT user_id, full_name FROM users WHERE status='active' ORDER BY full_name")->fetch_all(MYSQLI_ASSOC);
+$repStmt = $db->prepare("SELECT r.*, u.full_name as created_by_name FROM asset_repairs r LEFT JOIN users u ON r.created_by=u.user_id WHERE r.asset_id = ? ORDER BY r.repair_date DESC");
+$repStmt->bind_param('i', $assetId);
+$repStmt->execute();
+$repairs = $repStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+$borStmt = $db->prepare("SELECT b.*, u.full_name as borrower_name, a.full_name as approved_name FROM asset_borrows b LEFT JOIN users u ON b.borrower_id=u.user_id LEFT JOIN users a ON b.approved_by=a.user_id WHERE b.asset_id = ? ORDER BY b.borrow_date DESC");
+$borStmt->bind_param('i', $assetId);
+$borStmt->execute();
+$borrows = $borStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+$trnStmt = $db->prepare("SELECT t.*, fu.full_name as from_name, tu.full_name as to_name, by_u.full_name as by_name FROM asset_transfers t LEFT JOIN users fu ON t.from_user_id=fu.user_id LEFT JOIN users tu ON t.to_user_id=tu.user_id LEFT JOIN users by_u ON t.transferred_by=by_u.user_id WHERE t.asset_id = ? ORDER BY t.transfer_date DESC");
+$trnStmt->bind_param('i', $assetId);
+$trnStmt->execute();
+$transfers = $trnStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+$users = $db->query("SELECT user_id, full_name FROM users WHERE status='active' ORDER BY full_name")->fetch_all(MYSQLI_ASSOC);
 
 // ── Depreciation Calc (Straight-Line) ─────────────────────────
 $depData = null;
@@ -910,6 +980,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
     <div class="modal-content">
         <div class="modal-header"><h2><i class="fas fa-tools"></i> บันทึกการซ่อม</h2><button class="close-btn" onclick="this.closest('.modal').classList.remove('show')">&times;</button></div>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
             <input type="hidden" name="action" value="add_repair">
             <div class="form-row">
                 <div class="form-group"><label>วันที่ซ่อม *</label><input type="date" name="repair_date" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
@@ -954,6 +1025,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
             </div>
         </div>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
             <input type="hidden" name="action" value="add_borrow">
             <div class="form-group"><label>ผู้ยืม *</label>
                 <select name="borrower_id" class="form-control" required>
@@ -996,6 +1068,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
             </div>
         </div>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
             <input type="hidden" name="action" value="return_asset">
             <input type="hidden" name="borrow_id" id="return_borrow_id">
             <div class="form-group"><label>วันที่คืน *</label><input type="date" name="actual_return" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
@@ -1028,6 +1101,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
             </div>
         </div>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
             <input type="hidden" name="action" value="add_transfer">
             <div class="form-group"><label>วันที่โอนย้าย *</label><input type="date" name="transfer_date" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
             <div class="form-row">

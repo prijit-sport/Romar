@@ -3,6 +3,19 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
+// CSRF token generation
+if (empty($_SESSION['csrf_token'])) {
+    try {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    } catch (Exception $e) {
+        $_SESSION['csrf_token'] = md5(uniqid('', true));
+    }
+}
+
+function validate_csrf($token) {
+    return isset($_SESSION['csrf_token']) && !empty($token) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: ../auth/login.php');
     exit;
@@ -31,6 +44,11 @@ if (!$ticket) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $_SESSION['flash_success'] = 'Invalid CSRF token.';
+        header('Location: tickets.php');
+        exit;
+    }
     $status = sanitize($_POST['status']);
     $assignedTo = !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null;
     $priority = sanitize($_POST['priority']);
@@ -341,6 +359,7 @@ function addTimeline($db, $ticketId, $eventType, $description) {
             </div>
 
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">

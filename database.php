@@ -45,21 +45,31 @@ if (isset($_POST['upload_document'])) {
             $full_path = __DIR__ . '/../' . $file_path;
             
             if (move_uploaded_file($file_tmp, $full_path)) {
-                // บันทึกลง database
-                $stmt = $db->prepare("INSERT INTO documents (document_name, file_name, file_path, file_size, file_type, category, description, uploaded_by, uploaded_at) VALUES (:document_name, :file_name, :file_path, :file_size, :file_type, :category, :description, :uploaded_by, :uploaded_at)");
-                $stmt->bindValue(':document_name', $document_name, SQLITE3_TEXT);
-                $stmt->bindValue(':file_name', $new_file_name, SQLITE3_TEXT);
-                $stmt->bindValue(':file_path', $file_path, SQLITE3_TEXT);
-                $stmt->bindValue(':file_size', $file_size, SQLITE3_INTEGER);
-                $stmt->bindValue(':file_type', $file_ext, SQLITE3_TEXT);
-                $stmt->bindValue(':category', $category, SQLITE3_TEXT);
-                $stmt->bindValue(':description', $description, SQLITE3_TEXT);
-                $stmt->bindValue(':uploaded_by', $_SESSION['user_id'], SQLITE3_INTEGER);
-                $stmt->bindValue(':uploaded_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
-                $stmt->execute();
-                
-                logActivity($_SESSION['user_id'], 'อัปโหลดเอกสาร', 'Documents', "อัปโหลด: {$document_name}");
-                $success_message = "อัปโหลดเอกสารสำเร็จ!";
+                // บันทึกลง database (ใช้ MySQLi)
+                $stmt = $db->prepare(
+                    "INSERT INTO documents (
+                        document_name, file_name, file_path, file_size, file_type,
+                        category, description, uploaded_by, uploaded_at
+                    ) VALUES (?,?,?,?,?,?,?,?,?)"
+                );
+                $uploadedAt = date('Y-m-d H:i:s');
+                $stmt->bind_param('ssssissis',
+                    $document_name,
+                    $new_file_name,
+                    $file_path,
+                    $file_size,
+                    $file_ext,
+                    $category,
+                    $description,
+                    $_SESSION['user_id'],
+                    $uploadedAt
+                );
+                if ($stmt->execute()) {
+                    logActivity($_SESSION['user_id'], 'อัปโหลดเอกสาร', 'Documents', "อัปโหลด: {$document_name}");
+                    $success_message = "อัปโหลดเอกสารสำเร็จ!";
+                } else {
+                    $error_message = "เกิดข้อผิดพลาด: " . $stmt->error;
+                }
             } else {
                 $error_message = "ไม่สามารถอัปโหลดไฟล์ได้";
             }
@@ -76,10 +86,11 @@ if (isset($_POST['delete_document'])) {
     $doc_id = (int)$_POST['document_id'];
     
     // ดึงข้อมูลเอกสาร
-    $stmt = $db->prepare("SELECT * FROM documents WHERE document_id = :id");
-    $stmt->bindValue(':id', $doc_id, SQLITE3_INTEGER);
-    $result = $stmt->execute();
-    $doc = $result->fetchArray(SQLITE3_ASSOC);
+    $stmt = $db->prepare("SELECT * FROM documents WHERE document_id = ?");
+    $stmt->bind_param('i', $doc_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $doc = $result ? $result->fetch_assoc() : null;
     
     if ($doc) {
         // ลบไฟล์
@@ -89,8 +100,8 @@ if (isset($_POST['delete_document'])) {
         }
         
         // ลบจาก database
-        $stmt = $db->prepare("DELETE FROM documents WHERE document_id = :id");
-        $stmt->bindValue(':id', $doc_id, SQLITE3_INTEGER);
+        $stmt = $db->prepare("DELETE FROM documents WHERE document_id = ?");
+        $stmt->bind_param('i', $doc_id);
         $stmt->execute();
         
         logActivity($_SESSION['user_id'], 'ลบเอกสาร', 'Documents', "ลบ: {$doc['document_name']}");
@@ -98,25 +109,42 @@ if (isset($_POST['delete_document'])) {
     }
 }
 
-// ดึงข้อมูลเอกสารทั้งหมด
+// ดึงข้อมูลเอกสารทั้งหมด (ใช้ prepared statement เพื่อลดความเสี่ยง SQL injection)
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 $category_filter = isset($_GET['category']) ? $_GET['category'] : '';
 
-$sql = "SELECT d.*, u.full_name as uploader_name FROM documents d LEFT JOIN users u ON d.uploaded_by = u.user_id WHERE 1=1";
+$sql = "SELECT d.*, u.full_name as uploader_name
+        FROM documents d
+        LEFT JOIN users u ON d.uploaded_by = u.user_id
+        WHERE 1=1";
+$params = [];
+$types = '';
 
 if ($search) {
-    $sql .= " AND (d.document_name LIKE '%{$search}%' OR d.description LIKE '%{$search}%')";
+    $sql .= " AND (d.document_name LIKE ? OR d.description LIKE ? )";
+    $like = "%{$search}%";
+    $params[] = &$like;
+    $params[] = &$like;
+    $types .= 'ss';
 }
 
 if ($category_filter) {
-    $sql .= " AND d.category = '{$category_filter}'";
+    $sql .= " AND d.category = ?";
+    $params[] = &$category_filter;
+    $types .= 's';
 }
 
 $sql .= " ORDER BY d.uploaded_at DESC";
 
-$result = $db->query($sql);
+$stmt = $db->prepare($sql);
+if ($params) {
+    $stmt->bind_param($types, ...$params);
+}
+$stmt->execute();
+$result = $stmt->get_result();
+
 $documents = [];
-while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+while ($row = $result->fetch_assoc()) {
     $documents[] = $row;
 }
 

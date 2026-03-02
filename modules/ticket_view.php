@@ -3,6 +3,15 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
+// Ensure CSRF token exists for forms
+if (empty($_SESSION['csrf_token'])) {
+    try {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    } catch (Exception $e) {
+        $_SESSION['csrf_token'] = md5(uniqid('', true));
+    }
+}
+
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');
     exit;
@@ -677,6 +686,7 @@ $currentUser = getCurrentUser();
 
                     <!-- Add Comment Form -->
                     <form method="POST" action="tickets.php" style="margin-top: 25px;">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                         <input type="hidden" name="action" value="add_comment">
                         <input type="hidden" name="ticket_id" value="<?php echo $ticketId; ?>">
                         

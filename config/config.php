@@ -12,12 +12,26 @@ if (session_status() === PHP_SESSION_NONE) {
 // ตั้งค่า Timezone
 date_default_timezone_set('Asia/Bangkok');
 
-// ตั้งค่าการแสดง Error 
+// ตั้งค่าการแสดง Error
 // สำหรับ Production: ปิดการแสดง error
 // สำหรับ Development: เปิดเพื่อดู error
-error_reporting(E_ALL);
-ini_set('display_errors', 1); // เปลี่ยนเป็น 0 เพื่อไม่แสดง error
-ini_set('log_errors', 1); // เขียน error ลงไฟล์ log แทน
+// เพิ่มตัวแปรแยก environment
+if (!defined('APP_ENV')) {
+    // ค่าตั้งต้นสามารถกำหนดผ่านตัวแปรแวดล้อมหรือไฟล์ .env
+    define('APP_ENV', getenv('APP_ENV') ?: 'development');
+}
+
+if (APP_ENV === 'production') {
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+    ini_set('display_errors', 0);      // ปิดการแสดง error ให้ผู้ใช้งาน
+    ini_set('log_errors', 1);          // เปิดการบันทึกลงไฟล์
+} else {
+    // development / testing
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    ini_set('log_errors', 1);
+}
+
 ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 
 // ========================================

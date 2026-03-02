@@ -49,6 +49,43 @@ $categorySQL = "SELECT category, COUNT(*) as count
                 ORDER BY count DESC";
 $categories = $db->query($categorySQL)->fetch_all(MYSQLI_ASSOC);
 
+// Get Assets by Type
+$assetTypesSQL = "SELECT asset_type, COUNT(*) as count FROM assets GROUP BY asset_type ORDER BY count DESC";
+$assetTypes = $db->query($assetTypesSQL)->fetch_all(MYSQLI_ASSOC) ?? [];
+
+// Get Assets Summary
+$assetStatsSQL = "SELECT 
+    COUNT(*) as total,
+    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
+    SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) as maintenance_count,
+    SUM(CASE WHEN warranty_expiry < NOW() AND warranty_expiry IS NOT NULL THEN 1 ELSE 0 END) as warranty_expired_count
+    FROM assets";
+$assetStats = $db->query($assetStatsSQL)->fetch_assoc();
+
+// Get Assets by Status for chart
+$assetsByStatusSQL = "SELECT status, COUNT(*) as count FROM assets GROUP BY status";
+$assetsByStatus = $db->query($assetsByStatusSQL)->fetch_all(MYSQLI_ASSOC) ?? [];
+
+// Get Tickets by Status for chart
+$ticketsByStatusSQL = "SELECT status, COUNT(*) as count FROM tickets " . ($isAdmin ? "" : "WHERE created_by = " . $_SESSION['user_id']) . " GROUP BY status";
+$ticketsByStatus = $db->query($ticketsByStatusSQL)->fetch_all(MYSQLI_ASSOC) ?? [];
+
+// Get Tickets by Priority for chart
+$ticketsByPrioritySQL = "SELECT priority, COUNT(*) as count FROM tickets " . ($isAdmin ? "" : "WHERE created_by = " . $_SESSION['user_id']) . " GROUP BY priority ORDER BY FIELD(priority, 'urgent', 'high', 'normal', 'low')";
+$ticketsByPriority = $db->query($ticketsByPrioritySQL)->fetch_all(MYSQLI_ASSOC) ?? [];
+
+// Get Top Asset Brands
+$topBrandsSQL = "SELECT brand, COUNT(*) as count FROM assets WHERE brand IS NOT NULL AND brand != '' GROUP BY brand ORDER BY count DESC LIMIT 5";
+$topBrands = $db->query($topBrandsSQL)->fetch_all(MYSQLI_ASSOC) ?? [];
+
+// Get Warranty expiring soon (30 days)
+$warrantyExpiringSQL = "SELECT a.asset_id, a.asset_tag, a.asset_name, a.warranty_expiry, u.full_name FROM assets a LEFT JOIN users u ON a.assigned_to = u.user_id WHERE a.warranty_expiry BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 30 DAY) ORDER BY a.warranty_expiry ASC LIMIT 5";
+$warrantyExpiring = $db->query($warrantyExpiringSQL)->fetch_all(MYSQLI_ASSOC) ?? [];
+
+// Get Overdue Tickets
+$overdueTicketsSQL = "SELECT t.ticket_id, t.ticket_number, t.title, t.priority, t.sla_due_date FROM tickets t WHERE t.sla_due_date < NOW() AND t.status NOT IN ('resolved', 'closed') " . ($isAdmin ? "" : "AND t.created_by = " . $_SESSION['user_id']) . " ORDER BY t.sla_due_date ASC LIMIT 5";
+$overdueTickets = $db->query($overdueTicketsSQL)->fetch_all(MYSQLI_ASSOC) ?? [];
+
 // Get notifications จากระบบใหม่ (รองรับทั้ง new_ticket และ new_comment)
 $notifStmt = $db->prepare("
     SELECT 
@@ -87,6 +124,7 @@ $currentUser = getCurrentUser();
     <title>IT Support Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -115,7 +153,7 @@ $currentUser = getCurrentUser();
             top: 0;
             height: 100vh;
             overflow-y: auto;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 4px 0 20px rgb(0, 0, 0);
             z-index: 1000;
         }
 
@@ -193,7 +231,7 @@ $currentUser = getCurrentUser();
             padding: 15px 30px;
             border-radius: 12px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 10px rgb(0, 0, 0);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -250,10 +288,15 @@ $currentUser = getCurrentUser();
             padding: 30px;
             border-radius: 16px;
             margin-bottom: 30px;
-            box-shadow: 0 4px 20px rgb(0, 0, 0);
+            box-shadow: 0 4px 16px rgb(0, 0, 0), 0 8px 24px rgb(0, 0, 0);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        .page-header:hover {
+            box-shadow: 0 8px 24px rgb(0, 0, 0), 0 12px 32px rgb(0, 0, 0);
         }
 
         .page-header h1 {
@@ -326,7 +369,7 @@ $currentUser = getCurrentUser();
             max-height: 500px;
             overflow-y: auto;
             border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 40px rgb(0, 0, 0);
             display: none;
             z-index: 1000;
             animation: slideDown 0.3s ease;
@@ -415,24 +458,55 @@ $currentUser = getCurrentUser();
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .stats-grid.tickets-top {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        .stats-grid.asset-summary {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        .stats-grid.asset-types {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        @media (min-width: 1200px) {
+            .stats-grid.tickets-top { grid-template-columns: repeat(5, 1fr); }
+            .stats-grid.asset-summary { grid-template-columns: repeat(4, 1fr); }
+            .stats-grid.asset-types { grid-template-columns: repeat(5, 1fr); }
+        }
+
+        @media (min-width: 768px) and (max-width: 1199px) {
+            .stats-grid.tickets-top { grid-template-columns: repeat(3, 1fr); }
+            .stats-grid.asset-summary { grid-template-columns: repeat(2, 1fr); }
+            .stats-grid.asset-types { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 767px) {
+            .stats-grid.tickets-top { grid-template-columns: 1fr; }
+            .stats-grid.asset-summary { grid-template-columns: 1fr; }
+            .stats-grid.asset-types { grid-template-columns: 1fr; }
         }
 
         .stat-card {
             background: white;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgb(0, 0, 0);
+            padding: 28px;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgb(0, 0, 0), 0 8px 24px rgb(0, 0, 0);
             display: flex;
             align-items: center;
             gap: 20px;
             transition: all 0.3s;
+            height: 100%;
         }
 
         .stat-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgb(0, 0, 0);
+            box-shadow: 0 8px 24px rgb(0, 0, 0), 0 12px 32px rgb(0, 0, 0);
         }
 
         .stat-icon {
@@ -460,16 +534,21 @@ $currentUser = getCurrentUser();
         /* Content Grid */
         .content-grid {
             display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
+            grid-template-columns: 1fr;
+            gap: 30px;
             margin-bottom: 30px;
         }
 
         .card {
             background: white;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgb(0, 0, 0);
+            padding: 28px;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgb(0, 0, 0), 0 8px 24px rgb(0, 0, 0);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 8px 24px rgb(0, 0, 0), 0 12px 32px rgb(0, 0, 0);
         }
 
         .card-header {
@@ -593,11 +672,12 @@ $currentUser = getCurrentUser();
             text-decoration: none;
             font-weight: 600;
             transition: all 0.3s;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
         }
 
         .action-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgb(0, 0, 0);
+            box-shadow: 0 8px 28px rgba(102, 126, 234, 0.4);
         }
 
         .action-btn i {
@@ -606,10 +686,148 @@ $currentUser = getCurrentUser();
             margin-bottom: 8px;
         }
 
+        /* Charts Grid - improved: tighter, consistent cards */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            margin-bottom: 30px;
+            align-items: start;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 22px;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgb(0, 0, 0), 0 8px 24px rgb(0, 0, 0);
+            min-height: 320px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+        
+        .chart-card:hover {
+            box-shadow: 0 8px 24px rgb(0, 0, 0), 0 12px 32px rgb(0, 0, 0);
+            transform: translateY(-2px);
+        }
+
+        .chart-title {
+            font-size: 1em;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #1a202c;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-container {
+            flex: 1;
+            min-height: 260px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Detail lists inside chart-cards */
+        .detail-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 8px;
+            border-bottom: 1px solid #eef2f6;
+            color: #2d3748;
+            font-size: 0.95em;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Detail Lists */
+        .detail-list {
+            list-style: none;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 12px;
+            border-bottom: 1px solid #e8eef5;
+            font-size: 0.95em;
+            gap: 12px;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-item-label {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            flex: 1;
+            color: #2d3748;
+            min-width: 0;
+        }
+        
+        .detail-item-label i {
+            flex-shrink: 0;
+            margin-top: 2px;
+            color: #667eea;
+        }
+
+        .detail-item-value {
+            font-weight: 600;
+            background: #f0f6ff;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .badge-urgent {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .badge-high {
+            background: #feebc8;
+            color: #c05621;
+        }
+
+        .badge-normal {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .badge-low {
+            background: #e6fffa;
+            color: #285e61;
+        }
+
         /* Responsive */
+        @media (max-width: 1400px) {
+            .charts-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
         @media (max-width: 1024px) {
             .content-grid {
                 grid-template-columns: 1fr;
+            }
+            .charts-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
@@ -620,15 +838,45 @@ $currentUser = getCurrentUser();
 
             .main-content {
                 margin-left: 0;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
+                padding: 20px;
             }
 
             .breadcrumb-nav {
                 flex-direction: column;
                 gap: 15px;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .stat-card {
+                padding: 20px;
+            }
+            
+            .chart-card {
+                padding: 16px;
+                min-height: 280px;
+            }
+        }
+
+        /* Larger screens: increase chart heights for readability */
+        @media (min-width: 1200px) {
+            .chart-container { min-height: 280px; }
+            .charts-grid { gap: 28px; }
+        }
+        
+        /* Extra large screens */
+        @media (min-width: 1600px) {
+            .main-content {
+                padding: 40px;
+            }
+            .stats-grid {
+                gap: 28px;
+            }
+            .charts-grid {
+                gap: 32px;
             }
         }
     </style>
@@ -771,162 +1019,249 @@ $currentUser = getCurrentUser();
                     </div>
                 </div>
             </div>
+            
+            <!-- IT Assets Section -->
+            <div style="margin-top: 50px;">
+                <h2 style="font-size: 1.6em; font-weight: 700; color: #000000; margin-bottom: 30px; display: flex; align-items: center; gap: 12px; text-transform: capitalize;">
+                    <i class="fas fa-boxes" style="color: #667eea; font-size: 1.4em;"></i> IT Assets ตามประเภท
+                </h2>
 
-            <!-- Statistics -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-                        <i class="fas fa-ticket-alt" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($stats['total'] ?? 0); ?></h3>
-                        <p>Tickets ทั้งหมด</p>
-                    </div>
+                <!-- Assets by Type Tiles -->
+                <?php if (!empty($assetTypes)): ?>
+                <div style="margin-top: 35px;">
+                    <h3 style="font-size: 1.1em; font-weight: 600; color: #000000; margin-bottom: 20px; text-transform: capitalize;">ประเภทสินทรัพย์</h3>
+                    <div class="stats-grid asset-types">
+                <?php
+                    $assetTypeIcons = [
+                        'desktop' => ['icon' => 'fa-desktop', 'color' => '#f687b3'],
+                        'laptop' => ['icon' => 'fa-laptop', 'color' => '#4299e1'],
+                        'server' => ['icon' => 'fa-server', 'color' => '#ed8936'],
+                        'monitor' => ['icon' => 'fa-tv', 'color' => '#c05621'],
+                        'printer' => ['icon' => 'fa-print', 'color' => '#3182ce'],
+                        'network' => ['icon' => 'fa-network-wired', 'color' => '#f6ad55'],
+                        'phone' => ['icon' => 'fa-mobile-alt', 'color' => '#38b2ac'],
+                        'software' => ['icon' => 'fa-compact-disc', 'color' => '#22543d'],
+                        'rack' => ['icon' => 'fa-layer-group', 'color' => '#fbd38d'],
+                        'enclosure' => ['icon' => 'fa-cube', 'color' => '#9ae6b4'],
+                        'pdu' => ['icon' => 'fa-plug', 'color' => '#feb2b2'],
+                        'mobile' => ['icon' => 'fa-mobile-alt', 'color' => '#fed8b1'],
+                        'other' => ['icon' => 'fa-boxes', 'color' => '#cbd5e0'],
+                    ];
+                ?>
+                    <?php foreach ($assetTypes as $asset): ?>
+                        <?php
+                            $type = $asset['asset_type'] ?? 'other';
+                            $typeMeta = $assetTypeIcons[$type] ?? ['icon' => 'fa-boxes', 'color' => '#cbd5e0'];
+                            $displayLabel = match($type) {
+                                'desktop' => 'Computers',
+                                'laptop' => 'Laptops',
+                                'server' => 'Servers',
+                                'monitor' => 'Monitors',
+                                'printer' => 'Printers',
+                                'network' => 'Network Devices',
+                                'phone' => 'Phones',
+                                'software' => 'Software',
+                                'rack' => 'Racks',
+                                'enclosure' => 'Enclosure',
+                                'pdu' => 'PDUs',
+                                'mobile' => 'Mobile',
+                                default => ucfirst($type)
+                            };
+                        ?>
+                        <div class="stat-card" style="background: white; border-left: 5px solid <?php echo $typeMeta['color']; ?>;">
+                            <div class="stat-icon" style="background: <?php echo $typeMeta['color']; ?>;">
+                                <i class="fas <?php echo $typeMeta['icon']; ?>" style="color: white;"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 style="color: #1a202c;"><?php echo number_format($asset['count']); ?></h3>
+                                <p style="color: #4a5568;"><?php echo $displayLabel; ?></p>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
+                <?php endif; ?>
+            </div>
 
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #4299e1, #3182ce);">
-                        <i class="fas fa-clock" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($stats['new_count'] ?? 0); ?></h3>
-                        <p>Tickets ใหม่</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #ed8936, #dd6b20);">
-                        <i class="fas fa-tasks" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($stats['in_progress_count'] ?? 0); ?></h3>
-                        <p>กำลังดำเนินการ</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #48bb78, #38a169);">
-                        <i class="fas fa-check-circle" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($stats['resolved_count'] ?? 0); ?></h3>
-                        <p>แก้ไขแล้ว</p>
-                    </div>
-                </div>
-
-                <?php if ($stats['overdue_count'] > 0): ?>
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #f56565, #e53e3e);">
-                        <i class="fas fa-exclamation-triangle" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($stats['overdue_count'] ?? 0); ?></h3>
-                        <p>เกิน SLA</p>
-                    </div>
+            <!-- IT Tickets by Category -->
+            <div style="margin-top: 40px;">
+                <h2 style="font-size: 1.5em; color: #000; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-ticket-alt" style="color: #667eea;"></i> IT Tickets ตามหมวดหมู่
+                </h2>
+                <?php if (!empty($categories)): ?>
+                <?php
+                    $ticketGradients = [
+                        'linear-gradient(135deg, #667eea, #764ba2)',
+                        'linear-gradient(135deg, #4299e1, #3182ce)',
+                        'linear-gradient(135deg, #e53e3e, #dd6b20)',
+                        'linear-gradient(135deg, #48bb78, #38a169)',
+                        'linear-gradient(135deg, #f6ad55, #ed8936)',
+                        'linear-gradient(135deg, #9f7aea, #6b46c1)',
+                        'linear-gradient(135deg, #ed64a6, #d53f8c)',
+                        'linear-gradient(135deg, #4fd1c5, #38b2ac)',
+                    ];
+                ?>
+                <div class="stats-grid asset-types">
+                    <?php foreach ($categories as $idx => $cat): ?>
+                        <?php $color = $ticketGradients[$idx % count($ticketGradients)]; ?>
+                        <div class="stat-card" style="background: <?php echo $color; ?>;">
+                            <div class="stat-icon" style="background: rgba(255,255,255,0.2);">
+                                <i class="fas fa-folder-open" style="color: white;"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3><?php echo number_format($cat['count']); ?></h3>
+                                <p><?php echo ucfirst(htmlspecialchars($cat['category'])); ?></p>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
                 <?php endif; ?>
 
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #fc8181, #f56565);">
-                        <i class="fas fa-fire" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($stats['urgent_count'] ?? 0); ?></h3>
-                        <p>Urgent Priority</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Content Grid -->
-            <div class="content-grid">
-                <!-- Recent Tickets -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title"><i class="fas fa-list"></i> Tickets ล่าสุด</h2>
-                        <a href="tickets.php" style="color: #000000; text-decoration: none; font-weight: 600;">
-                            ดูทั้งหมด →
-                        </a>
-                    </div>
-                    
-                    <?php if (empty($recentTickets)): ?>
-                        <p style="text-align: center; color: #718096; padding: 40px;">
-                            <i class="fas fa-inbox" style="font-size: 3em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
-                            ยังไม่มี Tickets
-                        </p>
-                    <?php else: ?>
-                        <?php foreach ($recentTickets as $ticket): ?>
-                            <div class="ticket-item">
-                                <div class="ticket-header">
-                                    <span class="ticket-number"><?php echo htmlspecialchars($ticket['ticket_number'] ?? 0); ?></span>
-                                    <span class="status-badge status-<?php echo $ticket['status']; ?>">
-                                        <?php echo strtoupper($ticket['status'] ?? 0); ?>
-                                    </span>
-                                </div>
-                                <div class="ticket-title"><?php echo htmlspecialchars($ticket['title'] ?? 0); ?></div>
-                                <div class="ticket-meta">
-                                    <span class="priority-badge priority-<?php echo $ticket['priority']; ?>">
-                                        <?php echo strtoupper($ticket['priority'] ?? 0); ?>
-                                    </span>
-                                    | 
-                                    สร้างโดย: <?php echo htmlspecialchars($ticket['creator_name'] ?? 'N/A'); ?>
-                                    |
-                                    <?php echo date('d/m/Y H:i', strtotime($ticket['created_at'] ?? 0)); ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Category & Quick Actions -->
-                <div>
-                    <!-- Categories -->
-                    <div class="card" style="margin-bottom: 20px;">
-                        <div class="card-header">
-                            <h2 class="card-title"><i class="fas fa-folder"></i> Tickets ตามหมวดหมู่</h2>
+            <!-- Recent Tickets & Charts Section -->
+            <div style="margin-top: 50px;">
+                <h2 style="font-size: 1.6em; font-weight: 700; color: #000000; margin-bottom: 35px; display: flex; align-items: center; gap: 12px; text-transform: capitalize;">
+                    <i class="fas fa-document-lines" style="color: #667eea; font-size: 1.4em;"></i> ข้อมูล & การวิเคราะห์
+                </h2>
+                
+                <!-- Charts Grid Section -->
+                <div class="charts-grid">
+                    <!-- Assets Status Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title"><i class="fas fa-box"></i> สถานะสินทรัพย์</h3>
+                        <div class="chart-container">
+                            <canvas id="assetsStatusChart"></canvas>
                         </div>
-                        <ul class="category-list">
-                            <?php if (empty($categories)): ?>
-                                <li style="text-align: center; color: #718096; padding: 20px;">ยังไม่มีข้อมูล</li>
-                            <?php else: ?>
-                                <?php foreach ($categories as $cat): ?>
-                                    <li class="category-item">
-                                        <span class="category-name">
-                                            <i class="fas fa-tag"></i>
-                                            <?php echo ucfirst($cat['category'] ?? 0); ?>
-                                        </span>
-                                        <span class="category-count"><?php echo $cat['count']; ?></span>
-                                    </li>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                    </div>
+
+                    <!-- Tickets Status Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title"><i class="fas fa-ticket-alt"></i> สถานะ Tickets</h3>
+                        <div class="chart-container">
+                            <canvas id="ticketsStatusChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Tickets Priority Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title"><i class="fas fa-flag"></i> ลำดับความสำคัญ</h3>
+                        <div class="chart-container">
+                            <canvas id="ticketsPriorityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Top Brands -->
+                    <?php if (!empty($topBrands)): ?>
+                    <div class="chart-card">
+                        <h3 class="chart-title"><i class="fas fa-industry"></i> แบรนด์ยอดนิยม</h3>
+                        <ul class="detail-list">
+                            <?php foreach ($topBrands as $brand): ?>
+                            <li class="detail-item">
+                                <span class="detail-item-label">
+                                    <i class="fas fa-tag"></i> <?php echo htmlspecialchars($brand['brand']); ?>
+                                </span>
+                                <span class="detail-item-value"><?php echo $brand['count']; ?></span>
+                            </li>
+                            <?php endforeach; ?>
                         </ul>
                     </div>
-
-                    <!-- Quick Actions -->
+                    <?php endif; ?>
+                </div>
+                
+                <!-- Recent Tickets Section -->
+                <div style="margin-top: 40px;">
+                    <h3 style="font-size: 1.2em; font-weight: 700; color: #000000; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-list" style="color: #667eea;"></i> Tickets ล่าสุด
+                    </h3>
                     <div class="card">
                         <div class="card-header">
-                            <h2 class="card-title"><i class="fas fa-bolt"></i> เมนูด่วน</h2>
-                        </div>
-                        <div class="quick-actions">
-                            <a href="tickets.php" class="action-btn">
-                                <i class="fas fa-plus-circle"></i>
-                                สร้าง Ticket
-                            </a>
-                            <a href="tickets.php?status=new" class="action-btn" style="background: linear-gradient(135deg, #4299e1, #3182ce);">
-                                <i class="fas fa-clock"></i>
-                                Tickets ใหม่
-                            </a>
-                            <a href="tickets.php?status=in_progress" class="action-btn" style="background: linear-gradient(135deg, #ed8936, #dd6b20);">
-                                <i class="fas fa-tasks"></i>
-                                กำลังดำเนินการ
-                            </a>
-                            <a href="reports.php" class="action-btn" style="background: linear-gradient(135deg, #48bb78, #38a169);">
-                                <i class="fas fa-chart-bar"></i>
-                                รายงาน
+                            <h2 class="card-title" style="margin-bottom: 0;"><i class="fas fa-history"></i> ประวัติล่าสุด</h2>
+                            <a href="tickets.php" style="color: #667eea; text-decoration: none; font-weight: 600; transition: all 0.3s;">
+                                ดูทั้งหมด →
                             </a>
                         </div>
+                        
+                        <?php if (empty($recentTickets)): ?>
+                            <p style="text-align: center; color: #718096; padding: 40px;">
+                                <i class="fas fa-inbox" style="font-size: 3em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
+                                ยังไม่มี Tickets
+                            </p>
+                        <?php else: ?>
+                            <?php foreach ($recentTickets as $ticket): ?>
+                                <div class="ticket-item">
+                                    <div class="ticket-header">
+                                        <span class="ticket-number"><?php echo htmlspecialchars($ticket['ticket_number'] ?? 0); ?></span>
+                                        <span class="status-badge status-<?php echo $ticket['status']; ?>">
+                                            <?php echo strtoupper($ticket['status'] ?? 0); ?>
+                                        </span>
+                                    </div>
+                                    <div class="ticket-title"><?php echo htmlspecialchars($ticket['title'] ?? 0); ?></div>
+                                    <div class="ticket-meta">
+                                        <span class="priority-badge priority-<?php echo $ticket['priority']; ?>">
+                                            <?php echo strtoupper($ticket['priority'] ?? 0); ?>
+                                        </span>
+                                        | 
+                                        สร้างโดย: <?php echo htmlspecialchars($ticket['creator_name'] ?? 'N/A'); ?>
+                                        |
+                                        <?php echo date('d/m/Y H:i', strtotime($ticket['created_at'] ?? 0)); ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
+
+            <!-- Alerts & Warnings Section -->
+            <?php if (!empty($overdueTickets) || !empty($warrantyExpiring)): ?>
+            <div style="margin-top: 50px;">
+                <h2 style="font-size: 1.6em; font-weight: 700; color: #1a202c; margin-bottom: 30px; display: flex; align-items: center; gap: 12px; text-transform: capitalize;">
+                    <i class="fas fa-triangle-exclamation" style="color: #f56565; font-size: 1.4em;"></i> การแจ้งเตือนและข้อมูลสำคัญ
+                </h2>
+
+                <div class="charts-grid" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
+                    <!-- Overdue Tickets -->
+                    <?php if (!empty($overdueTickets)): ?>
+                    <div class="chart-card" style="border-top: 4px solid #f56565;">
+                        <h3 class="chart-title"><i class="fas fa-exclamation-triangle"></i> Tickets ที่เกิน SLA (<?php echo count($overdueTickets); ?>)</h3>
+                        <ul class="detail-list">
+                            <?php foreach ($overdueTickets as $ticket): ?>
+                            <li class="detail-item">
+                                <span class="detail-item-label">
+                                    <i class="fas fa-ticket-alt"></i>
+                                    <span>
+                                        <strong><?php echo htmlspecialchars($ticket['ticket_number']); ?></strong><br>
+                                        <small><?php echo htmlspecialchars(substr($ticket['title'], 0, 50)); ?></small>
+                                    </span>
+                                </span>
+                                <span class="detail-item-value badge-<?php echo $ticket['priority']; ?>"><?php echo strtoupper($ticket['priority']); ?></span>
+                            </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- Warranty Expiring -->
+                    <?php if (!empty($warrantyExpiring)): ?>
+                    <div class="chart-card" style="border-top: 4px solid #ed8936;">
+                        <h3 class="chart-title"><i class="fas fa-calendar"></i> ประกันจะหมด 30 วัน (<?php echo count($warrantyExpiring); ?>)</h3>
+                        <ul class="detail-list">
+                            <?php foreach ($warrantyExpiring as $warranty): ?>
+                            <li class="detail-item">
+                                <span class="detail-item-label">
+                                    <i class="fas fa-box"></i>
+                                    <span>
+                                        <strong><?php echo htmlspecialchars($warranty['asset_tag']); ?></strong><br>
+                                        <small><?php echo htmlspecialchars(substr($warranty['asset_name'], 0, 40)); ?></small>
+                                    </span>
+                                </span>
+                                <span class="detail-item-value"><?php echo date('d/m', strtotime($warranty['warranty_expiry'])); ?></span>
+                            </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -1029,6 +1364,120 @@ $currentUser = getCurrentUser();
             toast.textContent = message;
             toast.style.opacity = '1';
             setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+        }
+
+        // ── Initialize Charts ────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+        });
+
+        function initializeCharts() {
+            const chartColors = ['#667eea', '#4299e1', '#48bb78', '#ed8936', '#f56565', '#9f7aea'];
+
+            // Assets Status Chart
+            const assetsStatusCtx = document.getElementById('assetsStatusChart');
+            if (assetsStatusCtx) {
+                const assetStatusData = <?php echo json_encode($assetsByStatus); ?>;
+                const statusLabels = assetStatusData.map(d => d.status.toUpperCase());
+                const statusCounts = assetStatusData.map(d => d.count);
+                
+                new Chart(assetsStatusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: statusLabels,
+                        datasets: [{
+                            data: statusCounts,
+                            backgroundColor: chartColors,
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 13 } } },
+                            tooltip: { bodyFont: { family: 'Sarabun', size: 13 }, titleFont: { family: 'Sarabun', size: 14 } }
+                        },
+                        layout: { padding: { top: 8, bottom: 8 } }
+                    }
+                });
+            }
+
+            // Tickets Status Chart
+            const ticketsStatusCtx = document.getElementById('ticketsStatusChart');
+            if (ticketsStatusCtx) {
+                const ticketStatusData = <?php echo json_encode($ticketsByStatus); ?>;
+                const tStatusLabels = ticketStatusData.map(d => d.status.toUpperCase());
+                const tStatusCounts = ticketStatusData.map(d => d.count);
+                
+                new Chart(ticketsStatusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: tStatusLabels,
+                        datasets: [{
+                            data: tStatusCounts,
+                            backgroundColor: chartColors,
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 13 } } },
+                            tooltip: { bodyFont: { family: 'Sarabun', size: 13 }, titleFont: { family: 'Sarabun', size: 14 } }
+                        },
+                        layout: { padding: { top: 8, bottom: 8 } }
+                    }
+                });
+            }
+
+            // Tickets Priority Chart
+            const ticketsPriorityCtx = document.getElementById('ticketsPriorityChart');
+            if (ticketsPriorityCtx) {
+                const ticketPriorityData = <?php echo json_encode($ticketsByPriority); ?>;
+                const priorityLabels = ticketPriorityData.map(d => d.priority.toUpperCase());
+                const priorityCounts = ticketPriorityData.map(d => d.count);
+                const priorityColors = ticketPriorityData.map(d => {
+                    switch(d.priority) {
+                        case 'urgent': return '#f56565';
+                        case 'high': return '#ed8936';
+                        case 'normal': return '#4299e1';
+                        case 'low': return '#48bb78';
+                        default: return '#cbd5e0';
+                    }
+                });
+                
+                new Chart(ticketsPriorityCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: priorityLabels,
+                        datasets: [{
+                            label: 'Tickets',
+                            data: priorityCounts,
+                            backgroundColor: priorityColors,
+                            borderColor: priorityColors,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { bodyFont: { family: 'Sarabun', size: 13 }, titleFont: { family: 'Sarabun', size: 13 } }
+                        },
+                        layout: { padding: { top: 6, bottom: 6 } },
+                        scales: {
+                            x: { beginAtZero: true, ticks: { font: { family: 'Sarabun', size: 12 } } },
+                            y: { ticks: { font: { family: 'Sarabun', size: 12 } } }
+                        }
+                    }
+                });
+            }
         }
 
         // ── Auto-refresh badge ทุก 30 วินาที ─────────────────────────

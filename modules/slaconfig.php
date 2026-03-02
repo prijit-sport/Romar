@@ -14,20 +14,26 @@ $messageType = '';
 
 // Handle Update SLA Rule
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
-    $slaId = (int)$_POST['sla_id'];
-    $responseTime = (int)$_POST['response_time_hours'];
-    $resolutionTime = (int)$_POST['resolution_time_hours'];
-    
-    $stmt = $db->prepare("UPDATE sla_rules SET response_time_hours = ?, resolution_time_hours = ? WHERE sla_id = ?");
-    $stmt->bind_param('iii', $responseTime, $resolutionTime, $slaId);
-    
-    if ($stmt->execute()) {
-        $message = 'อัปเดต SLA Rule สำเร็จ!';
-        $messageType = 'success';
-        logActivity($_SESSION['user_id'], 'อัปเดต SLA Rule', 'SLA', "SLA ID: $slaId");
-    } else {
-        $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+    // CSRF validation
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'])) {
+        $message = 'Invalid CSRF token';
         $messageType = 'error';
+    } else {
+        $slaId = (int)$_POST['sla_id'];
+        $responseTime = (int)$_POST['response_time_hours'];
+        $resolutionTime = (int)$_POST['resolution_time_hours'];
+        
+        $stmt = $db->prepare("UPDATE sla_rules SET response_time_hours = ?, resolution_time_hours = ? WHERE sla_id = ?");
+        $stmt->bind_param('iii', $responseTime, $resolutionTime, $slaId);
+        
+        if ($stmt->execute()) {
+            $message = 'อัปเดต SLA Rule สำเร็จ!';
+            $messageType = 'success';
+            logActivity($_SESSION['user_id'], 'อัปเดต SLA Rule', 'SLA', "SLA ID: $slaId");
+        } else {
+            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+            $messageType = 'error';
+        }
     }
 }
 
@@ -267,6 +273,7 @@ $slaRules = $db->query("SELECT * FROM sla_rules ORDER BY FIELD(priority, 'urgent
                             </td>
                             <td>
                                 <form method="POST" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                                     <input type="hidden" name="action" value="update">
                                     <input type="hidden" name="sla_id" value="<?php echo $rule['sla_id']; ?>">
                                     <input type="number" name="response_time_hours" value="<?php echo $rule['response_time_hours']; ?>" min="1" max="168" required>

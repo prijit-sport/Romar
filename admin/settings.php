@@ -410,11 +410,10 @@ $currentUser = getCurrentUser();
                     <?php endif; ?>
                     <li class="menu-section">ฟีเจอร์</li>
                     <li><a href="room-booking.php">📅 จองห้องประชุม</a></li>
-                    <li><a href="my-bookings.php">📋 รายการจองของฉัน</a></li>
+                    <li><a href="announcements.php">📢 ข่าวสาร</a></li>
                     <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
                         <a href="../modules/tickets.php">🎫 IT Tickets</a>
                     </li>
-                    <li><a href="announcements.php">📢 ข่าวสาร</a></li>
                     <li class="menu-section">ระบบ</li>
                     <li class="active"><a href="settings.php">⚙️ ตั้งค่า</a></li>
                     <li><a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">🚪 ออกจากระบบ</a></li>

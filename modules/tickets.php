@@ -6,6 +6,19 @@ if (file_exists(__DIR__ . '/notificationhelper.php')) {
     require_once __DIR__ . '/notificationhelper.php';
 }
 
+// CSRF token generation
+if (empty($_SESSION['csrf_token'])) {
+    try {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    } catch (Exception $e) {
+        $_SESSION['csrf_token'] = md5(uniqid('', true));
+    }
+}
+
+function validate_csrf($token) {
+    return isset($_SESSION['csrf_token']) && !empty($token) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
 // Check login
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');
@@ -25,6 +38,12 @@ if (isset($_SESSION['flash_success'])) {
 
 // Handle Create Ticket
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
+    // CSRF check
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $_SESSION['flash_success'] = 'Invalid CSRF token.';
+        header('Location: tickets.php');
+        exit;
+    }
     $title = sanitize($_POST['title']);
     $category = sanitize($_POST['category']);
     $priority = sanitize($_POST['priority']);
@@ -87,6 +106,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Handle Update Ticket
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $_SESSION['flash_success'] = 'Invalid CSRF token.';
+        header('Location: tickets.php');
+        exit;
+    }
     $ticketId = (int)$_POST['ticket_id'];
     $status = sanitize($_POST['status']);
     $assignedTo = !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null;
@@ -133,6 +157,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Handle Add Comment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_comment') {
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $_SESSION['flash_success'] = 'Invalid CSRF token.';
+        header('Location: tickets.php');
+        exit;
+    }
     $ticketId = (int)$_POST['ticket_id'];
     $comment = sanitize($_POST['comment']);
     $isInternal = isset($_POST['is_internal']) ? 1 : 0;
@@ -179,6 +208,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Handle Link Related Ticket
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'link_ticket') {
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $_SESSION['flash_success'] = 'Invalid CSRF token.';
+        header('Location: tickets.php');
+        exit;
+    }
     $ticketId = (int)$_POST['ticket_id'];
     $relatedTicketNumber = sanitize($_POST['related_ticket']);
     
@@ -277,7 +311,8 @@ $stmt->execute();
 $tickets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Get statistics
-$statsSQL = "SELECT 
+// Use prepared statement for stats (avoid string concat)
+$statsBase = "SELECT 
     COUNT(*) as total,
     SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) as new_count,
     SUM(CASE WHEN status = 'assigned' THEN 1 ELSE 0 END) as assigned_count,
@@ -285,10 +320,19 @@ $statsSQL = "SELECT
     SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved_count,
     SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_count,
     SUM(CASE WHEN sla_due_date < NOW() AND status NOT IN ('resolved', 'closed') THEN 1 ELSE 0 END) as overdue_count
-    FROM tickets" . ($isAdmin ? "" : " WHERE created_by = " . $_SESSION['user_id']);
+    FROM tickets";
 
-$statsResult = $db->query($statsSQL);
-$stats = $statsResult->fetch_assoc();
+if ($isAdmin) {
+    $statsStmt = $db->prepare($statsBase);
+    $statsStmt->execute();
+    $stats = $statsStmt->get_result()->fetch_assoc();
+} else {
+    $statsStmt = $db->prepare($statsBase . " WHERE created_by = ?");
+    $userId = (int)$_SESSION['user_id'];
+    $statsStmt->bind_param('i', $userId);
+    $statsStmt->execute();
+    $stats = $statsStmt->get_result()->fetch_assoc();
+}
 
 // Get IT team members for assignment
 $itTeamSQL = "SELECT user_id, full_name FROM users WHERE role IN ('admin', 'it_support') ORDER BY full_name";
@@ -337,28 +381,42 @@ function handleFileUploads($db, $ticketId, $files) {
     if (!file_exists($uploadDir)) {
         mkdir($uploadDir, 0777, true);
     }
-    
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
     foreach ($files['name'] as $key => $filename) {
         if ($files['error'][$key] === UPLOAD_ERR_OK) {
             $tmpName = $files['tmp_name'][$key];
             $fileSize = $files['size'][$key];
             $fileExt = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-            
+
+            // sanitize original filename
+            $originalName = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $filename);
+
             // Allowed extensions
             $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'zip'];
-            
-            if (in_array($fileExt, $allowedExt) && $fileSize < 10485760) { // 10MB limit
-                $newFilename = uniqid() . '_' . $filename;
+
+            // basic MIME type check
+            $mime = finfo_file($finfo, $tmpName);
+            $allowedMime = [
+                'image/jpeg', 'image/png', 'image/gif', 'application/pdf',
+                'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'text/plain', 'application/zip'
+            ];
+
+            if (in_array($fileExt, $allowedExt) && $fileSize < 10485760 && in_array($mime, $allowedMime)) { // 10MB limit
+                $newFilename = uniqid() . '_' . $originalName;
                 $destination = $uploadDir . $newFilename;
-                
+
                 if (move_uploaded_file($tmpName, $destination)) {
                     $stmt = $db->prepare("INSERT INTO ticket_attachments (ticket_id, filename, original_filename, file_size, uploaded_by, uploaded_at) VALUES (?, ?, ?, ?, ?, NOW())");
-                    $stmt->bind_param('issii', $ticketId, $newFilename, $filename, $fileSize, $_SESSION['user_id']);
+                    $uploader = (int)($_SESSION['user_id'] ?? 0);
+                    $stmt->bind_param('issii', $ticketId, $newFilename, $originalName, $fileSize, $uploader);
                     $stmt->execute();
                 }
             }
         }
     }
+    finfo_close($finfo);
 }
 ?>
 <!DOCTYPE html>
@@ -397,7 +455,7 @@ function handleFileUploads($db, $ticketId, $files) {
             top: 0;
             height: 100vh;
             overflow-y: auto;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 4px 0 20px rgb(0, 0, 0);
             z-index: 1000;
         }
 
@@ -469,7 +527,7 @@ function handleFileUploads($db, $ticketId, $files) {
             padding: 15px 30px;
             border-radius: 12px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 10px rgb(0, 0, 0);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -654,7 +712,7 @@ function handleFileUploads($db, $ticketId, $files) {
 
         .ticket-card:hover {
             transform: translateY(-3px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 30px rgb(0, 0, 0);
         }
 
         .ticket-card.priority-urgent {
@@ -798,7 +856,7 @@ function handleFileUploads($db, $ticketId, $files) {
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 8px 20px rgb(0, 0, 0);
         }
 
         .btn-secondary {
@@ -825,7 +883,7 @@ function handleFileUploads($db, $ticketId, $files) {
             top: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgb(0, 0, 0);
             backdrop-filter: blur(5px);
         }
 
@@ -997,7 +1055,7 @@ function handleFileUploads($db, $ticketId, $files) {
         .tab-btn.active {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 15px rgb(0, 0, 0)
         }
 
         /* Responsive */
@@ -1234,8 +1292,8 @@ function handleFileUploads($db, $ticketId, $files) {
                 <?php if (empty($tickets)): ?>
                 <div style="text-align: center; padding: 80px 20px; background: white; border-radius: 16px;">
                     <i class="fas fa-inbox" style="font-size: 5em; color: #cbd5e0; margin-bottom: 20px;"></i>
-                    <h3 style="color: #4a5568; margin-bottom: 10px;">ไม่พบ Ticket</h3>
-                    <p style="color: #a0aec0;">ลองปรับเปลี่ยนตัวกรองหรือสร้าง Ticket ใหม่</p>
+                    <h3 style="color: #000000; margin-bottom: 10px;">ไม่พบ Ticket</h3>
+                    <p style="color: #000000;">ลองปรับเปลี่ยนตัวกรองหรือสร้าง Ticket ใหม่</p>
                 </div>
                 <?php else: ?>
                 <?php foreach ($tickets as $ticket): 

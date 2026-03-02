@@ -414,13 +414,12 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
                 <li class="menu-section">ฟีเจอร์</li>
                 <li><a href="room-booking.php">📅 จองห้องประชุม</a></li>
-                <li><a href="my-bookings.php">📋 รายการจองของฉัน</a></li>
-                <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
-                    <a href="../modules/tickets.php">🎫 IT Tickets</a>
-                </li>
                 <li><a href="announcements.php">📢 ข่าวสาร</a></li>
                 <?php if ($user['role'] !== 'admin'): ?>
                 <li class="active"><a href="userdocuments.php">📄 เอกสาร</a></li>
+                <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                    <a href="../modules/tickets.php">🎫 IT Tickets</a>
+                </li>
                 <?php endif; ?>
                 <li class="menu-section">ระบบ</li>
                 <li><a href="settings.php">⚙️ ตั้งค่า</a></li>

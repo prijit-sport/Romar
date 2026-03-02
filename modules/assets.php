@@ -9,6 +9,19 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+// CSRF token helper
+if (empty($_SESSION['csrf_token'])) {
+    try {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    } catch (Exception $e) {
+        $_SESSION['csrf_token'] = md5(uniqid('', true));
+    }
+}
+
+function validate_csrf($token) {
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
 $db = getDB();
 $isAdmin = $_SESSION['role'] === 'admin';
 
@@ -19,6 +32,13 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
 
 // Handle Create Asset
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
+    // CSRF validation
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $_SESSION['flash_message'] = 'Invalid CSRF token';
+        $_SESSION['flash_type']    = 'error';
+        header('Location: assets.php');
+        exit;
+    }
     // ── Basic ──────────────────────────────────────────────
     $asset_name        = sanitize($_POST['asset_name']);
     $asset_tag         = sanitize($_POST['asset_tag']);
@@ -65,49 +85,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $gpu               = sanitize($_POST['gpu'] ?? '');
     $monitor           = sanitize($_POST['monitor'] ?? '');
 
-    // Build INSERT
-    $assignedSQL     = $assigned_to     ? $assigned_to     : 'NULL';
-    $techSQL         = $tech_in_charge  ? $tech_in_charge  : 'NULL';
-    $cpuCoresSQL     = $cpu_cores       ? $cpu_cores       : 'NULL';
-    $ramSQL          = $ram_gb          ? $ram_gb          : 'NULL';
-    $priceSQL        = $purchase_price  ? $purchase_price  : 'NULL';
-    $purchaseDateSQL = $purchase_date   ? "'$purchase_date'"   : 'NULL';
-    $warrantySQL     = $warranty_expiry ? "'$warranty_expiry'" : 'NULL';
-    $invDateSQL      = $last_inventory_date ? "'$last_inventory_date'" : 'NULL';
+    // Build INSERT values
+    $assignedSQL     = $assigned_to     ? $assigned_to     : null;
+    $techSQL         = $tech_in_charge  ? $tech_in_charge  : null;
 
     // ── ตรวจสอบ asset_tag ซ้ำก่อน INSERT ──────────────────────
-    $checkDuplicate = $db->query("SELECT asset_id FROM assets WHERE asset_tag = '$asset_tag'");
-    if ($checkDuplicate && $checkDuplicate->num_rows > 0) {
-        $_SESSION['flash_message'] = "Asset Tag \"$asset_tag\" มีในระบบแล้ว กรุณาใช้รหัสสินทรัพย์ใหม่";
+    $chk = $db->prepare("SELECT asset_id FROM assets WHERE asset_tag = ?");
+    $chk->bind_param('s', $asset_tag);
+    $chk->execute();
+    $dupRes = $chk->get_result();
+    if ($dupRes && $dupRes->num_rows > 0) {
+        $_SESSION['flash_message'] = "Asset Tag \"" . htmlspecialchars($asset_tag) . "\" มีในระบบแล้ว กรุณาใช้รหัสสินทรัพย์ใหม่";
         $_SESSION['flash_type']    = 'error';
         $cat = $_GET['cat'] ?? 'all';
         header('Location: assets.php?cat=' . $cat);
         exit;
-    } // not duplicate
+    }
 
-    $dbResult = $db->query("INSERT INTO assets (
-        asset_name, asset_tag, asset_type, brand, model, serial_number, inventory_number,
-        location, department, asset_group, assigned_to, tech_in_charge, alternate_user,
-        purchase_date, warranty_expiry, purchase_price, salvage_value, useful_life_years, supplier,
-        last_inventory_date, condition_status, status, notes,
-        os_name, os_version, os_architecture, os_service_pack, os_product_key,
-        ip_address, mac_address, network_domain, gateway, dns_server,
-        cpu, cpu_cores, ram_gb, storage, gpu, monitor, created_at
-    ) VALUES (
-        '$asset_name','$asset_tag','$asset_type','$brand','$model','$serial_number','$inventory_number',
-        '$location','$department','$asset_group',$assignedSQL,$techSQL,'$alternate_user',
-        $purchaseDateSQL,$warrantySQL,$priceSQL,$salvage_value,$useful_life_years,'$supplier',
-        $invDateSQL,'$condition','$status','$notes',
-        '$os_name','$os_version','$os_architecture','$os_service_pack','$os_product_key',
-        '$ip_address','$mac_address','$network_domain','$gateway','$dns_server',
-        '$cpu',$cpuCoresSQL,$ramSQL,'$storage','$gpu','$monitor',NOW()
-    )");
-    if ($dbResult) {
+    // Prepare insert statement
+    $stmt = $db->prepare(
+        "INSERT INTO assets (
+            asset_name, asset_tag, asset_type, brand, model, serial_number,
+            inventory_number, location, department, asset_group,
+            assigned_to, tech_in_charge, alternate_user,
+            purchase_date, warranty_expiry, purchase_price,
+            salvage_value, useful_life_years, supplier,
+            last_inventory_date, condition_status, status, notes,
+            os_name, os_version, os_architecture, os_service_pack, os_product_key,
+            ip_address, mac_address, network_domain, gateway, dns_server,
+            cpu, cpu_cores, ram_gb, storage, gpu, monitor, created_at
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())"
+    );
+
+    $stmt->bind_param(
+        'ssssssssssiiisssiddsssssssssss',
+        $asset_name, $asset_tag, $asset_type, $brand, $model, $serial_number,
+        $inventory_number, $location, $department, $asset_group,
+        $assignedSQL, $techSQL, $alternate_user,
+        $purchase_date, $warranty_expiry, $purchase_price,
+        $salvage_value, $useful_life_years, $supplier,
+        $last_inventory_date, $condition, $status, $notes,
+        $os_name, $os_version, $os_architecture, $os_service_pack, $os_product_key,
+        $ip_address, $mac_address, $network_domain, $gateway, $dns_server,
+        $cpu, $cpu_cores, $ram_gb, $storage, $gpu, $monitor
+    );
+
+    if ($stmt->execute()) {
         logActivity($_SESSION['user_id'], 'เพิ่มสินทรัพย์', 'Assets', "เพิ่ม: $asset_name ($asset_tag)");
         $_SESSION['flash_message'] = 'เพิ่มสินทรัพย์สำเร็จ!';
         $_SESSION['flash_type']    = 'success';
     } else {
-        $_SESSION['flash_message'] = 'เกิดข้อผิดพลาด: ' . $db->error;
+        $_SESSION['flash_message'] = 'เกิดข้อผิดพลาด: ' . $stmt->error;
         $_SESSION['flash_type']    = 'error';
     }
 
@@ -118,6 +146,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Handle Update Asset
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
+    // CSRF validation
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $_SESSION['flash_message'] = 'Invalid CSRF token';
+        $_SESSION['flash_type']    = 'error';
+        header('Location: assets.php');
+        exit;
+    }
+
     $asset_id          = (int)$_POST['asset_id'];
     $asset_name        = sanitize($_POST['asset_name']);
     $asset_tag         = sanitize($_POST['asset_tag']);
@@ -132,16 +168,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $status            = sanitize($_POST['status']);
     $condition         = sanitize($_POST['condition'] ?? 'good');
     $notes             = sanitize($_POST['notes']);
-    $assigned_to       = !empty($_POST['assigned_to'])      ? (int)$_POST['assigned_to']      : 'NULL';
-    $tech_in_charge    = !empty($_POST['tech_in_charge'])   ? (int)$_POST['tech_in_charge']   : 'NULL';
+    $assigned_to       = !empty($_POST['assigned_to'])      ? (int)$_POST['assigned_to']      : null;
+    $tech_in_charge    = !empty($_POST['tech_in_charge'])   ? (int)$_POST['tech_in_charge']   : null;
     $alternate_user    = sanitize($_POST['alternate_user'] ?? '');
-    $purchase_date     = !empty($_POST['purchase_date'])    ? "'".$_POST['purchase_date']."'"   : 'NULL';
-    $warranty_expiry   = !empty($_POST['warranty_expiry'])  ? "'".$_POST['warranty_expiry']."'" : 'NULL';
-    $purchase_price    = !empty($_POST['purchase_price'])   ? (float)$_POST['purchase_price']   : 'NULL';
+    $purchase_date     = !empty($_POST['purchase_date'])    ? $_POST['purchase_date']   : null;
+    $warranty_expiry   = !empty($_POST['warranty_expiry'])  ? $_POST['warranty_expiry'] : null;
+    $purchase_price    = !empty($_POST['purchase_price'])   ? (float)$_POST['purchase_price']   : null;
     $salvage_value     = !empty($_POST['salvage_value'])    ? (float)$_POST['salvage_value']    : 0;
     $useful_life_years = !empty($_POST['useful_life_years'])? (int)$_POST['useful_life_years']  : 5;
     $supplier          = sanitize($_POST['supplier'] ?? '');
-    $last_inventory_date = !empty($_POST['last_inventory_date']) ? "'".$_POST['last_inventory_date']."'" : 'NULL';
+    $last_inventory_date = !empty($_POST['last_inventory_date']) ? $_POST['last_inventory_date'] : null;
     $os_name           = sanitize($_POST['os_name'] ?? '');
     $os_version        = sanitize($_POST['os_version'] ?? '');
     $os_architecture   = sanitize($_POST['os_architecture'] ?? '');
@@ -153,34 +189,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $gateway           = sanitize($_POST['gateway'] ?? '');
     $dns_server        = sanitize($_POST['dns_server'] ?? '');
     $cpu               = sanitize($_POST['cpu'] ?? '');
-    $cpu_cores         = !empty($_POST['cpu_cores']) ? (int)$_POST['cpu_cores'] : 'NULL';
-    $ram_gb            = !empty($_POST['ram_gb'])    ? (int)$_POST['ram_gb']    : 'NULL';
+    $cpu_cores         = !empty($_POST['cpu_cores']) ? (int)$_POST['cpu_cores'] : null;
+    $ram_gb            = !empty($_POST['ram_gb'])    ? (int)$_POST['ram_gb']    : null;
     $storage           = sanitize($_POST['storage'] ?? '');
     $gpu               = sanitize($_POST['gpu'] ?? '');
     $monitor           = sanitize($_POST['monitor'] ?? '');
 
-    $dbResult = $db->query("UPDATE assets SET
-        asset_name='$asset_name', asset_tag='$asset_tag', asset_type='$asset_type',
-        brand='$brand', model='$model', serial_number='$serial_number', inventory_number='$inventory_number',
-        location='$location', department='$department', asset_group='$asset_group',
-        assigned_to=$assigned_to, tech_in_charge=$tech_in_charge, alternate_user='$alternate_user',
-        purchase_date=$purchase_date, warranty_expiry=$warranty_expiry,
-        purchase_price=$purchase_price, salvage_value=$salvage_value, useful_life_years=$useful_life_years,
-        supplier='$supplier', last_inventory_date=$last_inventory_date,
-        condition_status='$condition', status='$status', notes='$notes',
-        os_name='$os_name', os_version='$os_version', os_architecture='$os_architecture',
-        os_service_pack='$os_service_pack', os_product_key='$os_product_key',
-        ip_address='$ip_address', mac_address='$mac_address', network_domain='$network_domain',
-        gateway='$gateway', dns_server='$dns_server',
-        cpu='$cpu', cpu_cores=$cpu_cores, ram_gb=$ram_gb, storage='$storage', gpu='$gpu', monitor='$monitor'
-        WHERE asset_id=$asset_id");
+    // build dynamic update with prepared statement
+    $fieldsToUpdate = [
+        'asset_name' => $asset_name,
+        'asset_tag' => $asset_tag,
+        'asset_type' => $asset_type,
+        'brand' => $brand,
+        'model' => $model,
+        'serial_number' => $serial_number,
+        'inventory_number' => $inventory_number,
+        'location' => $location,
+        'department' => $department,
+        'asset_group' => $asset_group,
+        'assigned_to' => $assigned_to,
+        'tech_in_charge' => $tech_in_charge,
+        'alternate_user' => $alternate_user,
+        'purchase_date' => $purchase_date,
+        'warranty_expiry' => $warranty_expiry,
+        'purchase_price' => $purchase_price,
+        'salvage_value' => $salvage_value,
+        'useful_life_years' => $useful_life_years,
+        'supplier' => $supplier,
+        'last_inventory_date' => $last_inventory_date,
+        'condition_status' => $condition,
+        'status' => $status,
+        'notes' => $notes,
+        'os_name' => $os_name,
+        'os_version' => $os_version,
+        'os_architecture' => $os_architecture,
+        'os_service_pack' => $os_service_pack,
+        'os_product_key' => $os_product_key,
+        'ip_address' => $ip_address,
+        'mac_address' => $mac_address,
+        'network_domain' => $network_domain,
+        'gateway' => $gateway,
+        'dns_server' => $dns_server,
+        'cpu' => $cpu,
+        'cpu_cores' => $cpu_cores,
+        'ram_gb' => $ram_gb,
+        'storage' => $storage,
+        'gpu' => $gpu,
+        'monitor' => $monitor
+    ];
 
-    if ($dbResult) {
+    $setParts = [];
+    $types = '';
+    $values = [];
+    foreach ($fieldsToUpdate as $col => $val) {
+        $setParts[] = "$col = ?";
+        if (in_array($col, ['assigned_to','tech_in_charge','useful_life_years','cpu_cores','ram_gb'])) {
+            $types .= 'i';
+        } elseif (in_array($col, ['purchase_price','salvage_value'])) {
+            $types .= 'd';
+        } else {
+            $types .= 's';
+        }
+        $values[] = $val;
+    }
+    // add asset_id for WHERE clause
+    $types .= 'i';
+    $values[] = $asset_id;
+
+    $sql = "UPDATE assets SET " . implode(', ', $setParts) . " WHERE asset_id = ?";
+    $stmt = $db->prepare($sql);
+    $stmt->bind_param($types, ...$values);
+    if ($stmt->execute()) {
         logActivity($_SESSION['user_id'], 'อัปเดตสินทรัพย์', 'Assets', "อัปเดต: $asset_name");
         $_SESSION['flash_message'] = 'อัปเดตสินทรัพย์สำเร็จ!';
         $_SESSION['flash_type']    = 'success';
     } else {
-        $_SESSION['flash_message'] = 'เกิดข้อผิดพลาด: ' . $db->error;
+        $_SESSION['flash_message'] = 'เกิดข้อผิดพลาด: ' . $stmt->error;
         $_SESSION['flash_type']    = 'error';
     }
     $cat = $_GET['cat'] ?? 'all';
@@ -233,8 +317,17 @@ foreach ($ASSET_CATEGORIES as $key => $catDef) {
     if ($key === 'all') {
         $r = $db->query("SELECT COUNT(*) as cnt FROM assets");
     } else {
-        $typeList = implode("','", $catDef['types']);
-        $r = $db->query("SELECT COUNT(*) as cnt FROM assets WHERE asset_type IN ('$typeList')");
+        $typesArr = $catDef['types'];
+        if (count($typesArr) > 0) {
+            $placeholders = implode(',', array_fill(0, count($typesArr), '?'));
+            $stmt = $db->prepare("SELECT COUNT(*) as cnt FROM assets WHERE asset_type IN ($placeholders)");
+            $bindTypes = str_repeat('s', count($typesArr));
+            $stmt->bind_param($bindTypes, ...$typesArr);
+            $stmt->execute();
+            $r = $stmt->get_result();
+        } else {
+            $r = $db->query("SELECT COUNT(*) as cnt FROM assets");
+        }
     }
     $catCounts[$key] = $r ? $r->fetch_assoc()['cnt'] : 0;
 }
@@ -412,7 +505,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
             top: 0;
             height: 100vh;
             overflow-y: auto;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 4px 0 20px rgb(0, 0, 0);
             z-index: 1000;
         }
 
@@ -488,7 +581,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
             padding: 15px 30px;
             border-radius: 12px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 10px rgb(0, 0, 0);
         }
 
         .page-header {
@@ -504,7 +597,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
 
         .page-header h1 {
             font-size: 2em;
-            color: #070707;
+            color: #000000;
             font-weight: 700;
         }
 
@@ -707,7 +800,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgb(0, 0, 0);
             z-index: 2000;
             align-items: center;
             justify-content: center;
@@ -838,7 +931,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
             background: #1a472a;
             border: 1px solid rgba(255,255,255,0.15);
             border-radius: 10px;
-            box-shadow: 4px 4px 20px rgba(0,0,0,0.5);
+            box-shadow: 4px 4px 20px rgb(0, 0, 0);
             min-width: 230px;
             z-index: 9999;
             padding: 6px 0;
@@ -1329,6 +1422,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <button class="close-btn" onclick="closeCreateModal()">&times;</button>
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                 <input type="hidden" name="action" value="create">
 
                 <!-- Tab Navigation -->
@@ -1635,6 +1729,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <button class="close-btn" onclick="closeEditModal()">&times;</button>
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="asset_id" id="edit_asset_id">
 
@@ -1936,6 +2031,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
 
     <!-- Delete Form -->
     <form id="deleteForm" method="POST" style="display: none;">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="asset_id" id="delete_asset_id">
     </form>

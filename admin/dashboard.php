@@ -424,18 +424,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     <li class="<?php echo $current_page == 'room-booking.php' ? 'active' : ''; ?>">
                         <a href="room-booking.php">📅 จองห้องประชุม</a>
                     </li>
-                    <li class="<?php echo $current_page == 'my-bookings.php' ? 'active' : ''; ?>">
-                        <a href="my-bookings.php">📋 รายการจองของฉัน</a>
-                    </li>
-                    <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
-                        <a href="../modules/tickets.php">🎫 IT Tickets</a>
-                    </li>
                     <li class="<?php echo $current_page == 'announcements.php' ? 'active' : ''; ?>">
                         <a href="announcements.php">📢 ข่าวสาร</a>
                     </li>
                     <?php if ($user['role'] !== 'admin'): ?>
                     <li class="<?php echo $current_page == 'userdocuments.php' ? 'active' : ''; ?>">
                         <a href="userdocuments.php">📄 เอกสาร</a>
+                    </li>
+                     <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                        <a href="../modules/tickets.php">🎫 IT Tickets</a>
                     </li>
                     <?php endif; ?>
                     <li class="menu-section">ระบบ</li>
