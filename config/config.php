@@ -53,7 +53,7 @@ date_default_timezone_set('Asia/Bangkok');
 // ‡∏™‡∏≥‡∏´‡∏£‡∏±‡∏ö Development: ‡πÄ‡∏õ‡∏¥‡∏î‡πÄ‡∏û‡∏∑‡πà‡∏≠‡∏î‡∏π error
 // ‡πÄ‡∏û‡∏¥‡πà‡∏°‡∏ï‡∏±‡∏ß‡πÅ‡∏õ‡∏£‡πÅ‡∏¢‡∏Å environment
 if (!defined('APP_ENV')) {
-    // §Ë“µ—ÈßµÈπ “¡“√∂°”Àπ¥ºË“πµ—«·ª√·«¥≈ÈÕ¡À√◊Õ‰ø≈Ï .env
+    // Default can be provided via environment variables or .env file.
     $appEnv = getenv('APP_ENV');
     if ($appEnv === false || $appEnv === '') {
         $appEnv = getenv('ROMAR_APP_ENV') ?: 'development';
