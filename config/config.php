@@ -1,4 +1,40 @@
 <?php
+if (!function_exists('romar_load_env_file')) {
+    /**
+     * Load key=value pairs from .env into process env when not already set.
+     */
+    function romar_load_env_file($path) {
+        if (!is_string($path) || $path === '' || !is_file($path) || !is_readable($path)) {
+            return;
+        }
+
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!is_array($lines)) {
+            return;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim((string)$line);
+            if ($line === '' || strpos($line, '#') === 0 || strpos($line, '=') === false) {
+                continue;
+            }
+
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim(trim($value), "\"'");
+            if ($key === '' || getenv($key) !== false) {
+                continue;
+            }
+
+            putenv($key . '=' . $value);
+            $_ENV[$key] = $value;
+            $_SERVER[$key] = $value;
+        }
+    }
+}
+
+romar_load_env_file(__DIR__ . '/../.env');
+
 /**
  * Configuration File
  * ไฟล์ตั้งค่าระบบทั้งหมด
@@ -17,8 +53,20 @@ date_default_timezone_set('Asia/Bangkok');
 // สำหรับ Development: เปิดเพื่อดู error
 // เพิ่มตัวแปรแยก environment
 if (!defined('APP_ENV')) {
-    // ค่าตั้งต้นสามารถกำหนดผ่านตัวแปรแวดล้อมหรือไฟล์ .env
-    define('APP_ENV', getenv('APP_ENV') ?: 'development');
+    // ��ҵ�駵�����ö��˹���ҹ������Ǵ����������� .env
+    $appEnv = getenv('APP_ENV');
+    if ($appEnv === false || $appEnv === '') {
+        $appEnv = getenv('ROMAR_APP_ENV') ?: 'development';
+    }
+
+    $normalizedAppEnv = strtolower(trim((string)$appEnv));
+    if ($normalizedAppEnv === 'prod') {
+        $normalizedAppEnv = 'production';
+    } elseif ($normalizedAppEnv === 'dev') {
+        $normalizedAppEnv = 'development';
+    }
+
+    define('APP_ENV', $normalizedAppEnv);
 }
 
 if (APP_ENV === 'production') {

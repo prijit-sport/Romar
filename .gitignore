@@ -1,0 +1,4 @@
+.env
+
+database/backups/
+logs/db-backup-*.log

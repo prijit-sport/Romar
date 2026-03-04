@@ -6,11 +6,43 @@ if (PHP_SAPI !== 'cli') {
     exit('Forbidden');
 }
 
+function load_env_file(string $path): void
+{
+    if (!is_file($path) || !is_readable($path)) {
+        return;
+    }
+
+    $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+    foreach ($lines as $line) {
+        $line = trim((string)$line);
+        if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+            continue;
+        }
+
+        [$key, $value] = explode('=', $line, 2);
+        $key = trim($key);
+        $value = trim(trim($value), "\"'");
+        if ($key === '' || getenv($key) !== false) {
+            continue;
+        }
+
+        putenv($key . '=' . $value);
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+}
+
 $root = realpath(__DIR__ . '/../../');
 if ($root === false) {
     fwrite(STDERR, "Cannot resolve project root.\n");
     exit(1);
 }
+
+$envFile = getenv('ROMAR_ENV_FILE');
+if ($envFile === false || trim((string)$envFile) === '') {
+    $envFile = $root . '/.env';
+}
+load_env_file((string)$envFile);
 
 $requiredEnv = [
     'ROMAR_APP_ENV',

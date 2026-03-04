@@ -2838,3 +2838,5 @@ Stack trace:
 #0 C:\xampp\htdocs\Romar\modules\reports.php(31): mysqli->prepare('SELECT t.ticket...')
 #1 {main}
   thrown in C:\xampp\htdocs\Romar\modules\reports.php on line 31
+[04-Mar-2026 16:15:24 Asia/Bangkok] Database connection error: Host 'pc-romar141.romar.co.th' is not allowed to connect to this MariaDB server
+[04-Mar-2026 16:38:37 Asia/Bangkok] PHP Warning:  mkdir(): Permission denied in C:\xampp\htdocs\Romar\scripts\ops\db_backup.php on line 27

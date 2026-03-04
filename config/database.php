@@ -5,7 +5,7 @@
  */
 
 // กำหนดค่าการเชื่อมต่อ MySQL (prefer environment values)
-define('DB_HOST', getenv('ROMAR_DB_HOST') ?: '192.168.2.99');        // หรือ IP ของ Server
+define('DB_HOST', getenv('ROMAR_DB_HOST') ?: '127.0.0.1');        // หรือ IP ของ Server
 define('DB_USER', getenv('ROMAR_DB_USER') ?: 'root');             // Username MySQL
 define('DB_PASS', getenv('ROMAR_DB_PASS') !== false ? getenv('ROMAR_DB_PASS') : ''); // Password MySQL
 define('DB_NAME', getenv('ROMAR_DB_NAME') ?: 'romar_dormitory');  // ชื่อ Database
