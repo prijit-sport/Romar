@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../includes/functions.php';
 
 // ตรวจสอบการ login
 if (!isset($_SESSION['user_id'])) {
@@ -12,9 +13,13 @@ $db = getDb();
 $user_id = $_SESSION['user_id'];
 $success_message = '';
 $error_message = '';
+csrf_token();
 
 // จัดการการจอง
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'book_room') {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
+        $error_message = 'Invalid CSRF token.';
+    } else {
     $room_id = $_POST['room_id'];
     $booking_date = $_POST['booking_date'];
     $start_time = $_POST['start_time'];
@@ -61,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // ดึงข้อมูลห้องประชุมทั้งหมด
+}
 $rooms_result = $db->query("SELECT * FROM meeting_rooms WHERE is_active = 1 ORDER BY room_name");
 $rooms = [];
 while ($room = $rooms_result->fetch_assoc()) {
@@ -399,6 +405,7 @@ while ($room = $rooms_result->fetch_assoc()) {
                 <form method="POST" onsubmit="return validateBooking()">
                     <input type="hidden" name="action" value="book_room">
                     <input type="hidden" name="room_id" id="modal_room_id">
+                    <?php echo csrf_input(); ?>
 
                     <div class="form-group">
                         <label for="modal_room_name">ห้องที่เลือก:</label>

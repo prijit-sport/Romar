@@ -11,9 +11,10 @@ if (!isset($_SESSION['user_id'])) {
 
 $db = getDB();
 $isAdmin = $_SESSION['role'] === 'admin';
+$userId = (int) ($_SESSION['user_id'] ?? 0);
 
 // Get Dashboard Statistics
-$statsSQL = "SELECT 
+$statsBaseSQL = "SELECT 
     COUNT(*) as total,
     SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) as new_count,
     SUM(CASE WHEN status = 'assigned' THEN 1 ELSE 0 END) as assigned_count,
@@ -24,30 +25,49 @@ $statsSQL = "SELECT
     SUM(CASE WHEN sla_due_date < NOW() AND status NOT IN ('resolved', 'closed') THEN 1 ELSE 0 END) as overdue_count,
     SUM(CASE WHEN priority = 'urgent' THEN 1 ELSE 0 END) as urgent_count,
     SUM(CASE WHEN priority = 'high' THEN 1 ELSE 0 END) as high_count
-    FROM tickets" . ($isAdmin ? "" : " WHERE created_by = " . $_SESSION['user_id'] ?? 0);
+    FROM tickets";
 
-$statsResult = $db->query($statsSQL);
+if ($isAdmin) {
+    $statsResult = $db->query($statsBaseSQL);
+} else {
+    $statsStmt = $db->prepare($statsBaseSQL . " WHERE created_by = ?");
+    $statsStmt->bind_param('i', $userId);
+    $statsStmt->execute();
+    $statsResult = $statsStmt->get_result();
+}
 $stats = $statsResult->fetch_assoc();
 
 // Get Recent Tickets
-$recentSQL = "SELECT t.*, 
+$recentBaseSQL = "SELECT t.*, 
               creator.full_name as creator_name,
               assignee.full_name as assignee_name
               FROM tickets t 
               LEFT JOIN users creator ON t.created_by = creator.user_id 
               LEFT JOIN users assignee ON t.assigned_to = assignee.user_id
-              " . ($isAdmin ? "" : "WHERE t.created_by = " . $_SESSION['user_id'] ?? 0) . "
-              ORDER BY t.created_at DESC LIMIT 10";
+              ";
 
-$recentTickets = $db->query($recentSQL)->fetch_all(MYSQLI_ASSOC);
+if ($isAdmin) {
+    $recentResult = $db->query($recentBaseSQL . " ORDER BY t.created_at DESC LIMIT 10");
+} else {
+    $recentStmt = $db->prepare($recentBaseSQL . " WHERE t.created_by = ? ORDER BY t.created_at DESC LIMIT 10");
+    $recentStmt->bind_param('i', $userId);
+    $recentStmt->execute();
+    $recentResult = $recentStmt->get_result();
+}
+$recentTickets = $recentResult->fetch_all(MYSQLI_ASSOC);
 
 // Get Tickets by Category
-$categorySQL = "SELECT category, COUNT(*) as count 
-                FROM tickets 
-                " . ($isAdmin ? "" : "WHERE created_by = " . $_SESSION['user_id'] ?? 0) . "
-                GROUP BY category 
-                ORDER BY count DESC";
-$categories = $db->query($categorySQL)->fetch_all(MYSQLI_ASSOC);
+$categoryBaseSQL = "SELECT category, COUNT(*) as count 
+                    FROM tickets";
+if ($isAdmin) {
+    $categoryResult = $db->query($categoryBaseSQL . " GROUP BY category ORDER BY count DESC");
+} else {
+    $categoryStmt = $db->prepare($categoryBaseSQL . " WHERE created_by = ? GROUP BY category ORDER BY count DESC");
+    $categoryStmt->bind_param('i', $userId);
+    $categoryStmt->execute();
+    $categoryResult = $categoryStmt->get_result();
+}
+$categories = $categoryResult->fetch_all(MYSQLI_ASSOC);
 
 // Get Assets by Type
 $assetTypesSQL = "SELECT asset_type, COUNT(*) as count FROM assets GROUP BY asset_type ORDER BY count DESC";
@@ -67,12 +87,28 @@ $assetsByStatusSQL = "SELECT status, COUNT(*) as count FROM assets GROUP BY stat
 $assetsByStatus = $db->query($assetsByStatusSQL)->fetch_all(MYSQLI_ASSOC) ?? [];
 
 // Get Tickets by Status for chart
-$ticketsByStatusSQL = "SELECT status, COUNT(*) as count FROM tickets " . ($isAdmin ? "" : "WHERE created_by = " . $_SESSION['user_id']) . " GROUP BY status";
-$ticketsByStatus = $db->query($ticketsByStatusSQL)->fetch_all(MYSQLI_ASSOC) ?? [];
+$ticketsByStatusBaseSQL = "SELECT status, COUNT(*) as count FROM tickets";
+if ($isAdmin) {
+    $ticketsByStatusResult = $db->query($ticketsByStatusBaseSQL . " GROUP BY status");
+} else {
+    $ticketsByStatusStmt = $db->prepare($ticketsByStatusBaseSQL . " WHERE created_by = ? GROUP BY status");
+    $ticketsByStatusStmt->bind_param('i', $userId);
+    $ticketsByStatusStmt->execute();
+    $ticketsByStatusResult = $ticketsByStatusStmt->get_result();
+}
+$ticketsByStatus = $ticketsByStatusResult->fetch_all(MYSQLI_ASSOC) ?? [];
 
 // Get Tickets by Priority for chart
-$ticketsByPrioritySQL = "SELECT priority, COUNT(*) as count FROM tickets " . ($isAdmin ? "" : "WHERE created_by = " . $_SESSION['user_id']) . " GROUP BY priority ORDER BY FIELD(priority, 'urgent', 'high', 'normal', 'low')";
-$ticketsByPriority = $db->query($ticketsByPrioritySQL)->fetch_all(MYSQLI_ASSOC) ?? [];
+$ticketsByPriorityBaseSQL = "SELECT priority, COUNT(*) as count FROM tickets";
+if ($isAdmin) {
+    $ticketsByPriorityResult = $db->query($ticketsByPriorityBaseSQL . " GROUP BY priority ORDER BY FIELD(priority, 'urgent', 'high', 'normal', 'low')");
+} else {
+    $ticketsByPriorityStmt = $db->prepare($ticketsByPriorityBaseSQL . " WHERE created_by = ? GROUP BY priority ORDER BY FIELD(priority, 'urgent', 'high', 'normal', 'low')");
+    $ticketsByPriorityStmt->bind_param('i', $userId);
+    $ticketsByPriorityStmt->execute();
+    $ticketsByPriorityResult = $ticketsByPriorityStmt->get_result();
+}
+$ticketsByPriority = $ticketsByPriorityResult->fetch_all(MYSQLI_ASSOC) ?? [];
 
 // Get Top Asset Brands
 $topBrandsSQL = "SELECT brand, COUNT(*) as count FROM assets WHERE brand IS NOT NULL AND brand != '' GROUP BY brand ORDER BY count DESC LIMIT 5";
@@ -83,8 +119,18 @@ $warrantyExpiringSQL = "SELECT a.asset_id, a.asset_tag, a.asset_name, a.warranty
 $warrantyExpiring = $db->query($warrantyExpiringSQL)->fetch_all(MYSQLI_ASSOC) ?? [];
 
 // Get Overdue Tickets
-$overdueTicketsSQL = "SELECT t.ticket_id, t.ticket_number, t.title, t.priority, t.sla_due_date FROM tickets t WHERE t.sla_due_date < NOW() AND t.status NOT IN ('resolved', 'closed') " . ($isAdmin ? "" : "AND t.created_by = " . $_SESSION['user_id']) . " ORDER BY t.sla_due_date ASC LIMIT 5";
-$overdueTickets = $db->query($overdueTicketsSQL)->fetch_all(MYSQLI_ASSOC) ?? [];
+$overdueTicketsBaseSQL = "SELECT t.ticket_id, t.ticket_number, t.title, t.priority, t.sla_due_date 
+    FROM tickets t 
+    WHERE t.sla_due_date < NOW() AND t.status NOT IN ('resolved', 'closed')";
+if ($isAdmin) {
+    $overdueTicketsResult = $db->query($overdueTicketsBaseSQL . " ORDER BY t.sla_due_date ASC LIMIT 5");
+} else {
+    $overdueTicketsStmt = $db->prepare($overdueTicketsBaseSQL . " AND t.created_by = ? ORDER BY t.sla_due_date ASC LIMIT 5");
+    $overdueTicketsStmt->bind_param('i', $userId);
+    $overdueTicketsStmt->execute();
+    $overdueTicketsResult = $overdueTicketsStmt->get_result();
+}
+$overdueTickets = $overdueTicketsResult->fetch_all(MYSQLI_ASSOC) ?? [];
 
 // Get notifications จากระบบใหม่ (รองรับทั้ง new_ticket และ new_comment)
 $notifStmt = $db->prepare("
@@ -108,7 +154,7 @@ $notifStmt = $db->prepare("
     ORDER BY n.created_at DESC
     LIMIT 20
 ");
-$notifStmt->bind_param('i', $_SESSION['user_id']);
+$notifStmt->bind_param('i', $userId);
 $notifStmt->execute();
 $notifications = $notifStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $unreadNotifications = count(array_filter($notifications, fn($n) => !$n['is_read']));
@@ -1023,7 +1069,7 @@ $currentUser = getCurrentUser();
             <!-- IT Assets Section -->
             <div style="margin-top: 50px;">
                 <h2 style="font-size: 1.6em; font-weight: 700; color: #000000; margin-bottom: 30px; display: flex; align-items: center; gap: 12px; text-transform: capitalize;">
-                    <i class="fas fa-boxes" style="color: #667eea; font-size: 1.4em;"></i> IT Assets ตามประเภท
+                    <i class="fas fa-boxes" style="color: #ffffff; font-size: 1.4em;"></i> IT Assets ตามประเภท
                 </h2>
 
                 <!-- Assets by Type Tiles -->
@@ -1085,7 +1131,7 @@ $currentUser = getCurrentUser();
             <!-- IT Tickets by Category -->
             <div style="margin-top: 40px;">
                 <h2 style="font-size: 1.5em; color: #000; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-ticket-alt" style="color: #667eea;"></i> IT Tickets ตามหมวดหมู่
+                    <i class="fas fa-ticket-alt" style="color: #ffffff;"></i> IT Tickets ตามหมวดหมู่
                 </h2>
                 <?php if (!empty($categories)): ?>
                 <?php
@@ -1169,12 +1215,12 @@ $currentUser = getCurrentUser();
                 <!-- Recent Tickets Section -->
                 <div style="margin-top: 40px;">
                     <h3 style="font-size: 1.2em; font-weight: 700; color: #000000; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
-                        <i class="fas fa-list" style="color: #667eea;"></i> Tickets ล่าสุด
+                        <i class="fas fa-list" style="color: #ffffff;"></i> Tickets ล่าสุด
                     </h3>
                     <div class="card">
                         <div class="card-header">
                             <h2 class="card-title" style="margin-bottom: 0;"><i class="fas fa-history"></i> ประวัติล่าสุด</h2>
-                            <a href="tickets.php" style="color: #667eea; text-decoration: none; font-weight: 600; transition: all 0.3s;">
+                            <a href="tickets.php" style="color: #000000; text-decoration: none; font-weight: 600; transition: all 0.3s;">
                                 ดูทั้งหมด →
                             </a>
                         </div>
@@ -1288,7 +1334,7 @@ $currentUser = getCurrentUser();
 
         // ── คลิก notification รายการ → mark read → ไป ticket ──────────
         function readAndViewTicket(notifId, ticketId) {
-            fetch('marknotificationread.php', {
+            fetch('../api/marknotificationread.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ notif_id: notifId })
@@ -1304,7 +1350,7 @@ $currentUser = getCurrentUser();
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังอัปเดต...';
 
-            fetch('marknotificationread.php', {
+            fetch('../api/marknotificationread.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mark_all_read: true })
@@ -1482,7 +1528,7 @@ $currentUser = getCurrentUser();
 
         // ── Auto-refresh badge ทุก 30 วินาที ─────────────────────────
         setInterval(function() {
-            fetch('get_notification_count.php')
+            fetch('../api/getnotificationcount.php')
                 .then(r => r.json())
                 .then(data => {
                     const badge = document.querySelector('.notification-badge');

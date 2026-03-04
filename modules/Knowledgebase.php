@@ -13,9 +13,22 @@ $db = getDB();
 $isAdmin = $_SESSION['role'] === 'admin';
 $message = '';
 $messageType = '';
+csrf_token();
+
+$requestedAction = ($_SERVER['REQUEST_METHOD'] === 'POST') ? ($_POST['action'] ?? '') : '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?? '')) {
+    if ($requestedAction === 'helpful') {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF token.']);
+        exit;
+    }
+    $message = 'Invalid CSRF token.';
+    $messageType = 'error';
+    $requestedAction = '';
+}
 
 // Handle Create Article
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
+if ($requestedAction === 'create') {
     $title = sanitize($_POST['title']);
     $category_id = (int)$_POST['category_id'];
     $content = $_POST['content']; // Don't sanitize - allow HTML
@@ -35,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Handle Update Article
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
+if ($requestedAction === 'update') {
     $kb_id = (int)$_POST['kb_id'];
     $title = sanitize($_POST['title']);
     $category_id = (int)$_POST['category_id'];
@@ -56,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Handle Delete Article
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {
+if ($requestedAction === 'delete') {
     $kb_id = (int)$_POST['kb_id'];
     
     $stmt = $db->prepare("DELETE FROM knowledgebase WHERE kb_id = ?");
@@ -73,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Handle Mark as Helpful
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'helpful') {
+if ($requestedAction === 'helpful') {
     $kb_id = (int)$_POST['kb_id'];
     
     $stmt = $db->prepare("UPDATE knowledgebase SET helpful_count = helpful_count + 1 WHERE kb_id = ?");
@@ -997,6 +1010,7 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
             <form method="POST" id="articleForm">
                 <input type="hidden" name="action" id="formAction" value="create">
                 <input type="hidden" name="kb_id" id="kb_id">
+                <?php echo csrf_input(); ?>
                 
                 <div class="input-hint">
                     <i class="fas fa-info-circle"></i> 
@@ -1084,6 +1098,7 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
     <form id="deleteForm" method="POST" style="display: none;">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="kb_id" id="delete_kb_id">
+        <?php echo csrf_input(); ?>
     </form>
 
     <script>
@@ -1162,7 +1177,7 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'action=helpful&kb_id=' + kbId
+                body: 'action=helpful&kb_id=' + kbId + '&csrf_token=<?php echo rawurlencode(csrf_token()); ?>'
             })
             .then(response => response.json())
             .then(data => {

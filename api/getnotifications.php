@@ -1,11 +1,19 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../includes/functions.php';
 
-header('Content-Type: application/json');
+apply_security_headers();
+header('Content-Type: application/json; charset=UTF-8');
+$requestId = request_id();
+$limit = rate_limit_check('api_getnotifications', 60, 60);
+if (!$limit['allowed']) {
+    security_audit_log('rate_limit_blocked', ['module' => 'api_getnotifications', 'retry_after' => $limit['retry_after']]);
+    json_error('Too many requests', 429, $requestId);
+}
 
 if (!isset($_SESSION['user_id'])) {
-    echo json_encode(['notifications' => [], 'unread_count' => 0]);
+    echo json_encode(['notifications' => [], 'unread_count' => 0, 'request_id' => $requestId]);
     exit;
 }
 
@@ -75,4 +83,5 @@ while ($row = $result->fetch_assoc()) {
 echo json_encode([
     'notifications' => $notifications,
     'unread_count'  => $unreadCount,
+    'request_id'    => $requestId,
 ]);

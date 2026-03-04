@@ -1,0 +1,45 @@
+name: Quality Gates
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, mysqli
+
+      - name: PHP Lint
+        run: |
+          set -e
+          find . -type f -name "*.php" -print0 | xargs -0 -n1 php -l
+
+      - name: Project Health Check
+        run: php tests/project_health_check.php
+
+      - name: Integration Smoke Check
+        run: php tests/integration_smoke.php
+
+      - name: Unit Security Helpers
+        env:
+          ROMAR_SKIP_DB_BOOT: '1'
+        run: php tests/unit_security_helpers.php
+
+      - name: Encoding Audit
+        run: php tests/encoding_audit.php
+
+      - name: Security Alert Check
+        run: php tests/security_alert_check.php
+
+      - name: E2E DB Flow (optional)
+        run: php tests/e2e_db_flow.php

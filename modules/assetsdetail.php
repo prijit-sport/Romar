@@ -5,23 +5,23 @@ require_once '../includes/functions.php';
 
 if (!isset($_SESSION['user_id'])) { header('Location: ../auth/login.php'); exit; }
 
-// CSRF helper
-if (empty($_SESSION['csrf_token'])) {
-    try {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    } catch (Exception $e) {
-        $_SESSION['csrf_token'] = md5(uniqid('', true));
-    }
-}
-
-function validate_csrf($token) {
-    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
-}
+csrf_token();
+apply_security_headers();
 
 $db      = getDB();
 $isAdmin = $_SESSION['role'] === 'admin';
 $assetId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $message = ''; $messageType = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $limit = rate_limit_check('module_assetsdetail_post', 50, 60);
+    if (!$limit['allowed']) {
+        security_audit_log('rate_limit_blocked', ['module' => 'assetsdetail', 'retry_after' => $limit['retry_after']]);
+        $message = 'Too many requests. Retry in ' . $limit['retry_after'] . ' seconds';
+        $messageType = 'error';
+        $_POST['action'] = '';
+    }
+}
 
 if (!$assetId) { header('Location: assets.php'); exit; }
 
@@ -45,11 +45,19 @@ foreach ($ASSET_CATEGORIES as $key => $catDef) {
 
 // ── Handle POST Actions ────────────────────────────────────────
 $action = $_POST['action'] ?? '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isAdmin) {
+    if (in_array($action, ['add_repair', 'add_borrow', 'return_asset', 'add_transfer'], true)) {
+        security_audit_log('access_denied', ['module' => 'assetsdetail', 'action' => $action, 'asset_id' => $assetId]);
+        $message = 'Access denied';
+        $messageType = 'error';
+        $action = '';
+    }
+}
 
 // เพิ่มประวัติซ่อม
 if ($action === 'add_repair') {
     // CSRF check
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $message = 'Invalid CSRF token'; $messageType = 'error';
     } else {
         $stmt = $db->prepare("INSERT INTO asset_repairs (asset_id,repair_date,problem_desc,repair_detail,repair_cost,vendor,technician,status,warranty_claim,created_by) VALUES (?,?,?,?,?,?,?,?,?,?)");
@@ -84,7 +92,7 @@ if ($action === 'add_repair') {
 // เพิ่มการยืม
 if ($action === 'add_borrow') {
     // CSRF check
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $message = 'Invalid CSRF token'; $messageType = 'error';
     } else {
         $stmt = $db->prepare("INSERT INTO asset_borrows (asset_id,borrower_id,approved_by,borrow_date,expected_return,purpose,condition_out,created_by,status) VALUES (?,?,?,?,?,?,?,?,'borrowed')");
@@ -114,7 +122,7 @@ if ($action === 'add_borrow') {
 // คืนอุปกรณ์
 if ($action === 'return_asset') {
     // CSRF check
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $message = 'Invalid CSRF token'; $messageType = 'error';
     } else {
         $borrowId    = (int)$_POST['borrow_id'];
@@ -135,7 +143,7 @@ if ($action === 'return_asset') {
 // โอนย้าย
 if ($action === 'add_transfer') {
     // CSRF check
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $message = 'Invalid CSRF token'; $messageType = 'error';
     } else {
         $fromUser    = !empty($_POST['from_user_id']) ? (int)$_POST['from_user_id'] : null;
@@ -980,7 +988,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
     <div class="modal-content">
         <div class="modal-header"><h2><i class="fas fa-tools"></i> บันทึกการซ่อม</h2><button class="close-btn" onclick="this.closest('.modal').classList.remove('show')">&times;</button></div>
         <form method="POST">
-            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+            <?php echo csrf_input(); ?>
             <input type="hidden" name="action" value="add_repair">
             <div class="form-row">
                 <div class="form-group"><label>วันที่ซ่อม *</label><input type="date" name="repair_date" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
@@ -1025,7 +1033,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
             </div>
         </div>
         <form method="POST">
-            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+            <?php echo csrf_input(); ?>
             <input type="hidden" name="action" value="add_borrow">
             <div class="form-group"><label>ผู้ยืม *</label>
                 <select name="borrower_id" class="form-control" required>
@@ -1068,7 +1076,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
             </div>
         </div>
         <form method="POST">
-            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+            <?php echo csrf_input(); ?>
             <input type="hidden" name="action" value="return_asset">
             <input type="hidden" name="borrow_id" id="return_borrow_id">
             <div class="form-group"><label>วันที่คืน *</label><input type="date" name="actual_return" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
@@ -1101,7 +1109,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
             </div>
         </div>
         <form method="POST">
-            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+            <?php echo csrf_input(); ?>
             <input type="hidden" name="action" value="add_transfer">
             <div class="form-group"><label>วันที่โอนย้าย *</label><input type="date" name="transfer_date" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
             <div class="form-row">

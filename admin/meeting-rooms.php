@@ -14,12 +14,20 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 $db = getDB();
 $message = '';
 $messageType = '';
+csrf_token();
 
 // รับ flash message จาก session หลัง redirect
 if (isset($_SESSION['flash_message'])) {
     $message = $_SESSION['flash_message'];
     $messageType = $_SESSION['flash_type'];
     unset($_SESSION['flash_message'], $_SESSION['flash_type']);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?? '')) {
+    $_SESSION['flash_message'] = 'Invalid CSRF token.';
+    $_SESSION['flash_type'] = 'error';
+    header('Location: meeting-rooms.php');
+    exit;
 }
 
 // Handle Add/Edit/Delete Room
@@ -723,11 +731,13 @@ $pendingBookings = $db->query("
                                         <form method="POST" style="margin:0;">
                                             <input type="hidden" name="action" value="approve">
                                             <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
+                                            <?php echo csrf_input(); ?>
                                             <button type="submit" class="btn-approve" onclick="return confirm('อนุมัติการจองนี้?')">✅ อนุมัติ</button>
                                         </form>
                                         <form method="POST" style="margin:0;">
                                             <input type="hidden" name="action" value="reject">
                                             <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
+                                            <?php echo csrf_input(); ?>
                                             <button type="submit" class="btn-reject" onclick="return confirm('ปฏิเสทธิ์การจองนี้?')">❌ ปฏิเสท</button>
                                         </form>
                                     </div>
@@ -789,6 +799,7 @@ $pendingBookings = $db->query("
             <div class="modal-body">
                 <form method="POST">
                     <input type="hidden" name="action" value="add">
+                    <?php echo csrf_input(); ?>
                     
                     <div class="form-group">
                         <label class="form-label" for="add_room_name">ชื่อห้องประชุม *</label>
@@ -835,6 +846,7 @@ $pendingBookings = $db->query("
                 <form method="POST">
                     <input type="hidden" name="action" value="edit">
                     <input type="hidden" name="room_id" id="edit_room_id">
+                    <?php echo csrf_input(); ?>
                     
                     <div class="form-group">
                         <label class="form-label" for="edit_room_name">ชื่อห้องประชุม *</label>
@@ -880,6 +892,7 @@ $pendingBookings = $db->query("
     <form method="POST" id="deleteForm" style="display: none;">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="room_id" id="delete_room_id">
+        <?php echo csrf_input(); ?>
     </form>
 
     <script>

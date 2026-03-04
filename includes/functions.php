@@ -448,4 +448,277 @@ if (!function_exists('getCurrentUser')) {
         return false;
     }
 }
+
+/**
+ * Get or create CSRF token for current session
+ */
+if (!function_exists('csrf_token')) {
+    function csrf_token() {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+
+        if (empty($_SESSION['csrf_token'])) {
+            try {
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            } catch (Exception $e) {
+                $_SESSION['csrf_token'] = hash('sha256', uniqid((string) mt_rand(), true));
+            }
+        }
+
+        return $_SESSION['csrf_token'];
+    }
+}
+
+/**
+ * Render CSRF hidden input for POST forms
+ */
+if (!function_exists('csrf_input')) {
+    function csrf_input() {
+        $token = htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8');
+        return '<input type="hidden" name="csrf_token" value="' . $token . '">';
+    }
+}
+
+/**
+ * Validate CSRF token from request
+ */
+if (!function_exists('verify_csrf')) {
+    function verify_csrf($token) {
+        $sessionToken = $_SESSION['csrf_token'] ?? '';
+        return !empty($token) && !empty($sessionToken) && hash_equals($sessionToken, $token);
+    }
+}
+
+/**
+ * Attach common security headers (safe to call multiple times)
+ */
+if (!function_exists('apply_security_headers')) {
+    function apply_security_headers($options = []) {
+        if (headers_sent()) {
+            return;
+        }
+
+        $allowInline = isset($options['allow_inline']) ? (bool)$options['allow_inline'] : true;
+        $nonce = csp_nonce();
+
+        header('X-Frame-Options: SAMEORIGIN');
+        header('X-Content-Type-Options: nosniff');
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+        header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+
+        if ($allowInline) {
+            header("Content-Security-Policy: default-src 'self' https: data: blob: 'unsafe-inline'; frame-ancestors 'self'");
+        } else {
+            header("Content-Security-Policy: default-src 'self' https: data: blob:; script-src 'self' 'nonce-{$nonce}' https:; style-src 'self' 'nonce-{$nonce}' https:; img-src 'self' https: data: blob:; frame-ancestors 'self'");
+        }
+
+        // Stricter policy in report-only mode for gradual hardening on all pages.
+        header("Content-Security-Policy-Report-Only: default-src 'self' https: data: blob:; script-src 'self' https:; style-src 'self' https:; img-src 'self' https: data: blob:; frame-ancestors 'self'");
+    }
+}
+
+/**
+ * CSP nonce helper
+ */
+if (!function_exists('csp_nonce')) {
+    function csp_nonce() {
+        static $nonce = null;
+        if ($nonce !== null) {
+            return $nonce;
+        }
+
+        try {
+            $nonce = base64_encode(random_bytes(16));
+        } catch (Exception $e) {
+            $nonce = base64_encode(hash('sha256', uniqid((string) mt_rand(), true), true));
+        }
+
+        return $nonce;
+    }
+}
+
+/**
+ * Generate request id for tracing
+ */
+if (!function_exists('request_id')) {
+    function request_id() {
+        if (empty($_SERVER['HTTP_X_REQUEST_ID'])) {
+            try {
+                $_SERVER['HTTP_X_REQUEST_ID'] = bin2hex(random_bytes(8));
+            } catch (Exception $e) {
+                $_SERVER['HTTP_X_REQUEST_ID'] = uniqid('req_', true);
+            }
+        }
+
+        return (string) $_SERVER['HTTP_X_REQUEST_ID'];
+    }
+}
+
+/**
+ * Basic rate limiting (session + ip key)
+ */
+if (!function_exists('rate_limit_check')) {
+    function rate_limit_check($key, $maxAttempts = 10, $windowSeconds = 60) {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $bucketKey = 'rate_limit_' . md5($key . '|' . $ip);
+        $now = time();
+
+        if (!isset($_SESSION[$bucketKey])) {
+            $_SESSION[$bucketKey] = ['count' => 0, 'start' => $now];
+        }
+
+        $bucket = $_SESSION[$bucketKey];
+        if (($now - (int)$bucket['start']) > $windowSeconds) {
+            $bucket = ['count' => 0, 'start' => $now];
+        }
+
+        $allowed = ((int)$bucket['count'] < $maxAttempts);
+        if ($allowed) {
+            $bucket['count']++;
+        }
+
+        $_SESSION[$bucketKey] = $bucket;
+
+        return [
+            'allowed' => $allowed,
+            'remaining' => max(0, $maxAttempts - (int)$bucket['count']),
+            'retry_after' => max(0, $windowSeconds - ($now - (int)$bucket['start'])),
+        ];
+    }
+}
+
+/**
+ * Security audit log (JSON lines)
+ */
+if (!function_exists('security_audit_log')) {
+    function security_audit_log($event, $context = []) {
+        $logDir = __DIR__ . '/../logs';
+        if (!is_dir($logDir)) {
+            @mkdir($logDir, 0755, true);
+        }
+
+        $logFile = $logDir . '/security.log';
+        $policy = security_log_policy();
+        rotate_security_log($logFile, (int)$policy['max_bytes'], (int)$policy['max_files']);
+
+        $payload = [
+            'ts' => date('c'),
+            'event' => (string)$event,
+            'request_id' => request_id(),
+            'user_id' => $_SESSION['user_id'] ?? null,
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            'uri' => $_SERVER['REQUEST_URI'] ?? '',
+            'context' => is_array($context) ? $context : ['value' => $context],
+        ];
+
+        @file_put_contents($logFile, json_encode($payload, JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND);
+    }
+}
+
+/**
+ * Security log retention policy by environment
+ */
+if (!function_exists('security_log_policy')) {
+    function security_log_policy() {
+        $env = strtolower((string)(getenv('ROMAR_APP_ENV') ?: 'dev'));
+        $policy = [
+            'dev' => ['max_bytes' => 5 * 1024 * 1024, 'max_files' => 10],
+            'staging' => ['max_bytes' => 10 * 1024 * 1024, 'max_files' => 20],
+            'prod' => ['max_bytes' => 20 * 1024 * 1024, 'max_files' => 30],
+            'production' => ['max_bytes' => 20 * 1024 * 1024, 'max_files' => 30],
+        ];
+
+        $selected = $policy[$env] ?? $policy['dev'];
+        $maxBytes = (int)(getenv('ROMAR_LOG_MAX_BYTES') ?: $selected['max_bytes']);
+        $maxFiles = (int)(getenv('ROMAR_LOG_MAX_FILES') ?: $selected['max_files']);
+
+        return [
+            'env' => $env,
+            'max_bytes' => max(1048576, $maxBytes),
+            'max_files' => max(3, $maxFiles),
+        ];
+    }
+}
+
+/**
+ * Rotate security log (daily or when exceeds max size)
+ */
+if (!function_exists('rotate_security_log')) {
+    function rotate_security_log($logFile, $maxBytes = 5242880, $maxFiles = 10) {
+        if (!file_exists($logFile)) {
+            return;
+        }
+
+        $rotate = false;
+        $today = date('Ymd');
+        $fileDate = date('Ymd', filemtime($logFile));
+        if ($fileDate !== $today) {
+            $rotate = true;
+        }
+
+        if (filesize($logFile) >= $maxBytes) {
+            $rotate = true;
+        }
+
+        if (!$rotate) {
+            return;
+        }
+
+        $dir = dirname($logFile);
+        $base = basename($logFile, '.log');
+        $rotated = $dir . '/' . $base . '-' . date('Ymd-His') . '.log';
+        @rename($logFile, $rotated);
+
+        $archives = glob($dir . '/' . $base . '-*.log') ?: [];
+        rsort($archives);
+        if (count($archives) > $maxFiles) {
+            $toDelete = array_slice($archives, $maxFiles);
+            foreach ($toDelete as $f) {
+                @unlink($f);
+            }
+        }
+    }
+}
+
+/**
+ * Check ticket ownership for non-admin users
+ */
+if (!function_exists('can_access_ticket')) {
+    function can_access_ticket($db, $ticketId, $userId, $isAdmin = false) {
+        if ($isAdmin) {
+            return true;
+        }
+
+        $stmt = $db->prepare("SELECT created_by FROM tickets WHERE ticket_id = ? LIMIT 1");
+        $stmt->bind_param('i', $ticketId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        return $row && (int)$row['created_by'] === (int)$userId;
+    }
+}
+
+/**
+ * JSON error helper for APIs
+ */
+if (!function_exists('json_error')) {
+    function json_error($message, $statusCode = 400, $requestId = null) {
+        if ($requestId === null) {
+            $requestId = request_id();
+        }
+
+        http_response_code($statusCode);
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode([
+            'success' => false,
+            'message' => $message,
+            'request_id' => $requestId,
+        ]);
+        exit;
+    }
+}
 ?>

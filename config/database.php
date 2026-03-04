@@ -4,12 +4,13 @@
  * ไฟล์เชื่อมต่อฐานข้อมูล MySQL
  */
 
-// กำหนดค่าการเชื่อมต่อ MySQL
-define('DB_HOST', 'localhost');        // หรือ IP ของ Server
-define('DB_USER', 'root');             // Username MySQL
-define('DB_PASS', '');                 // Password MySQL
-define('DB_NAME', 'romar_dormitory');  // ชื่อ Database
+// กำหนดค่าการเชื่อมต่อ MySQL (prefer environment values)
+define('DB_HOST', getenv('ROMAR_DB_HOST') ?: 'localhost');        // หรือ IP ของ Server
+define('DB_USER', getenv('ROMAR_DB_USER') ?: 'root');             // Username MySQL
+define('DB_PASS', getenv('ROMAR_DB_PASS') !== false ? getenv('ROMAR_DB_PASS') : ''); // Password MySQL
+define('DB_NAME', getenv('ROMAR_DB_NAME') ?: 'romar_dormitory');  // ชื่อ Database
 define('DB_CHARSET', 'utf8mb4');
+define('APP_DEBUG', filter_var(getenv('ROMAR_APP_DEBUG') ?: '0', FILTER_VALIDATE_BOOLEAN));
 
 // สำหรับ Production ให้เปลี่ยนค่าตามนี้:
 // define('DB_HOST', '192.168.1.xxx');  // IP ของ Database Server
@@ -39,11 +40,42 @@ function getDB() {
             $connection->query("SET time_zone = '+07:00'");
             
         } catch (Exception $e) {
-            die("Database Error: " . $e->getMessage());
+            error_log("Database connection error: " . $e->getMessage());
+            http_response_code(500);
+            die("Database connection error. Please contact administrator.");
         }
     }
     
     return $connection;
+}
+
+if (!function_exists('register_global_error_handlers')) {
+    function register_global_error_handlers() {
+        set_exception_handler(function ($e) {
+            $message = $e instanceof Throwable ? $e->getMessage() : 'Unhandled exception';
+            error_log('Unhandled exception: ' . $message);
+            if (!headers_sent()) {
+                http_response_code(500);
+                header('Content-Type: text/plain; charset=UTF-8');
+            }
+            echo APP_DEBUG ? ("Unhandled exception: " . $message) : "Unexpected server error.";
+            exit;
+        });
+
+        set_error_handler(function ($severity, $message, $file, $line) {
+            if (!(error_reporting() & $severity)) {
+                return false;
+            }
+
+            error_log(sprintf('PHP error [%d] %s in %s:%d', $severity, $message, $file, $line));
+            if (!headers_sent()) {
+                http_response_code(500);
+                header('Content-Type: text/plain; charset=UTF-8');
+            }
+            echo APP_DEBUG ? ("PHP error: {$message}") : "Unexpected server error.";
+            exit;
+        });
+    }
 }
 
 /**
@@ -198,6 +230,9 @@ function db_single($sql) {
     return null;
 }
 
-// เชื่อมต่อฐานข้อมูลเมื่อ load ไฟล์
-getDB();
+// Register handlers always; bootstrap DB unless explicitly skipped (useful for isolated unit tests).
+register_global_error_handlers();
+if ((getenv('ROMAR_SKIP_DB_BOOT') ?: '0') !== '1') {
+    getDB();
+}
 ?>

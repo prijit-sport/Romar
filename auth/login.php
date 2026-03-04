@@ -1,8 +1,11 @@
-<?php
+﻿<?php
 // โหลดไฟล์ตั้งค่าและฟังก์ชัน
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
+apply_security_headers(['allow_inline' => false]);
+csrf_token();
+$cspNonce = htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8');
 
 // ถ้า Login อยู่แล้ว redirect ไป dashboard
 if (isLoggedIn()) {
@@ -14,29 +17,41 @@ $timeout = isset($_GET['timeout']) ? true : false;
 
 // Process login
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = sanitize($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-    
-    if (empty($username) || empty($password)) {
-        $error = 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน';
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid request token';
+        security_audit_log('csrf_invalid', ['module' => 'auth_login']);
     } else {
-        $user = verifyLogin($username, $password);
-        
-        if ($user) {
-            // Set session
-            $_SESSION['user_id'] = $user['user_id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['full_name'] = $user['full_name'];
-            $_SESSION['role'] = $user['role'];
-            $_SESSION['last_activity'] = time();
-            
-            // Log activity
-            logActivity($user['user_id'], 'เข้าสู่ระบบ', 'Authentication', 'ผู้ใช้เข้าสู่ระบบ');
-            
-            // Redirect to dashboard
-            redirect('admin/dashboard.php');
+        $limit = rate_limit_check('auth_login', 8, 300);
+        if (!$limit['allowed']) {
+            $error = 'Too many attempts. Retry in ' . $limit['retry_after'] . ' seconds';
+            security_audit_log('rate_limit_blocked', ['module' => 'auth_login', 'retry_after' => $limit['retry_after']]);
         } else {
-            $error = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+            $username = sanitize($_POST['username'] ?? '');
+            $password = $_POST['password'] ?? '';
+            
+            if (empty($username) || empty($password)) {
+                $error = 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน';
+            } else {
+                $user = verifyLogin($username, $password);
+                
+                if ($user) {
+                    // Set session
+                    $_SESSION['user_id'] = $user['user_id'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['full_name'] = $user['full_name'];
+                    $_SESSION['role'] = $user['role'];
+                    $_SESSION['last_activity'] = time();
+                    
+                    // Log activity
+                    logActivity($user['user_id'], 'เข้าสู่ระบบ', 'Authentication', 'ผู้ใช้เข้าสู่ระบบ');
+                    
+                    // Redirect to dashboard
+                    redirect('admin/dashboard.php');
+                } else {
+                    $error = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+                    security_audit_log('login_failed', ['username' => $username]);
+                }
+            }
         }
     }
 }
@@ -51,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <style>
+    <style nonce="<?php echo $cspNonce; ?>">
         * {
             margin: 0;
             padding: 0;
@@ -314,6 +329,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <form method="POST" action="">
+                <?php echo csrf_input(); ?>
                 <div class="form-group">
                     <label for="username">ชื่อผู้ใช้</label>
                     <input 
@@ -339,7 +355,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             placeholder="กรอกรหัสผ่าน"
                             required
                         >
-                        <span class="password-toggle" onclick="togglePassword()">👁️</span>
+                        <span id="password-toggle" class="password-toggle">👁️</span>
                     </div>
                 </div>
 
@@ -353,7 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
-    <script>
+    <script nonce="<?php echo $cspNonce; ?>">
         function togglePassword() {
             const passwordInput = document.getElementById('password');
             const toggleBtn = document.querySelector('.password-toggle');
@@ -366,6 +382,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 toggleBtn.textContent = '👁️';
             }
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggle = document.getElementById('password-toggle');
+            if (toggle) {
+                toggle.addEventListener('click', togglePassword);
+            }
+        });
     </script>
 </body>
 </html>
+

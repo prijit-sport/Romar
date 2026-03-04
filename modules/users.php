@@ -18,9 +18,17 @@ if ($_SESSION['role'] !== 'admin') {
 $db = getDB();
 $message = '';
 $messageType = '';
+csrf_token();
+$isValidCsrf = true;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?? '')) {
+    $isValidCsrf = false;
+    $message = 'Invalid CSRF token.';
+    $messageType = 'error';
+}
 
 // Handle Create User
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create' && $isValidCsrf) {
     $username = sanitize($_POST['username']);
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $full_name = sanitize($_POST['full_name']);
@@ -45,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Handle Update User
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update' && $isValidCsrf) {
     $user_id = (int)$_POST['user_id'];
     $full_name = sanitize($_POST['full_name']);
     $email = sanitize($_POST['email']);
@@ -69,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Handle Delete User
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete' && $isValidCsrf) {
     $user_id = (int)$_POST['user_id'];
     
     $stmt = $db->prepare("DELETE FROM users WHERE user_id = ?");
@@ -742,6 +750,7 @@ $stats = $db->query($statsSQL)->fetch_assoc();
             </div>
             <form method="POST">
                 <input type="hidden" name="action" value="create">
+                <?php echo csrf_input(); ?>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -818,6 +827,7 @@ $stats = $db->query($statsSQL)->fetch_assoc();
             <form method="POST">
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="user_id" id="edit_user_id">
+                <?php echo csrf_input(); ?>
                 
                 <div class="form-group">
                     <label for="edit_full_name">ชื่อ-นามสกุล <span style="color: red;">*</span></label>
@@ -877,6 +887,7 @@ $stats = $db->query($statsSQL)->fetch_assoc();
     <form id="deleteForm" method="POST" style="display: none;">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="user_id" id="delete_user_id">
+        <?php echo csrf_input(); ?>
     </form>
 
     <script>

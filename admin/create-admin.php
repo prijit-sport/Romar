@@ -4,6 +4,11 @@
  * สร้าง Admin user และตรวจสอบฐานข้อมูล
  */
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 require_once '../config/database.php';
 
 echo "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Create Admin User</title>";

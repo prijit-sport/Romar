@@ -3,14 +3,9 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
-// Ensure CSRF token exists for forms
-if (empty($_SESSION['csrf_token'])) {
-    try {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    } catch (Exception $e) {
-        $_SESSION['csrf_token'] = md5(uniqid('', true));
-    }
-}
+csrf_token();
+apply_security_headers(['allow_inline' => false]);
+$cspNonce = htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8');
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');
@@ -89,12 +84,18 @@ $stmtTimeline->execute();
 $timeline = $stmtTimeline->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Get attachments
+$attachmentDateColumn = 'uploaded_at';
+$attachmentDateResult = $db->query("SHOW COLUMNS FROM ticket_attachments LIKE 'uploaded_at'");
+if (!$attachmentDateResult || $attachmentDateResult->num_rows === 0) {
+    $attachmentDateColumn = 'created_at';
+}
+
 $stmtAttach = $db->prepare("
-    SELECT ta.*, u.full_name AS uploader_name
+    SELECT ta.*, u.full_name AS uploader_name, ta.$attachmentDateColumn AS attachment_created_at
     FROM ticket_attachments ta
     LEFT JOIN users u ON ta.uploaded_by = u.user_id
     WHERE ta.ticket_id = ?
-    ORDER BY ta.created_at DESC
+    ORDER BY ta.$attachmentDateColumn DESC
 ");
 $stmtAttach->bind_param('i', $ticketId);
 $stmtAttach->execute();
@@ -155,7 +156,7 @@ $currentUser = getCurrentUser();
     <title><?php echo htmlspecialchars($ticket['ticket_number']); ?> - Ticket Details</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
+    <style nonce="<?php echo $cspNonce; ?>">
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
@@ -686,7 +687,7 @@ $currentUser = getCurrentUser();
 
                     <!-- Add Comment Form -->
                     <form method="POST" action="tickets.php" style="margin-top: 25px;">
-                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                        <?php echo csrf_input(); ?>
                         <input type="hidden" name="action" value="add_comment">
                         <input type="hidden" name="ticket_id" value="<?php echo $ticketId; ?>">
                         
@@ -731,7 +732,7 @@ $currentUser = getCurrentUser();
                             <div class="attachment-meta">
                                 <?php echo number_format($att['file_size'] / 1024, 1); ?> KB • 
                                 <?php echo htmlspecialchars($att['uploader_name']); ?> • 
-                                <?php echo date('d/m/Y H:i', strtotime($att['created_at'])); ?>
+                                <?php echo date('d/m/Y H:i', strtotime($att['attachment_created_at'])); ?>
                             </div>
                         </div>
                         <a href="../uploads/tickets/<?php echo htmlspecialchars($att['file_name']); ?>" 

@@ -1,0 +1,34 @@
+name: Security Monitor
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, mysqli
+
+      - name: Security Alert Check
+        run: php tests/security_alert_check.php
+
+      - name: Purge Old Security Log Archives
+        run: php scripts/ops/purge_security_archives.php
+
+      - name: Upload Security Alert Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-alert-report
+          path: security-alert-report.json
+          if-no-files-found: ignore

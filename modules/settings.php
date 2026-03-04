@@ -17,10 +17,15 @@ if ($_SESSION['role'] !== 'admin') {
 $db = getDB();
 $message = '';
 $messageType = '';
+csrf_token();
 
 // Handle Update Settings
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_settings') {
-    $settings = $_POST['setting'];
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
+        $message = 'Invalid CSRF token.';
+        $messageType = 'error';
+    } else {
+        $settings = $_POST['setting'];
     $success_count = 0;
     
     foreach ($settings as $key => $value) {
@@ -35,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $message = "อัปเดตการตั้งค่า $success_count รายการสำเร็จ!";
     $messageType = 'success';
     logActivity($_SESSION['user_id'], 'อัปเดตการตั้งค่าระบบ', 'Settings', "อัปเดต $success_count รายการ");
+    }
 }
 
 // Get all settings
@@ -496,6 +502,7 @@ $systemInfo = [
             <!-- Tab Contents -->
             <form method="POST">
                 <input type="hidden" name="action" value="update_settings">
+                <?php echo csrf_input(); ?>
 
                 <!-- General Tab -->
                 <div id="general" class="tab-content active">

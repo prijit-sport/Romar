@@ -14,6 +14,21 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 $db = getDB();
 $message = '';
 $messageType = '';
+csrf_token();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?? '')) {
+    $_SESSION['message'] = 'Invalid CSRF token.';
+    $_SESSION['messageType'] = 'error';
+    $redirectUrl = 'documents.php';
+    if (isset($_GET['category']) && $_GET['category'] !== '') {
+        $redirectUrl .= '?category=' . urlencode($_GET['category']);
+    }
+    if (isset($_GET['search']) && $_GET['search'] !== '') {
+        $redirectUrl .= (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'search=' . urlencode($_GET['search']);
+    }
+    header('Location: ' . $redirectUrl);
+    exit;
+}
 
 // Create uploads directory if not exists
 $uploadDir = '../uploads/documents/';
@@ -786,6 +801,7 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             <div class="modal-body">
                 <form method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="upload">
+                    <?php echo csrf_input(); ?>
                     
                     <div class="form-group">
                         <label class="form-label" for="doc_title">ชื่อเอกสาร *</label>
@@ -846,6 +862,7 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     <form method="POST" id="deleteForm" style="display: none;">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="document_id" id="delete_document_id">
+        <?php echo csrf_input(); ?>
     </form>
 
     <script>

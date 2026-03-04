@@ -12,6 +12,25 @@ if (!isset($_SESSION['user_id'])) {
 $user    = getCurrentUser();
 $db      = getDB();
 $current_page = basename($_SERVER['PHP_SELF']);
+csrf_token();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?? '')) {
+    $_SESSION['message'] = 'Invalid CSRF token.';
+    $_SESSION['messageType'] = 'error';
+    $redirect = 'userdocuments.php';
+    $params = [];
+    if (!empty($_GET['category'])) {
+        $params[] = 'category=' . urlencode($_GET['category']);
+    }
+    if (!empty($_GET['search'])) {
+        $params[] = 'search=' . urlencode($_GET['search']);
+    }
+    if ($params) {
+        $redirect .= '?' . implode('&', $params);
+    }
+    header('Location: ' . $redirect);
+    exit;
+}
 
 // ✅ Handle file upload → PRG pattern (Post-Redirect-Get)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload') {
@@ -569,6 +588,7 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <div class="modal-body">
             <form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 20px;">
                 <input type="hidden" name="action" value="upload">
+                <?php echo csrf_input(); ?>
                 
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                     <label for="udoc_title" style="color: #1e293b; font-weight: 600;">ชื่อเอกสาร <span style="color: #ef4444;">*</span></label>
@@ -650,6 +670,7 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             form.innerHTML = `
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="document_id" value="${documentId}">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
             `;
             document.body.appendChild(form);
             form.submit();

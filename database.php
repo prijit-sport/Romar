@@ -1,11 +1,11 @@
 <?php
 session_start();
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/functions.php';
 
 // ตรวจสอบ login
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ../auth/login.php');
+    header('Location: auth/login.php');
     exit;
 }
 
@@ -13,7 +13,7 @@ $db = Database::getInstance();
 $page_title = "จัดการเอกสาร";
 
 // สร้างโฟลเดอร์ uploads ถ้ายังไม่มี
-$upload_dir = __DIR__ . '/../uploads/documents/';
+$upload_dir = __DIR__ . '/uploads/documents/';
 if (!file_exists($upload_dir)) {
     mkdir($upload_dir, 0755, true);
 }
@@ -21,9 +21,13 @@ if (!file_exists($upload_dir)) {
 // จัดการ Actions
 $success_message = '';
 $error_message = '';
+csrf_token();
 
 // อัปโหลดเอกสาร
 if (isset($_POST['upload_document'])) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
+        $error_message = 'Invalid CSRF token.';
+    } else {
     $document_name = trim($_POST['document_name']);
     $category = trim($_POST['category']);
     $description = trim($_POST['description']);
@@ -42,7 +46,7 @@ if (isset($_POST['upload_document'])) {
             // สร้างชื่อไฟล์ใหม่ (ป้องกันชื่อซ้ำ)
             $new_file_name = time() . '_' . preg_replace('/[^A-Za-z0-9._-]/', '_', $file_name);
             $file_path = 'uploads/documents/' . $new_file_name;
-            $full_path = __DIR__ . '/../' . $file_path;
+            $full_path = __DIR__ . '/' . $file_path;
             
             if (move_uploaded_file($file_tmp, $full_path)) {
                 // บันทึกลง database (ใช้ MySQLi)
@@ -82,7 +86,11 @@ if (isset($_POST['upload_document'])) {
 }
 
 // ลบเอกสาร
+}
 if (isset($_POST['delete_document'])) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
+        $error_message = 'Invalid CSRF token.';
+    } else {
     $doc_id = (int)$_POST['document_id'];
     
     // ดึงข้อมูลเอกสาร
@@ -94,7 +102,7 @@ if (isset($_POST['delete_document'])) {
     
     if ($doc) {
         // ลบไฟล์
-        $full_path = __DIR__ . '/../' . $doc['file_path'];
+        $full_path = __DIR__ . '/' . $doc['file_path'];
         if (file_exists($full_path)) {
             unlink($full_path);
         }
@@ -110,6 +118,7 @@ if (isset($_POST['delete_document'])) {
 }
 
 // ดึงข้อมูลเอกสารทั้งหมด (ใช้ prepared statement เพื่อลดความเสี่ยง SQL injection)
+}
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 $category_filter = isset($_GET['category']) ? $_GET['category'] : '';
 
@@ -667,7 +676,7 @@ function getFileIcon($ext) {
 
             <div class="menu-section">
                 <div class="menu-section-title">บัญชี</div>
-                <a href="../auth/logout.php" class="menu-item">
+                <a href="auth/logout.php" class="menu-item">
                     <span class="menu-item-icon">🚪</span>
                     ออกจากระบบ
                 </a>
@@ -787,13 +796,14 @@ function getFileIcon($ext) {
                                 <td><?php echo htmlspecialchars($doc['uploader_name']); ?></td>
                                 <td><?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?></td>
                                 <td>
-                                    <a href="../<?php echo $doc['file_path']; ?>" download class="btn btn-success btn-sm">
+                                    <a href="<?php echo $doc['file_path']; ?>" download class="btn btn-success btn-sm">
                                         ⬇️ ดาวน์โหลด
                                     </a>
                                     
                                     <?php if ($doc['uploaded_by'] == $_SESSION['user_id'] || $_SESSION['role'] === 'admin'): ?>
                                         <form method="POST" style="display: inline;" onsubmit="return confirm('แน่ใจหรือว่าต้องการลบเอกสารนี้?')">
                                             <input type="hidden" name="document_id" value="<?php echo $doc['document_id']; ?>">
+                                            <?php echo csrf_input(); ?>
                                             <button type="submit" name="delete_document" class="btn btn-danger btn-sm">
                                                 🗑️ ลบ
                                             </button>
@@ -816,6 +826,7 @@ function getFileIcon($ext) {
                 <button class="modal-close" onclick="closeModal('uploadModal')">×</button>
             </div>
             <form method="POST" enctype="multipart/form-data">
+                <?php echo csrf_input(); ?>
                 <div class="modal-body">
                     <div class="form-group">
                         <label class="form-label">ชื่อเอกสาร *</label>

@@ -3,18 +3,9 @@ session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
-// CSRF token generation
-if (empty($_SESSION['csrf_token'])) {
-    try {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    } catch (Exception $e) {
-        $_SESSION['csrf_token'] = md5(uniqid('', true));
-    }
-}
-
-function validate_csrf($token) {
-    return isset($_SESSION['csrf_token']) && !empty($token) && hash_equals($_SESSION['csrf_token'], $token);
-}
+csrf_token();
+apply_security_headers(['allow_inline' => false]);
+$cspNonce = htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8');
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: ../auth/login.php');
@@ -25,6 +16,16 @@ $db = getDB();
 $ticketId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $message = '';
 $messageType = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $limit = rate_limit_check('module_ticket_update_post', 30, 60);
+    if (!$limit['allowed']) {
+        security_audit_log('rate_limit_blocked', ['module' => 'ticket_update', 'retry_after' => $limit['retry_after']]);
+        $_SESSION['flash_success'] = 'Too many requests. Retry in ' . $limit['retry_after'] . ' seconds';
+        header('Location: tickets.php');
+        exit;
+    }
+}
 
 if (!$ticketId) {
     header('Location: tickets.php');
@@ -44,7 +45,7 @@ if (!$ticket) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $_SESSION['flash_success'] = 'Invalid CSRF token.';
         header('Location: tickets.php');
         exit;
@@ -140,7 +141,7 @@ function addTimeline($db, $ticketId, $eventType, $description) {
     <title>Update Ticket - <?php echo htmlspecialchars($ticket['ticket_number']); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
+    <style nonce="<?php echo $cspNonce; ?>">
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
@@ -359,7 +360,7 @@ function addTimeline($db, $ticketId, $eventType, $description) {
             </div>
 
             <form method="POST">
-                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                <?php echo csrf_input(); ?>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">

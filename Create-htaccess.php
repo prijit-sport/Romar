@@ -4,6 +4,11 @@
  * สร้างไฟล์ .htaccess ถาวร
  */
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 echo "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>สร้าง .htaccess</title>";
 echo "<style>
 body { font-family: 'Sarabun', Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; background: #f5f7fa; }

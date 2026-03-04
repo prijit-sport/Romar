@@ -6,18 +6,8 @@ if (file_exists(__DIR__ . '/notificationhelper.php')) {
     require_once __DIR__ . '/notificationhelper.php';
 }
 
-// CSRF token generation
-if (empty($_SESSION['csrf_token'])) {
-    try {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    } catch (Exception $e) {
-        $_SESSION['csrf_token'] = md5(uniqid('', true));
-    }
-}
-
-function validate_csrf($token) {
-    return isset($_SESSION['csrf_token']) && !empty($token) && hash_equals($_SESSION['csrf_token'], $token);
-}
+csrf_token();
+apply_security_headers();
 
 // Check login
 if (!isset($_SESSION['user_id'])) {
@@ -28,6 +18,17 @@ if (!isset($_SESSION['user_id'])) {
 $db = getDB();
 $message = '';
 $messageType = '';
+$isAdmin = $_SESSION['role'] === 'admin';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $limit = rate_limit_check('module_tickets_post', 40, 60);
+    if (!$limit['allowed']) {
+        security_audit_log('rate_limit_blocked', ['module' => 'tickets', 'retry_after' => $limit['retry_after']]);
+        $_SESSION['flash_success'] = 'Too many requests. Retry in ' . $limit['retry_after'] . ' seconds';
+        header('Location: tickets.php');
+        exit;
+    }
+}
 
 // ✅ รับ flash message จาก session (หลัง PRG redirect)
 if (isset($_SESSION['flash_success'])) {
@@ -39,7 +40,7 @@ if (isset($_SESSION['flash_success'])) {
 // Handle Create Ticket
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
     // CSRF check
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $_SESSION['flash_success'] = 'Invalid CSRF token.';
         header('Location: tickets.php');
         exit;
@@ -106,12 +107,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Handle Update Ticket
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $_SESSION['flash_success'] = 'Invalid CSRF token.';
         header('Location: tickets.php');
         exit;
     }
     $ticketId = (int)$_POST['ticket_id'];
+    if (!can_access_ticket($db, $ticketId, (int)$_SESSION['user_id'], $isAdmin)) {
+        security_audit_log('access_denied', ['module' => 'tickets', 'action' => 'update', 'ticket_id' => $ticketId]);
+        $_SESSION['flash_success'] = 'Access denied.';
+        header('Location: tickets.php');
+        exit;
+    }
     $status = sanitize($_POST['status']);
     $assignedTo = !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null;
     $resolution = sanitize($_POST['resolution']);
@@ -157,12 +164,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Handle Add Comment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_comment') {
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $_SESSION['flash_success'] = 'Invalid CSRF token.';
         header('Location: tickets.php');
         exit;
     }
     $ticketId = (int)$_POST['ticket_id'];
+    if (!can_access_ticket($db, $ticketId, (int)$_SESSION['user_id'], $isAdmin)) {
+        security_audit_log('access_denied', ['module' => 'tickets', 'action' => 'add_comment', 'ticket_id' => $ticketId]);
+        $_SESSION['flash_success'] = 'Access denied.';
+        header('Location: tickets.php');
+        exit;
+    }
     $comment = sanitize($_POST['comment']);
     $isInternal = isset($_POST['is_internal']) ? 1 : 0;
     
@@ -208,12 +221,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Handle Link Related Ticket
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'link_ticket') {
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $_SESSION['flash_success'] = 'Invalid CSRF token.';
         header('Location: tickets.php');
         exit;
     }
     $ticketId = (int)$_POST['ticket_id'];
+    if (!can_access_ticket($db, $ticketId, (int)$_SESSION['user_id'], $isAdmin)) {
+        security_audit_log('access_denied', ['module' => 'tickets', 'action' => 'link_ticket', 'ticket_id' => $ticketId]);
+        $_SESSION['flash_success'] = 'Access denied.';
+        header('Location: tickets.php');
+        exit;
+    }
     $relatedTicketNumber = sanitize($_POST['related_ticket']);
     
     // Find related ticket ID
@@ -237,7 +256,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Get tickets with filters
-$isAdmin = $_SESSION['role'] === 'admin';
 $status = isset($_GET['status']) ? sanitize($_GET['status']) : '';
 $priority = isset($_GET['priority']) ? sanitize($_GET['priority']) : '';
 $category = isset($_GET['category']) ? sanitize($_GET['category']) : '';
@@ -1453,6 +1471,7 @@ function handleFileUploads($db, $ticketId, $files) {
             <div class="modal-body">
                 <form method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="create">
+                    <?php echo csrf_input(); ?>
                     
                     <div class="form-group">
                         <label class="form-label" for="ticket_title">

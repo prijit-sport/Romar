@@ -14,9 +14,17 @@ if (!isset($_SESSION['user_id'])) {
 $db = getDB();
 $message = '';
 $messageType = '';
+csrf_token();
+$isValidCsrf = true;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?? '')) {
+    $isValidCsrf = false;
+    $message = 'Invalid CSRF token.';
+    $messageType = 'error';
+}
 
 // Handle Update Profile
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile' && $isValidCsrf) {
     $fullName = sanitize($_POST['full_name']);
     $email = sanitize($_POST['email']);
     
@@ -34,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Handle Change Password
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_password') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_password' && $isValidCsrf) {
     $currentPassword = $_POST['current_password'];
     $newPassword = $_POST['new_password'];
     $confirmPassword = $_POST['confirm_password'];
@@ -461,6 +469,7 @@ $currentUser = getCurrentUser();
                     <div class="card-body">
                         <form method="POST">
                             <input type="hidden" name="action" value="update_profile">
+                            <?php echo csrf_input(); ?>
                             
                             <div class="form-group">
                                 <label class="form-label" for="settings_username">Username</label>
@@ -504,6 +513,7 @@ $currentUser = getCurrentUser();
 
                         <form method="POST">
                             <input type="hidden" name="action" value="change_password">
+                            <?php echo csrf_input(); ?>
                             <input type="text" name="username" value="<?php echo htmlspecialchars($currentUser['username']); ?>" autocomplete="username" style="display:none;" aria-hidden="true" tabindex="-1">
                             
                             <div class="form-group">

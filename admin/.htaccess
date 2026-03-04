@@ -1,0 +1,3 @@
+<Files "create-admin.php">
+    Require all denied
+</Files>

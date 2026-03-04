@@ -12,9 +12,14 @@ if (!isset($_SESSION['user_id'])) {
 $db = getDB();
 $message = '';
 $messageType = '';
+csrf_token();
 
 // Handle Cancel Booking
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'cancel') {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
+        $message = 'Invalid CSRF token.';
+        $messageType = 'error';
+    } else {
     $bookingId = (int)$_POST['booking_id'];
     
     // เช็คว่าเป็นการจองของตัวเองหรือไม่
@@ -32,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $messageType = 'success';
             logActivity($_SESSION['user_id'], 'ยกเลิกการจอง', 'Bookings', "ยกเลิกการจอง ID: " . $_POST['booking_id']);
         }
+    }
     }
 }
 
@@ -526,6 +532,7 @@ $currentUser = getCurrentUser();
                                 <form method="POST" style="flex: 1;" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะยกเลิกการจองนี้?')">
                                     <input type="hidden" name="action" value="cancel">
                                     <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
+                                    <?php echo csrf_input(); ?>
                                     <button type="submit" class="btn btn-cancel">
                                         ❌ ยกเลิกการจอง
                                     </button>

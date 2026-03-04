@@ -13,6 +13,19 @@ if (!isset($_SESSION['user_id'])) {
 
 $db = getDB();
 $isAdmin = $_SESSION['role'] === 'admin';
+csrf_token();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?? '')) {
+    $_SESSION['message'] = 'Invalid CSRF token.';
+    $_SESSION['messageType'] = 'error';
+
+    $redirect = 'announcements.php';
+    if (!empty($_GET['priority'])) {
+        $redirect .= '?priority=' . urlencode($_GET['priority']);
+    }
+    header('Location: ' . $redirect);
+    exit;
+}
 
 // ✅ Handle Create (Admin only)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create' && $isAdmin) {
@@ -508,12 +521,12 @@ $currentUser = getCurrentUser();
                     <li class="active">
                         <a href="announcements.php">📢 ข่าวสาร</a>
                     </li>
+                    <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                        <a href="../modules/tickets.php">🎫 IT Tickets</a>
+                    </li>
                     <?php if ($currentUser['role'] !== 'admin'): ?>
                     <li class="<?php echo $current_page == 'userdocuments.php' ? 'active' : ''; ?>">
                         <a href="userdocuments.php">📄 เอกสาร</a>
-                    </li>
-                     <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
-                        <a href="../modules/tickets.php">🎫 IT Tickets</a>
                     </li>
                     <?php endif; ?>
                     <li class="menu-section">ระบบ</li>
@@ -623,6 +636,7 @@ $currentUser = getCurrentUser();
             <div class="modal-body">
                 <form method="POST">
                     <input type="hidden" name="action" value="create">
+                    <?php echo csrf_input(); ?>
                     
                     <div class="form-group">
                         <label class="form-label" for="add_title">หัวข้อ *</label>
@@ -670,6 +684,7 @@ $currentUser = getCurrentUser();
                 <form method="POST">
                     <input type="hidden" name="action" value="edit">
                     <input type="hidden" name="announcement_id" id="edit_announcement_id">
+                    <?php echo csrf_input(); ?>
                     
                     <div class="form-group">
                         <label class="form-label" for="edit_title">หัวข้อ *</label>
@@ -709,6 +724,7 @@ $currentUser = getCurrentUser();
     <form method="POST" id="deleteForm" style="display: none;">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="announcement_id" id="delete_announcement_id">
+        <?php echo csrf_input(); ?>
     </form>
     <?php endif; ?>
 

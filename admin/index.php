@@ -5,6 +5,6 @@
  */
 
 // Redirect ไปหน้าตั้งค่า
-header('Location: ../../admin/settings.php');
+header('Location: settings.php');
 exit;
 ?>

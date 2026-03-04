@@ -9,21 +9,22 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// CSRF token helper
-if (empty($_SESSION['csrf_token'])) {
-    try {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    } catch (Exception $e) {
-        $_SESSION['csrf_token'] = md5(uniqid('', true));
-    }
-}
-
-function validate_csrf($token) {
-    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
-}
+csrf_token();
+apply_security_headers();
 
 $db = getDB();
 $isAdmin = $_SESSION['role'] === 'admin';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $limit = rate_limit_check('module_assets_post', 40, 60);
+    if (!$limit['allowed']) {
+        security_audit_log('rate_limit_blocked', ['module' => 'assets', 'retry_after' => $limit['retry_after']]);
+        $_SESSION['flash_message'] = 'Too many requests. Retry in ' . $limit['retry_after'] . ' seconds';
+        $_SESSION['flash_type'] = 'error';
+        header('Location: assets.php');
+        exit;
+    }
+}
 
 // ── Flash message (PRG pattern) ────────────────────────────────
 $message     = $_SESSION['flash_message'] ?? '';
@@ -33,7 +34,7 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
 // Handle Create Asset
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
     // CSRF validation
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $_SESSION['flash_message'] = 'Invalid CSRF token';
         $_SESSION['flash_type']    = 'error';
         header('Location: assets.php');
@@ -147,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // Handle Update Asset
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
     // CSRF validation
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $_SESSION['flash_message'] = 'Invalid CSRF token';
         $_SESSION['flash_type']    = 'error';
         header('Location: assets.php');
@@ -1422,7 +1423,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <button class="close-btn" onclick="closeCreateModal()">&times;</button>
             </div>
             <form method="POST">
-                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="create">
 
                 <!-- Tab Navigation -->
@@ -1729,7 +1730,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <button class="close-btn" onclick="closeEditModal()">&times;</button>
             </div>
             <form method="POST">
-                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="asset_id" id="edit_asset_id">
 
@@ -2031,7 +2032,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
 
     <!-- Delete Form -->
     <form id="deleteForm" method="POST" style="display: none;">
-        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+        <?php echo csrf_input(); ?>
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="asset_id" id="delete_asset_id">
     </form>

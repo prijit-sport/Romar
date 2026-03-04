@@ -8,6 +8,20 @@ class NotificationManager {
         this.intervalId = null;
     }
 
+    getApiBase() {
+        return window.location.pathname.toLowerCase().includes('/modules/') ? '../api/' : 'api/';
+    }
+
+    getApiUrl(endpoint) {
+        return `${this.getApiBase()}${endpoint}`;
+    }
+
+    getTicketViewUrl(ticketId) {
+        return window.location.pathname.toLowerCase().includes('/modules/')
+            ? `ticket_view.php?id=${ticketId}`
+            : `modules/ticket_view.php?id=${ticketId}`;
+    }
+
     // เริ่มต้นการทำงาน
     init() {
         this.updateNotificationCount();
@@ -18,7 +32,7 @@ class NotificationManager {
     // อัพเดทจำนวนการแจ้งเตือน
     async updateNotificationCount() {
         try {
-            const response = await fetch('api/getnotificationcount.php');
+            const response = await fetch(this.getApiUrl('getnotificationcount.php'));
             const data = await response.json();
             
             const badge = document.getElementById('notification-badge');
@@ -38,7 +52,7 @@ class NotificationManager {
     // ดึงรายการการแจ้งเตือนทั้งหมด
     async getNotifications() {
         try {
-            const response = await fetch('api/getnotifications.php');
+            const response = await fetch(this.getApiUrl('getnotifications.php'));
             const data = await response.json();
             return data;
         } catch (error) {
@@ -48,14 +62,14 @@ class NotificationManager {
     }
 
     // ทำเครื่องหมายว่าอ่านแล้ว (ticket เดียว)
-    async markAsRead(ticketId) {
+    async markAsRead(notifId) {
         try {
-            const response = await fetch('api/marknotificationread.php', {
+            const response = await fetch(this.getApiUrl('marknotificationread.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ ticket_id: ticketId })
+                body: JSON.stringify({ notif_id: notifId })
             });
             
             const data = await response.json();
@@ -73,7 +87,7 @@ class NotificationManager {
     // ทำเครื่องหมายว่าอ่านทั้งหมด
     async markAllAsRead() {
         try {
-            const response = await fetch('api/marknotificationread.php', {
+            const response = await fetch(this.getApiUrl('marknotificationread.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -109,17 +123,23 @@ class NotificationManager {
 
         let html = '';
         data.notifications.forEach(notif => {
+            const notifId = Number(notif.notif_id || 0);
+            const ticketId = Number(notif.ticket_id || 0);
             const readClass = notif.is_read ? 'read' : 'unread';
-            const priorityClass = `priority-${notif.priority}`;
+            const priorityClass = `priority-${(notif.ticket_priority || 'normal').toLowerCase()}`;
+            const priorityText = (notif.ticket_priority || 'normal').toLowerCase();
+            const ticketNumber = notif.ticket_number || `#${ticketId}`;
+            const actor = notif.triggered_by_name || '-';
             
             html += `
-                <div class="notification-item ${readClass}" data-ticket-id="${notif.id}">
+                <div class="notification-item ${readClass}" data-ticket-id="${ticketId}" data-notif-id="${notifId}">
                     <div class="notification-header">
-                        <span class="notification-title">${notif.title}</span>
-                        <span class="notification-badge ${priorityClass}">${notif.priority}</span>
+                        <span class="notification-title">${ticketNumber}</span>
+                        <span class="notification-badge ${priorityClass}">${priorityText}</span>
                     </div>
+                    <div class="notification-message">${notif.message || ''}</div>
                     <div class="notification-meta">
-                        <span>โดย: ${notif.created_by_name}</span>
+                        <span>โดย: ${actor}</span>
                         <span>${this.formatDate(notif.created_at)}</span>
                     </div>
                     ${!notif.is_read ? '<span class="unread-indicator">●</span>' : ''}
@@ -132,13 +152,18 @@ class NotificationManager {
         // เพิ่ม event listeners สำหรับการคลิก
         container.querySelectorAll('.notification-item').forEach(item => {
             item.addEventListener('click', async (e) => {
-                const ticketId = e.currentTarget.dataset.ticketId;
+                const ticketId = Number(e.currentTarget.dataset.ticketId || 0);
+                const notifId = Number(e.currentTarget.dataset.notifId || 0);
                 
                 // ทำเครื่องหมายว่าอ่านแล้ว
-                await this.markAsRead(ticketId);
+                if (notifId > 0) {
+                    await this.markAsRead(notifId);
+                }
                 
                 // ไปที่หน้า ticket
-                window.location.href = `ticket_detail.php?id=${ticketId}`;
+                if (ticketId > 0) {
+                    window.location.href = this.getTicketViewUrl(ticketId);
+                }
             });
         });
     }
@@ -304,3 +329,4 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 
 */
+
