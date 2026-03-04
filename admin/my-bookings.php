@@ -415,8 +415,7 @@ $currentUser = getCurrentUser();
                     <?php endif; ?>
                     <li class="menu-section">ฟีเจอร์</li>
                     <li class="<?php echo $current_page == 'room-booking.php' ? 'active' : ''; ?>"><a href="room-booking.php">📅 จองห้องประชุม</a></li>
-                    <?php if ($current_page !== 'room-booking.php'): ?>
-                    <li class="<?php echo $current_page == 'my-bookings.php' ? 'active' : ''; ?>"><a href="my-bookings.php">📋 รายการจองของฉัน</a></li>
+                    <?php if ($current_page !== 'room-booking.php'): ?>               
                     <?php endif; ?>
                     <li class="<?php echo $current_page == 'announcements.php' ? 'active' : ''; ?>"><a href="announcements.php">📢 ข่าวสาร</a></li>
                      <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
