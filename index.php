@@ -9,7 +9,7 @@ header("Content-Security-Policy: default-src 'self'; frame-ancestors 'self'");
 
 // ถ้า Login แล้ว ไป Dashboard
 if (isLoggedIn()) {
-    redirect('admin/dashboard.php');
+    redirect(getCurrentUserRole() === 'admin' ? 'admin/dashboard.php' : 'modules/dashboard.php');
 } else {
     // ถ้ายังไม่ Login ไปหน้า Login
     redirect('auth/login.php');

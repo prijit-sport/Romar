@@ -26,10 +26,6 @@ function health_get_header_token(): string
         $token = trim((string)$_SERVER['HTTP_X_HEALTH_TOKEN']);
     }
 
-    if ($token === '' && isset($_GET['token'])) {
-        $token = trim((string)$_GET['token']);
-    }
-
     return $token;
 }
 

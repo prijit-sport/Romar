@@ -609,7 +609,7 @@ $currentUser = getCurrentUser();
 
                         <?php if ($isAdmin): ?>
                         <div class="announcement-actions">
-                            <button class="btn btn-sm" style="flex: 1; background: #3b82f6; color: white;" onclick='openEditModal(<?php echo json_encode($announcement); ?>)'>
+                            <button class="btn btn-sm" style="flex: 1; background: #3b82f6; color: white;" onclick='openEditModal(<?php echo json_encode($announcement, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)'>
                                 ✏️ แก้ไข
                             </button>
                             <button class="btn btn-sm" style="flex: 1; background: #ef4444; color: white;" onclick="deleteAnnouncement(<?php echo $announcement['announcement_id']; ?>)">

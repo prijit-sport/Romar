@@ -22,6 +22,15 @@ class NotificationManager {
             : `modules/ticket_view.php?id=${ticketId}`;
     }
 
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     // เริ่มต้นการทำงาน
     init() {
         this.updateNotificationCount();
@@ -129,18 +138,21 @@ class NotificationManager {
             const priorityClass = `priority-${(notif.ticket_priority || 'normal').toLowerCase()}`;
             const priorityText = (notif.ticket_priority || 'normal').toLowerCase();
             const ticketNumber = notif.ticket_number || `#${ticketId}`;
-            const actor = notif.triggered_by_name || '-';
+            const actor = this.escapeHtml(notif.triggered_by_name || '-');
+            const safeMessage = this.escapeHtml(notif.message || '');
+            const safeTicketNumber = this.escapeHtml(ticketNumber);
+            const safeDate = this.escapeHtml(this.formatDate(notif.created_at));
             
             html += `
                 <div class="notification-item ${readClass}" data-ticket-id="${ticketId}" data-notif-id="${notifId}">
                     <div class="notification-header">
-                        <span class="notification-title">${ticketNumber}</span>
+                        <span class="notification-title">${safeTicketNumber}</span>
                         <span class="notification-badge ${priorityClass}">${priorityText}</span>
                     </div>
-                    <div class="notification-message">${notif.message || ''}</div>
+                    <div class="notification-message">${safeMessage}</div>
                     <div class="notification-meta">
                         <span>โดย: ${actor}</span>
-                        <span>${this.formatDate(notif.created_at)}</span>
+                        <span>${safeDate}</span>
                     </div>
                     ${!notif.is_read ? '<span class="unread-indicator">●</span>' : ''}
                 </div>

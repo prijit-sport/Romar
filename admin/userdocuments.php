@@ -683,26 +683,34 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         document.getElementById('previewTitle').textContent = '👁️ ' + title;
 
         const fullPath = '../uploads/' + filePath;
+        const safePath = String(fullPath).replace(/"/g, '%22').replace(/'/g, '%27').replace(/</g, '%3C').replace(/>/g, '%3E');
+        const safeTitle = String(title ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        const safeTypeLabel = String(fileType || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
         content.innerHTML = '';
 
         if (['jpg','jpeg','png','gif'].includes(fileType.toLowerCase())) {
             content.innerHTML = `
                 <div style="text-align:center;background:#f8fafc;padding:20px;border-radius:12px;">
-                    <img src="${fullPath}" alt="${title}" style="max-width:100%;max-height:70vh;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.1);">
+                    <img src="${safePath}" alt="${safeTitle}" style="max-width:100%;max-height:70vh;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.1);">
                 </div>`;
         } else if (fileType.toLowerCase() === 'pdf') {
-            content.innerHTML = `<iframe src="${fullPath}" style="width:100%;height:70vh;border:none;border-radius:8px;"></iframe>`;
+            content.innerHTML = `<iframe src="${safePath}" style="width:100%;height:70vh;border:none;border-radius:8px;"></iframe>`;
         } else if (['doc','docx','xls','xlsx','ppt','pptx'].includes(fileType.toLowerCase())) {
             const icons = {doc:'📘',docx:'📘',xls:'📗',xlsx:'📗',ppt:'📙',pptx:'📙'};
             content.innerHTML = `
                 <div style="text-align:center;padding:60px 20px;background:linear-gradient(135deg,#f8fafc,#e2e8f0);border-radius:12px;">
                     <div style="font-size:5em;margin-bottom:20px;">${icons[fileType.toLowerCase()]||'📄'}</div>
-                    <h2 style="color:#1e293b;margin-bottom:15px;">${title}</h2>
+                    <h2 style="color:#1e293b;margin-bottom:15px;">${safeTitle}</h2>
                     <p style="color:#64748b;margin:20px 0;line-height:1.6;">
                         ไฟล์ Office ไม่สามารถแสดงตัวอย่างได้บน Localhost<br>
                         กรุณาดาวน์โหลดเพื่อเปิดด้วยโปรแกรม Office
                     </p>
-                    <a href="${fullPath}" download
+                    <a href="${safePath}" download
                        style="display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:linear-gradient(135deg,#20d63e,#000);color:white;border-radius:8px;text-decoration:none;font-weight:600;">
                         ⬇️ ดาวน์โหลดไฟล์
                     </a>
@@ -711,9 +719,9 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             content.innerHTML = `
                 <div style="text-align:center;padding:60px 20px;background:#f8fafc;border-radius:12px;">
                     <div style="font-size:4em;margin-bottom:20px;">📄</div>
-                    <h3 style="color:#1e293b;margin-bottom:10px;">${title}</h3>
+                    <h3 style="color:#1e293b;margin-bottom:10px;">${safeTitle}</h3>
                     <p style="color:#64748b;">ไม่สามารถแสดงตัวอย่างไฟล์ประเภทนี้ได้</p>
-                    <a href="${fullPath}" download
+                    <a href="${safePath}" download
                        style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:linear-gradient(135deg,#20d63e,#000);color:white;border-radius:8px;text-decoration:none;margin-top:20px;font-weight:600;">
                         ⬇️ ดาวน์โหลดไฟล์
                     </a>

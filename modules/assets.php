@@ -1027,7 +1027,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                     <li class="menu-section">หลัก</li>
                     <li><a href="dashboard.php"><i class="fas fa-home" style="width:18px;"></i> Dashboard</a></li>
                     <li><a href="tickets.php"><i class="fas fa-ticket-alt" style="width:18px;"></i> IT Tickets</a></li>
-                    <li><a href="knowledgebase.php"><i class="fas fa-book" style="width:18px;"></i> Knowledge Base</a></li>
+                    <li><a href="Knowledgebase.php"><i class="fas fa-book" style="width:18px;"></i> Knowledge Base</a></li>
 
                     <!-- Assets popup parent -->
                     <li class="menu-section">Assets</li>
@@ -1352,7 +1352,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <?php if ($isAdmin): ?>
-                                        <button class="btn btn-edit btn-sm" onclick='editAsset(<?php echo json_encode($asset); ?>)' title="แก้ไข">
+                                        <button class="btn btn-edit btn-sm" onclick='editAsset(<?php echo json_encode($asset, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)' title="แก้ไข">
                                             <i class="fas fa-edit"></i>
                                         </button>
                                         <button class="btn btn-delete btn-sm" onclick="deleteAsset(<?php echo $asset['asset_id']; ?>, '<?php echo htmlspecialchars($asset['asset_name']); ?>')" title="ลบ">

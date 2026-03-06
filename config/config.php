@@ -35,6 +35,44 @@ if (!function_exists('romar_load_env_file')) {
 
 romar_load_env_file(__DIR__ . '/../.env');
 
+if (!function_exists('romar_normalize_base_url')) {
+    function romar_normalize_base_url($value) {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return '';
+        }
+
+        return rtrim($value, '/') . '/';
+    }
+}
+
+if (!function_exists('romar_detect_base_url')) {
+    function romar_detect_base_url() {
+        $envBaseUrl = getenv('ROMAR_BASE_URL');
+        if ($envBaseUrl !== false && trim((string)$envBaseUrl) !== '') {
+            return romar_normalize_base_url($envBaseUrl);
+        }
+
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+        $scheme = $https ? 'https' : 'http';
+
+        $host = trim((string)($_SERVER['HTTP_HOST'] ?? ''));
+        if ($host === '') {
+            $host = trim((string)($_SERVER['SERVER_NAME'] ?? 'localhost'));
+        }
+
+        $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+        $segments = array_values(array_filter(explode('/', trim($scriptName, '/')), 'strlen'));
+        $basePath = '/';
+        if ($segments) {
+            $basePath = '/' . $segments[0] . '/';
+        }
+
+        return romar_normalize_base_url($scheme . '://' . $host . $basePath);
+    }
+}
+
 /**
  * Configuration File
  * ไฟล์ตั้งค่าระบบทั้งหมด
@@ -92,7 +130,7 @@ define('SITE_NAME_EN', 'Romar');
 
 // URL พื้นฐาน (ปรับตามโครงสร้างของคุณ)
 // ✅ แก้ไขจาก localhost เป็น IP Address ของ Server
-define('BASE_URL', 'http://192.168.2.99/Romar/');
+define('BASE_URL', romar_detect_base_url());
 
 // Path ของโปรเจค
 define('ROOT_PATH', dirname(__DIR__));

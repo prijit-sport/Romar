@@ -9,6 +9,11 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+if (($_SESSION['role'] ?? null) !== 'admin') {
+    header('Location: ../modules/dashboard.php');
+    exit;
+}
+
 $user = getCurrentUser();
 $stats = getDashboardStats();
 $activities = getRecentActivities(5);

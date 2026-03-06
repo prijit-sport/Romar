@@ -752,7 +752,7 @@ $currentUser = getCurrentUser();
                                 </td>
                                 <td>
                                     <div class="action-btns">
-                                        <button class="btn-icon btn-edit" onclick='openEditModal(<?php echo json_encode($user); ?>)' title="แก้ไข">
+                                        <button class="btn-icon btn-edit" onclick='openEditModal(<?php echo json_encode($user, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)' title="แก้ไข">
                                             ✏️
                                         </button>
                                         <?php if ($user['user_id'] != $_SESSION['user_id']): ?>

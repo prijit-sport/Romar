@@ -378,7 +378,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
                 <li class="menu-section">หลัก</li>
                 <li><a href="dashboard.php"><i class="fas fa-home" style="width:18px;"></i> Dashboard</a></li>
                 <li><a href="tickets.php"><i class="fas fa-ticket-alt" style="width:18px;"></i> IT Tickets</a></li>
-                <li><a href="knowledgebase.php"><i class="fas fa-book" style="width:18px;"></i> Knowledge Base</a></li>
+                <li><a href="Knowledgebase.php"><i class="fas fa-book" style="width:18px;"></i> Knowledge Base</a></li>
 
                 <li class="menu-section">Assets</li>
                 <?php

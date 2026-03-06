@@ -35,6 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $user = verifyLogin($username, $password);
                 
                 if ($user) {
+                    session_regenerate_id(true);
+
                     // Set session
                     $_SESSION['user_id'] = $user['user_id'];
                     $_SESSION['username'] = $user['username'];
@@ -45,8 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Log activity
                     logActivity($user['user_id'], 'เข้าสู่ระบบ', 'Authentication', 'ผู้ใช้เข้าสู่ระบบ');
                     
-                    // Redirect to dashboard
-                    redirect('admin/dashboard.php');
+                    // Redirect by role
+                    redirect($user['role'] === 'admin' ? 'admin/dashboard.php' : 'modules/dashboard.php');
                 } else {
                     $error = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
                     security_audit_log('login_failed', ['username' => $username]);

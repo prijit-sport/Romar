@@ -191,7 +191,7 @@ $monthNames = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','
                 <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
                 <li><a href="tickets.php"><i class="fas fa-ticket-alt"></i> IT Tickets</a></li>
                 <li><a href="assets.php"><i class="fas fa-box"></i> สินทรัพย์</a></li>
-                <li><a href="knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
+                <li><a href="Knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
                 <?php if ($isAdmin): ?>
                 <li class="menu-section">จัดการ</li>
                 <li><a href="users.php"><i class="fas fa-users"></i> ผู้ใช้งาน</a></li>

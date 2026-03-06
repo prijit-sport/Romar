@@ -489,7 +489,7 @@ function statusLabel($s) {
                 <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
                 <li><a href="tickets.php"><i class="fas fa-ticket-alt"></i> IT Tickets</a></li>
                 <li><a href="assets.php"><i class="fas fa-box"></i> สินทรัพย์</a></li>
-                <li><a href="knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
+                <li><a href="Knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
                 <li class="menu-section">จัดการ</li>
                 <li class="active"><a href="users.php"><i class="fas fa-users"></i> ผู้ใช้งาน</a></li>
                 <li><a href="reports.php"><i class="fas fa-chart-bar"></i> รายงาน</a></li>
@@ -572,7 +572,7 @@ function statusLabel($s) {
             </div>
 
             <div class="profile-actions">
-                <button class="btn btn-edit" onclick='openEditModal(<?php echo json_encode($profileUser); ?>)'>
+                <button class="btn btn-edit" onclick='openEditModal(<?php echo json_encode($profileUser, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)'>
                     <i class="fas fa-edit"></i> แก้ไขข้อมูล
                 </button>
                 <a href="users.php" class="btn btn-secondary">

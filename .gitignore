@@ -2,3 +2,8 @@
 
 database/backups/
 logs/db-backup-*.log
+logs/*.log
+tests/tmp/
+uploads/documents/
+database/*.db
+config/*.internal.env

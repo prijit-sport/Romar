@@ -563,7 +563,7 @@ $stats = $db->query($statsSQL)->fetch_assoc();
                     <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
                     <li><a href="tickets.php"><i class="fas fa-ticket-alt"></i> IT Tickets</a></li>
                     <li><a href="assets.php"><i class="fas fa-box"></i> สินทรัพย์</a></li>
-                    <li><a href="knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
+                    <li><a href="Knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
                     
                     <li class="menu-section">จัดการ</li>
                     <li class="active"><a href="users.php"><i class="fas fa-users"></i> ผู้ใช้งาน</a></li>
@@ -722,7 +722,7 @@ $stats = $db->query($statsSQL)->fetch_assoc();
                                         <a href="userProfile.php?id=<?php echo $user['user_id']; ?>" class="btn btn-view btn-sm" title="ดูข้อมูลผู้ใช้">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <button class="btn btn-edit btn-sm" onclick='editUser(<?php echo json_encode($user); ?>)'>
+                                        <button class="btn btn-edit btn-sm" onclick='editUser(<?php echo json_encode($user, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)'>
                                             <i class="fas fa-edit"></i>
                                         </button>
                                         <?php if ($user['user_id'] != $_SESSION['user_id']): ?>

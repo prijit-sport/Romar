@@ -14,6 +14,7 @@ $isAdmin = $_SESSION['role'] === 'admin';
 $message = '';
 $messageType = '';
 csrf_token();
+$jsonAttrFlags = JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP;
 
 $requestedAction = ($_SERVER['REQUEST_METHOD'] === 'POST') ? ($_POST['action'] ?? '') : '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?? '')) {
@@ -29,9 +30,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?
 
 // Handle Create Article
 if ($requestedAction === 'create') {
+    if (!$isAdmin) {
+        http_response_code(403);
+        $message = 'Access denied.';
+        $messageType = 'error';
+        $requestedAction = '';
+    } else {
     $title = sanitize($_POST['title']);
     $category_id = (int)$_POST['category_id'];
-    $content = $_POST['content']; // Don't sanitize - allow HTML
+    $content = trim((string)($_POST['content'] ?? ''));
     $tags = sanitize($_POST['tags']);
     
     $stmt = $db->prepare("INSERT INTO knowledgebase (title, category_id, content, tags, created_by, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
@@ -45,14 +52,21 @@ if ($requestedAction === 'create') {
         $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
         $messageType = 'error';
     }
+    }
 }
 
 // Handle Update Article
 if ($requestedAction === 'update') {
+    if (!$isAdmin) {
+        http_response_code(403);
+        $message = 'Access denied.';
+        $messageType = 'error';
+        $requestedAction = '';
+    } else {
     $kb_id = (int)$_POST['kb_id'];
     $title = sanitize($_POST['title']);
     $category_id = (int)$_POST['category_id'];
-    $content = $_POST['content'];
+    $content = trim((string)($_POST['content'] ?? ''));
     $tags = sanitize($_POST['tags']);
     
     $stmt = $db->prepare("UPDATE knowledgebase SET title = ?, category_id = ?, content = ?, tags = ?, updated_at = NOW() WHERE kb_id = ?");
@@ -66,10 +80,17 @@ if ($requestedAction === 'update') {
         $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
         $messageType = 'error';
     }
+    }
 }
 
 // Handle Delete Article
 if ($requestedAction === 'delete') {
+    if (!$isAdmin) {
+        http_response_code(403);
+        $message = 'Access denied.';
+        $messageType = 'error';
+        $requestedAction = '';
+    } else {
     $kb_id = (int)$_POST['kb_id'];
     
     $stmt = $db->prepare("DELETE FROM knowledgebase WHERE kb_id = ?");
@@ -82,6 +103,7 @@ if ($requestedAction === 'delete') {
     } else {
         $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
         $messageType = 'error';
+    }
     }
 }
 
@@ -787,7 +809,7 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
                     <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
                     <li><a href="tickets.php"><i class="fas fa-ticket-alt"></i> IT Tickets</a></li>
                     <li><a href="assets.php"><i class="fas fa-box"></i> สินทรัพย์</a></li>
-                    <li class="active"><a href="knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
+                    <li class="active"><a href="Knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
                     
                     <?php if ($isAdmin): ?>
                     <li class="menu-section">จัดการ</li>
@@ -938,14 +960,14 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
                                     <span><i class="fas fa-thumbs-up"></i> <?php echo number_format($article['helpful_count']); ?></span>
                                 </div>
                                 <div class="action-btns">
-                                    <button class="btn btn-view btn-sm" onclick='viewArticle(<?php echo json_encode($article); ?>)'>
+                                    <button class="btn btn-view btn-sm" onclick='viewArticle(<?php echo json_encode($article, $jsonAttrFlags); ?>)'>
                                         <i class="fas fa-eye"></i> ดู
                                     </button>
                                     <button class="btn btn-helpful btn-sm" onclick="markHelpful(<?php echo $article['kb_id']; ?>)">
                                         <i class="fas fa-thumbs-up"></i> Helpful
                                     </button>
                                     <?php if ($isAdmin): ?>
-                                    <button class="btn btn-edit btn-sm" onclick='editArticle(<?php echo json_encode($article); ?>)'>
+                                    <button class="btn btn-edit btn-sm" onclick='editArticle(<?php echo json_encode($article, $jsonAttrFlags); ?>)'>
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button class="btn btn-delete btn-sm" onclick="deleteArticle(<?php echo $article['kb_id']; ?>, '<?php echo htmlspecialchars($article['title']); ?>')">
@@ -975,7 +997,7 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
                     <div class="sidebar-widget">
                         <h3 class="widget-title"><i class="fas fa-fire"></i> บทความยอดนิยม</h3>
                         <?php foreach ($popular as $pop): ?>
-                        <div class="popular-item" onclick='viewArticle(<?php echo json_encode($pop); ?>)'>
+                        <div class="popular-item" onclick='viewArticle(<?php echo json_encode($pop, $jsonAttrFlags); ?>)'>
                             <div class="popular-title"><?php echo htmlspecialchars($pop['title']); ?></div>
                             <div class="popular-meta">
                                 <i class="<?php echo $pop['category_icon'] ?? 'fas fa-folder'; ?>"></i> <?php echo htmlspecialchars($pop['category_name'] ?? 'ไม่ระบุ'); ?> • 
@@ -1102,27 +1124,40 @@ $popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
     </form>
 
     <script>
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderMultilineText(value) {
+            return escapeHtml(value).replace(/\r?\n/g, '<br>');
+        }
+
         function viewArticle(article) {
             // Update view count
             fetch('?view=' + article.kb_id);
             
-            document.getElementById('viewTitle').innerHTML = '<i class="fas fa-book-open"></i> ' + article.title;
+            document.getElementById('viewTitle').textContent = article.title || 'รายละเอียดบทความ';
             
             let html = '<div class="view-meta">';
-            html += '<span><i class="fas fa-folder"></i> ' + (article.category_name || 'ไม่ระบุ') + '</span>';
-            html += '<span><i class="fas fa-user"></i> ' + (article.author_name || 'ไม่ทราบ') + '</span>';
-            html += '<span><i class="fas fa-calendar"></i> ' + new Date(article.created_at).toLocaleDateString('th-TH') + '</span>';
-            html += '<span><i class="fas fa-eye"></i> ' + article.views.toLocaleString() + ' views</span>';
-            html += '<span><i class="fas fa-thumbs-up"></i> ' + article.helpful_count + ' helpful</span>';
+            html += '<span><i class="fas fa-folder"></i> ' + escapeHtml(article.category_name || 'ไม่ระบุ') + '</span>';
+            html += '<span><i class="fas fa-user"></i> ' + escapeHtml(article.author_name || 'ไม่ทราบ') + '</span>';
+            html += '<span><i class="fas fa-calendar"></i> ' + escapeHtml(new Date(article.created_at).toLocaleDateString('th-TH')) + '</span>';
+            html += '<span><i class="fas fa-eye"></i> ' + Number(article.views || 0).toLocaleString() + ' views</span>';
+            html += '<span><i class="fas fa-thumbs-up"></i> ' + Number(article.helpful_count || 0) + ' helpful</span>';
             html += '</div>';
             
-            html += '<div class="view-content">' + article.content + '</div>';
+            html += '<div class="view-content">' + renderMultilineText(article.content || '') + '</div>';
             
             if (article.tags) {
                 html += '<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">';
                 html += '<strong>Tags:</strong> ';
                 article.tags.split(',').forEach(tag => {
-                    html += '<span style="background: #e2e8f0; padding: 4px 10px; border-radius: 8px; font-size: 0.85em; margin-right: 5px;">#' + tag.trim() + '</span>';
+                    html += '<span style="background: #e2e8f0; padding: 4px 10px; border-radius: 8px; font-size: 0.85em; margin-right: 5px;">#' + escapeHtml(tag.trim()) + '</span>';
                 });
                 html += '</div>';
             }

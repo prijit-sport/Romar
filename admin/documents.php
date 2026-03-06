@@ -896,6 +896,14 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             titleElement.textContent = '👁️ ' + title;
             
             const fullPath = '../uploads/' + filePath;
+            const safePath = String(fullPath).replace(/"/g, '%22').replace(/'/g, '%27').replace(/</g, '%3C').replace(/>/g, '%3E');
+            const safeTitle = String(title ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+            const safeTypeLabel = String(fileType || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
             
             // ล้างเนื้อหาเดิม
             content.innerHTML = '';
@@ -905,13 +913,13 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 // รูปภาพ - แสดงเต็ม
                 content.innerHTML = `
                     <div style="text-align: center; background: #f8fafc; padding: 20px; border-radius: 12px;">
-                        <img src="${fullPath}" alt="${title}" style="max-width: 100%; max-height: 70vh; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                        <img src="${safePath}" alt="${safeTitle}" style="max-width: 100%; max-height: 70vh; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
                     </div>
                 `;
             } else if (fileType.toLowerCase() === 'pdf') {
                 // PDF - ใช้ iframe (ทำงานได้บน localhost)
                 content.innerHTML = `
-                    <iframe src="${fullPath}" style="width: 100%; height: 70vh; border: none; border-radius: 8px;"></iframe>
+                    <iframe src="${safePath}" style="width: 100%; height: 70vh; border: none; border-radius: 8px;"></iframe>
                 `;
             } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileType.toLowerCase())) {
                 // เอกสาร Office - แสดง icon และข้อมูล (localhost ไม่สามารถใช้ Google Docs Viewer)
@@ -931,15 +939,15 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 content.innerHTML = `
                     <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px;">
                         <div style="font-size: 6em; margin-bottom: 20px; animation: pulse 2s infinite;">${icon}</div>
-                        <h2 style="color: #1e293b; margin-bottom: 15px; font-size: 1.8em;">${title}</h2>
+                        <h2 style="color: #1e293b; margin-bottom: 15px; font-size: 1.8em;">${safeTitle}</h2>
                         <div style="display: inline-block; background: white; padding: 12px 24px; border-radius: 25px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                            <span style="color: #667eea; font-weight: 600; font-size: 1.1em;">${typeName} (.${fileType.toUpperCase()})</span>
+                            <span style="color: #667eea; font-weight: 600; font-size: 1.1em;">${typeName} (.${safeTypeLabel})</span>
                         </div>
                         <p style="color: #64748b; font-size: 1.1em; margin: 25px 0; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.6;">
                             ไฟล์ Office ไม่สามารถแสดงตัวอย่างได้บนระบบ Localhost<br>
                             กรุณาดาวน์โหลดไฟล์เพื่อเปิดด้วยโปรแกรม Office
                         </p>
-                        <a href="${fullPath}" download class="btn btn-primary" style="margin-top: 25px; display: inline-flex; padding: 16px 32px; font-size: 1.1em; gap: 10px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                        <a href="${safePath}" download class="btn btn-primary" style="margin-top: 25px; display: inline-flex; padding: 16px 32px; font-size: 1.1em; gap: 10px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
                             ⬇️ ดาวน์โหลดไฟล์
                         </a>
                         <p style="color: #94a3b8; font-size: 0.9em; margin-top: 20px;">
@@ -965,11 +973,11 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 content.innerHTML = `
                     <div style="text-align: center; padding: 60px 20px; background: #f8fafc; border-radius: 12px;">
                         <div style="font-size: 5em; margin-bottom: 20px;">${icon}</div>
-                        <h3 style="color: #1e293b; margin-bottom: 10px;">${title}</h3>
+                        <h3 style="color: #1e293b; margin-bottom: 10px;">${safeTitle}</h3>
                         <p style="color: #64748b; font-size: 1.1em;">ไฟล์ประเภท: ${fileType.toUpperCase()}</p>
                         <p style="color: #64748b; margin-top: 15px;">ไม่สามารถแสดงตัวอย่างไฟล์ประเภทนี้ได้</p>
                         <p style="color: #64748b;">กรุณาดาวน์โหลดเพื่อดูเนื้อหา</p>
-                        <a href="${fullPath}" download class="btn btn-primary" style="margin-top: 25px; display: inline-flex;">
+                        <a href="${safePath}" download class="btn btn-primary" style="margin-top: 25px; display: inline-flex;">
                             ⬇️ ดาวน์โหลดไฟล์
                         </a>
                     </div>

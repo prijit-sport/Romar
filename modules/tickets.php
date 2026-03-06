@@ -2,8 +2,8 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
-if (file_exists(__DIR__ . '/notificationhelper.php')) {
-    require_once __DIR__ . '/notificationhelper.php';
+if (file_exists(__DIR__ . '/Notificationhelper.php')) {
+    require_once __DIR__ . '/Notificationhelper.php';
 }
 
 csrf_token();
@@ -1139,7 +1139,7 @@ function handleFileUploads($db, $ticketId, $files) {
                     <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
                     <li class="active"><a href="tickets.php"><i class="fas fa-ticket-alt"></i> IT Tickets</a></li>
                     <li><a href="assets.php"><i class="fas fa-box"></i> สินทรัพย์</a></li>
-                    <li><a href="knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
+                    <li><a href="Knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
                     
                     <?php if ($isAdmin): ?>
                     <li class="menu-section">จัดการ</li>
