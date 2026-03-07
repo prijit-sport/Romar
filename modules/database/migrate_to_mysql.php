@@ -1,4 +1,4 @@
-<?php
+ไฟล์ที่สร้างด้วยนะคับว่าใช้งานได้หรือ<?php
 /**
  * Database Migration Script
  * Migrate from SQLite to MySQL
