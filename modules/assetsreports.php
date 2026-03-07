@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
@@ -10,6 +12,10 @@ $isAdmin = $_SESSION['role'] === 'admin';
 // ── Filter ────────────────────────────────────────────────────
 $year  = isset($_GET['year'])  ? (int)$_GET['year']  : (int)date('Y');
 $month = isset($_GET['month']) ? (int)$_GET['month'] : 0;
+
+// ✅้ Prepared Statements ใช สำหรับ year และ month (cast เป็น int แล้ว)
+$yearSafe = (int)$year;
+$monthSafe = $month > 0 ? (int)$month : 0;
 
 // ── Export Excel ──────────────────────────────────────────────
 if (isset($_GET['export']) && $_GET['export'] === 'excel') {
@@ -53,40 +59,57 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel') {
 // ── 1. ค่าซ่อมรายเดือน (ปีที่เลือก) ─────────────────────────
 $monthlyRepairs = [];
 for ($m = 1; $m <= 12; $m++) {
-    $r = $db->query("SELECT COALESCE(SUM(repair_cost),0) as total, COUNT(*) as cnt
-                     FROM asset_repairs
-                     WHERE YEAR(repair_date)=$year AND MONTH(repair_date)=$m")->fetch_assoc();
+    // ✅ ใช้ Prepared Statements หรือ Cast เป็น int แล้ว
+    $stmt = $db->prepare("SELECT COALESCE(SUM(repair_cost),0) as total, COUNT(*) as cnt FROM asset_repairs WHERE YEAR(repair_date)=? AND MONTH(repair_date)=?");
+    $stmt->bind_param('ii', $yearSafe, $m);
+    $stmt->execute();
+    $r = $stmt->get_result()->fetch_assoc();
     $monthlyRepairs[$m] = $r;
 }
 
 // ── 2. Top Asset ค่าซ่อมสูงสุด ────────────────────────────────
-$topRepairAssets = $db->query("
+$stmt = $db->prepare("
     SELECT a.asset_name, a.asset_tag, a.asset_type,
            COUNT(r.repair_id) as repair_count,
            SUM(r.repair_cost) as total_cost
     FROM asset_repairs r
     JOIN assets a ON r.asset_id = a.asset_id
-    WHERE YEAR(r.repair_date) = $year
+    WHERE YEAR(r.repair_date) = ?
     GROUP BY r.asset_id
     ORDER BY total_cost DESC LIMIT 10
-")->fetch_all(MYSQLI_ASSOC);
+");
+$stmt->bind_param('i', $yearSafe);
+$stmt->execute();
+$topRepairAssets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // ── 3. ค่าซ่อมตามประเภทอุปกรณ์ ───────────────────────────────
-$repairByType = $db->query("
+$stmt = $db->prepare("
     SELECT a.asset_type, COUNT(r.repair_id) as cnt, SUM(r.repair_cost) as total
     FROM asset_repairs r
     JOIN assets a ON r.asset_id = a.asset_id
-    WHERE YEAR(r.repair_date) = $year
+    WHERE YEAR(r.repair_date) = ?
     GROUP BY a.asset_type ORDER BY total DESC
-")->fetch_all(MYSQLI_ASSOC);
+");
+$stmt->bind_param('i', $yearSafe);
+$stmt->execute();
+$repairByType = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // ── 4. รายการซ่อมทั้งหมด (filter) ────────────────────────────
-$repairSQL = "SELECT r.*, a.asset_name, a.asset_tag, a.asset_type
+if ($monthSafe > 0) {
+    $stmt = $db->prepare("SELECT r.*, a.asset_name, a.asset_tag, a.asset_type
               FROM asset_repairs r JOIN assets a ON r.asset_id = a.asset_id
-              WHERE YEAR(r.repair_date) = $year";
-if ($month) $repairSQL .= " AND MONTH(r.repair_date) = $month";
-$repairSQL .= " ORDER BY r.repair_date DESC";
-$allRepairs = $db->query($repairSQL)->fetch_all(MYSQLI_ASSOC);
+              WHERE YEAR(r.repair_date) = ? AND MONTH(r.repair_date) = ?
+              ORDER BY r.repair_date DESC");
+    $stmt->bind_param('ii', $yearSafe, $monthSafe);
+} else {
+    $stmt = $db->prepare("SELECT r.*, a.asset_name, a.asset_tag, a.asset_type
+              FROM asset_repairs r JOIN assets a ON r.asset_id = a.asset_id
+              WHERE YEAR(r.repair_date) = ?
+              ORDER BY r.repair_date DESC");
+    $stmt->bind_param('i', $yearSafe);
+}
+$stmt->execute();
+$allRepairs = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // ── 5. Asset Depreciation Summary ────────────────────────────
 $depAssets = $db->query("
@@ -100,7 +123,11 @@ $depAssets = $db->query("
 // ── 6. สรุปยอดรวม ─────────────────────────────────────────────
 $yearTotal = array_sum(array_column($monthlyRepairs, 'total'));
 $yearCount = array_sum(array_column($monthlyRepairs, 'cnt'));
-$warrantyCount = $db->query("SELECT COUNT(*) as c FROM asset_repairs WHERE warranty_claim=1 AND YEAR(repair_date)=$year")->fetch_assoc()['c'];
+// ✅ ใช้ Prepared Statements
+$stmt = $db->prepare("SELECT COUNT(*) as c FROM asset_repairs WHERE warranty_claim=1 AND YEAR(repair_date)=?");
+$stmt->bind_param('i', $yearSafe);
+$stmt->execute();
+$warrantyCount = $stmt->get_result()->fetch_assoc()['c'];
 $borrowActive  = $db->query("SELECT COUNT(*) as c FROM asset_borrows WHERE status='borrowed'")->fetch_assoc()['c'];
 
 $monthNames = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];

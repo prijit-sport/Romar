@@ -4,7 +4,9 @@
  * ออกจากระบบและทำลาย session
  */
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Log activity ก่อน logout
 if (isset($_SESSION['user_id'])) {

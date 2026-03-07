@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
@@ -38,8 +40,17 @@ $ASSET_CATEGORIES = [
 ];
 $catCounts = [];
 foreach ($ASSET_CATEGORIES as $key => $catDef) {
-    if ($key === 'all') { $r = $db->query("SELECT COUNT(*) as cnt FROM assets"); }
-    else { $tl = implode("','", $catDef['types']); $r = $db->query("SELECT COUNT(*) as cnt FROM assets WHERE asset_type IN ('$tl')"); }
+    if ($key === 'all') {
+        $r = $db->query("SELECT COUNT(*) as cnt FROM assets");
+    } else {
+        // ✅ ใช้ Prepared Statements เพื่อป้องกัน SQL Injection
+        $types = $catDef['types'];
+        $placeholders = implode(',', array_fill(0, count($types), '?'));
+        $stmt = $db->prepare("SELECT COUNT(*) as cnt FROM assets WHERE asset_type IN ($placeholders)");
+        $stmt->bind_param(str_repeat('s', count($types)), ...$types);
+        $stmt->execute();
+        $r = $stmt->get_result();
+    }
     $catCounts[$key] = $r ? $r->fetch_assoc()['cnt'] : 0;
 }
 
@@ -504,8 +515,15 @@ $activeTab = $_GET['tab'] ?? 'repair';
                                 <?php
                                 $techName = '-';
                                 if (!empty($asset['tech_in_charge'])) {
-                                    $tRes = $db->query("SELECT full_name FROM users WHERE user_id={$asset['tech_in_charge']} LIMIT 1");
-                                    if ($tRes && $tRes->num_rows) $techName = $tRes->fetch_assoc()['full_name'];
+                                    // ✅ ใช้ Prepared Statements เพื่อป้องกัน SQL Injection
+                                    $techId = (int)$asset['tech_in_charge'];
+                                    $techStmt = $db->prepare("SELECT full_name FROM users WHERE user_id = ? LIMIT 1");
+                                    $techStmt->bind_param('i', $techId);
+                                    $techStmt->execute();
+                                    $techResult = $techStmt->get_result();
+                                    if ($techResult && $techResult->num_rows) {
+                                        $techName = $techResult->fetch_assoc()['full_name'];
+                                    }
                                 }
                                 ?><span><?= htmlspecialchars($techName) ?></span>
                             </div>
