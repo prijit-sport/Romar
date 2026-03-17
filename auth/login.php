@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg,  #88e72f 40%,#10ce30 60%, #ffdf29 100%);
+            background: linear-gradient(135deg,  #1e40af 40%,#3b82f6 60%, #60a5fa 100%);
             position: relative;
             overflow: hidden;
         }
@@ -142,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .login-header {
-            background: linear-gradient(135deg,  #10ce30 0%,  rgb(0, 0, 0)100%);
+            background: linear-gradient(135deg,  #1e3a8a 0%,  #1e40af 100%);
             padding: 40px 30px;
             text-align: center;
             color: white;
@@ -208,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg,  #000000 0%, #10ce30 100%);
+            background: linear-gradient(135deg,  #1e40af 0%, #3b82f6 100%);
             color: white;
             border: none;
             border-radius: 10px;

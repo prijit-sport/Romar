@@ -1,5 +1,5 @@
-       </div>
-        </main>
-    </div>
+    <?php echo $pageScripts ?? ''; ?>
+    </main>
+</div>
 </body>
 </html>

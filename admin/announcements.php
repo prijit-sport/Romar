@@ -565,9 +565,9 @@ $currentUser = getCurrentUser();
             <div class="filters">
                 <span class="filter-label">📌 ระดับความสำคัญ:</span>
                 <a href="announcements.php" class="filter-btn <?php echo !$priority ? 'active' : ''; ?>">ทั้งหมด</a>
-                <a href="?priority=normal" class="filter-btn <?php echo $priority === 'normal' ? 'active' : ''; ?>">🟢 ปกติ</a>
-                <a href="?priority=important" class="filter-btn <?php echo $priority === 'important' ? 'active' : ''; ?>">🟡 สำคัญ</a>
-                <a href="?priority=urgent" class="filter-btn <?php echo $priority === 'urgent' ? 'active' : ''; ?>">🔴 เร่งด่วน</a>
+                <a href="?priority=normal" class="filter-btn <?php echo $priority === 'normal' ? 'active' : ''; ?>">ปกติ</a>
+                <a href="?priority=important" class="filter-btn <?php echo $priority === 'important' ? 'active' : ''; ?>">สำคัญ</a>
+                <a href="?priority=urgent" class="filter-btn <?php echo $priority === 'urgent' ? 'active' : ''; ?>">เร่งด่วน</a>
             </div>
 
             <!-- Announcements -->

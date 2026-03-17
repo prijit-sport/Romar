@@ -4,6 +4,9 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once '../config/database.php';
 require_once '../includes/functions.php';
+require_once '../includes/asset_categories.php';
+
+$ASSET_CATEGORIES = getAssetCategories();
 
 // Check login
 if (!isset($_SESSION['user_id'])) {
@@ -295,24 +298,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// ── Category definitions (GLPI-style) ─────────────────────────
-$ASSET_CATEGORIES = [
-    'all'          => ['label'=>'สินทรัพย์ทั้งหมด',  'icon'=>'fa-boxes',          'types'=>[], 'color'=>'#667eea'],
-    'computers'    => ['label'=>'คอมพิวเตอร์',        'icon'=>'fa-desktop',        'types'=>['desktop','laptop'], 'color'=>'#4299e1'],
-    'monitors'     => ['label'=>'จอมอนิเตอร์',        'icon'=>'fa-tv',             'types'=>['monitor'], 'color'=>'#38a169'],
-    'network'      => ['label'=>'อุปกรณ์เครือข่าย',  'icon'=>'fa-network-wired',  'types'=>['network'], 'color'=>'#805ad5'],
-    'printers'     => ['label'=>'เครื่องพิมพ์',       'icon'=>'fa-print',          'types'=>['printer'], 'color'=>'#dd6b20'],
-    'phones'       => ['label'=>'โทรศัพท์/มือถือ',    'icon'=>'fa-mobile-screen-button', 'types'=>['mobile','phone'], 'color'=>'#e53e3e'],
-    'software'     => ['label'=>'ซอฟต์แวร์',          'icon'=>'fa-floppy-disk',    'types'=>['software'], 'color'=>'#3182ce'],
-    'infrastructure'=> ['label'=>'โครงสร้างพื้นฐาน',  'icon'=>'fa-server',         'types'=>['rack','enclosure','pdu','passive_device'], 'color'=>'#2d3748'],
-    'connectivity' => ['label'=>'อุปกรณ์เชื่อมต่อ',  'icon'=>'fa-plug',           'types'=>['cable','simcard'], 'color'=>'#319795'],
-    'consumables'  => ['label'=>'วัสดุสิ้นเปลือง',    'icon'=>'fa-droplet',        'types'=>['ink_cartridge','consumable','addon'], 'color'=>'#b7791f'],
-];
-
 // Current category from URL
 $cat = isset($_GET['cat']) ? sanitize($_GET['cat']) : 'all';
 if (!array_key_exists($cat, $ASSET_CATEGORIES)) $cat = 'all';
 $currentCat = $ASSET_CATEGORIES[$cat];
+$activeAssetCategory = $cat;
 
 // Count per category for sidebar badges
 $catCounts = [];
@@ -471,632 +461,48 @@ $users = $db->query("SELECT user_id, full_name FROM users WHERE status = 'active
 
 // Get Locations
 $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS NOT NULL AND location != '' ORDER BY location")->fetch_all(MYSQLI_ASSOC);
+$pageTitle = ui_text('page.title.assets');
+$activePage = 'assets';
+include_once __DIR__ . '/../includes/header.php';
+include_once __DIR__ . '/../includes/sidebar.php';
 ?>
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>จัดการสินทรัพย์ - IT Support</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Sarabun', sans-serif;
-            background: #065f159c;
-            color: #000000;
-            min-height: 100vh;
-        }
-
-        .container {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 280px;
-            background: linear-gradient(180deg, #10ce30 0%, #000000 100%);
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100vh;
-            overflow-y: auto;
-            box-shadow: 4px 0 20px rgb(0, 0, 0);
-            z-index: 1000;
-        }
-
-        .sidebar-brand {
-            padding: 25px 20px;
-            border-bottom: 1px solid rgb(255, 255, 255);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: white;
-        }
-
-        .brand-title {
-            font-size: 1.8em;
-            font-weight: 700;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .brand-subtitle {
-            font-size: 0.85em;
-            color: rgb(0, 0, 0);
-            margin-top: 5px;
-        }
-
-        .sidebar-nav ul {
-            list-style: none;
-            padding: 20px 0;
-        }
-
-        .sidebar-nav a {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px 20px;
-            color: rgb(255, 255, 255);
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-
-        .sidebar-nav a:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            padding-left: 25px;
-        }
-
-        .sidebar-nav li.active a {
-            background: linear-gradient(90deg, rgb(17, 224, 35), rgb(184, 209, 39));
-            color: white;
-            border-left: 4px solid #fff;
-        }
-
-        .menu-section {
-            padding: 25px 20px 10px;
-            color: rgb(255, 255, 255);
-            font-size: 0.75em;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            font-weight: 600;
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-left: 280px;
-            padding: 30px;
-        }
-
-        .breadcrumb-nav {
-            background: rgb(255, 255, 255);
-            padding: 15px 30px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgb(0, 0, 0);
-        }
-
-        .page-header {
-            background: white;
-            padding: 30px;
-            border-radius: 16px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 20px rgb(0, 0, 0);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .page-header h1 {
-            font-size: 2em;
-            color: #000000;
-            font-weight: 700;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(180deg, #10ce30 0%, #000000 );
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgb(0, 0, 0);
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgb(0, 0, 0);
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8em;
-        }
-
-        .stat-info h3 {
-            font-size: 2em;
-            font-weight: 700;
-            color: #000000;
-        }
-
-        .stat-info p {
-            color: #000000;
-            font-size: 0.9em;
-        }
-
-        /* Filter Bar */
-        .filter-bar {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgb(0, 0, 0);
-        }
-
-        .filter-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-            gap: 15px;
-        }
-
-        .form-control {
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 1em;
-            font-family: 'Sarabun', sans-serif;
-        }
-
-        /* Table */
-        .card {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgb(0, 0, 0);
-            overflow: hidden;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        thead {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-
-        th {
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-        }
-
-        td {
-            padding: 15px;
-            border-bottom: 1px solid #f7fafc;
-        }
-
-        tbody tr:hover {
-            background: #f7fafc;
-        }
-
-        .badge {
-            padding: 6px 12px;
-            border-radius: 12px;
-            font-size: 0.85em;
-            font-weight: 600;
-        }
-
-        .badge-active { background: #c6f6d5; color: #2f855a; }
-        .badge-inactive { background: #fed7d7; color: #c53030; }
-        .badge-maintenance { background: #feebc8; color: #c05621; }
-        .badge-retired { background: #e2e8f0; color: #4a5568; }
-
-        .type-badge {
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 0.8em;
-            font-weight: 600;
-        }
-
-        .type-desktop { background: #bee3f8; color: #2c5282; }
-        .type-laptop { background: #e6fffa; color: #285e61; }
-        .type-server { background: #fed7d7; color: #c53030; }
-        .type-printer { background: #fef5e7; color: #d69e2e; }
-        .type-network { background: #e9d8fd; color: #553c9a; }
-        .type-mobile { background: #c6f6d5; color: #2f855a; }
-        .type-monitor { background: #c6f6d5; color: #38d3d3; }
-        .type-software { background: #fef9c3; color: #a16207; }
-
-        .warranty-warning { color: #ed8936; font-weight: 600; }
-        .warranty-expired  { color: #f56565; font-weight: 600; }
-
-        .warranty-alert-banner {
-            background: linear-gradient(135deg, #fffbeb, #fef3c7);
-            border: 1px solid #f6d860;
-            border-left: 5px solid #d69e2e;
-            border-radius: 10px;
-            padding: 16px 20px;
-            margin-bottom: 20px;
-        }
-        .warranty-alert-banner .alert-header {
-            display: flex; justify-content: space-between;
-            align-items: center; cursor: pointer; user-select: none;
-        }
-        .warranty-alert-banner .alert-title { font-weight: 700; color: #92400e; font-size: 1em; }
-        .warranty-alert-table { width:100%; border-collapse:collapse; margin-top:12px; font-size:0.88em; }
-        .warranty-alert-table th { background:#fde68a; color:#78350f; padding:7px 10px; text-align:left; font-weight:600; }
-        .warranty-alert-table td { padding:7px 10px; border-bottom:1px solid #fde68a; color:#44403c; }
-        .warranty-alert-table tr:last-child td { border-bottom:none; }
-        .days-badge { padding:3px 10px; border-radius:12px; font-weight:700; font-size:0.9em; }
-        .days-critical { background:#fee2e2; color:#991b1b; }
-        .days-warning  { background:#fef3c7; color:#92400e; }
-        .days-ok       { background:#d1fae5; color:#065f46; }
-
-        .action-btns {
-            display: flex;
-            gap: 8px;
-        }
-
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 0.85em;
-        }
-
-        .btn-edit {
-            background: #4299e1;
-            color: white;
-        }
-
-        .btn-delete {
-            background: #f56565;
-            color: white;
-        }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgb(0, 0, 0);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.show {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 16px;
-            width: 90%;
-            max-width: 700px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-header h2 {
-            font-size: 1.5em;
-            color: #1a202c;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.5em;
-            cursor: pointer;
-            color: #718096;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #2d3748;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .alert {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .alert.show {
-            display: block;
-        }
-
-        .alert-success {
-            background: #c6f6d5;
-            color: #2f855a;
-        }
-
-        .alert-error {
-            background: #fed7d7;
-            color: #c53030;
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            .main-content {
-                margin-left: 0;
-            }
-            .filter-grid {
-                grid-template-columns: 1fr;
-            }
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Assets popup flyout menu */
-        .nav-parent {
-            display: flex;
-            align-items: center;
-            padding: 13px 20px;
-            color: white;
-            text-decoration: none;
-            cursor: pointer;
-            transition: background 0.2s;
-            justify-content: space-between;
-            user-select: none;
-            position: relative;
-        }
-        .nav-parent:hover, .nav-parent.open {
-            background: rgba(255,255,255,0.12);
-        }
-        .nav-parent .arrow {
-            transition: transform 0.25s;
-            font-size: 0.75em;
-        }
-        .nav-parent.open .arrow {
-            transform: rotate(90deg);
-        }
-        /* Remove old inline submenu */
-        .nav-submenu {
-            display: none;
-        }
-        /* Floating popup box */
-        .assets-popup {
-            display: none;
-            position: fixed;
-            left: 220px;
-            background: #1a472a;
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 10px;
-            box-shadow: 4px 4px 20px rgb(0, 0, 0);
-            min-width: 230px;
-            z-index: 9999;
-            padding: 6px 0;
-            animation: popupFadeIn 0.18s ease;
-        }
-        .assets-popup.show { display: block; }
-        @keyframes popupFadeIn {
-            from { opacity:0; transform: translateX(-8px); }
-            to   { opacity:1; transform: translateX(0); }
-        }
-        .assets-popup-title {
-            padding: 8px 16px 6px;
-            font-size: 0.75em;
-            font-weight: 700;
-            color: rgba(255,255,255,0.5);
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 4px;
-        }
-        .assets-popup a {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 9px 16px;
-            color: rgba(255,255,255,0.9);
-            text-decoration: none;
-            font-size: 0.92em;
-            transition: background 0.15s;
-            gap: 8px;
-        }
-        .assets-popup a:hover {
-            background: rgba(255,255,255,0.1);
-        }
-        .assets-popup a.active-item {
-            background: linear-gradient(90deg, rgba(17,224,35,0.7), rgba(184,209,39,0.5));
-            color: white;
-            font-weight: 600;
-        }
-        .assets-popup a span.left-label {
-            display: flex; align-items: center; gap: 9px;
-        }
-        .submenu-badge {
-            background: rgba(255,255,255,0.25);
-            padding: 1px 7px;
-            border-radius: 10px;
-            font-size: 0.78em;
-            font-weight: 700;
-        }
-        .modal-tab {
-            padding: 8px 14px;
-            border: none;
-            border-radius: 8px;
-            background: none;
-            font-size: 0.88em;
-            font-weight: 600;
-            cursor: pointer;
-            color: #718096;
-            font-family: 'Sarabun', sans-serif;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .modal-tab:hover { background: #e2e8f0; color: #2d3748; }
-        .modal-tab.active-tab { background: linear-gradient(135deg, #10ce30, #000); color: white; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="sidebar">
-            <div class="sidebar-brand">
-                <div>
-                    <div class="brand-title">
-                        <i class="fas fa-ticket-alt"></i>
-                        IT Support
-                    </div>
-                    <div class="brand-subtitle">Ticket Management System</div>
-                </div>
-            </div>
-
-            <nav class="sidebar-nav">
-                <ul>
-                    <?php if ($isAdmin): ?>
-                    <li>
-                        <a href="../admin/dashboard.php">
-                            <i class="fas fa-arrow-left"></i> กลับ Dashboard หลัก
-                        </a>
-                    </li>
-                    <?php endif; ?>
-
-                    <li class="menu-section">หลัก</li>
-                    <li><a href="dashboard.php"><i class="fas fa-home" style="width:18px;"></i> Dashboard</a></li>
-                    <li><a href="tickets.php"><i class="fas fa-ticket-alt" style="width:18px;"></i> IT Tickets</a></li>
-                    <li><a href="Knowledgebase.php"><i class="fas fa-book" style="width:18px;"></i> Knowledge Base</a></li>
-
-                    <!-- Assets popup parent -->
-                    <li class="menu-section">Assets</li>
-
-                    <!-- Assets flyout trigger -->
-                    <li style="position:relative;">
-                        <div class="nav-parent <?= $cat !== '' ? 'open' : '' ?>" id="assetsToggle"
-                             onclick="toggleAssetsPopup(event, this)">
-                            <span style="display:flex;align-items:center;gap:10px;">
-                                <i class="fas fa-boxes" style="width:18px;"></i>
-                                สินทรัพย์ทั้งหมด
-                                <?php if ($catCounts['all'] > 0): ?>
-                                <span class="submenu-badge"><?= $catCounts['all'] ?></span>
-                                <?php endif; ?>
-                            </span>
-                            <i class="fas fa-chevron-right arrow"></i>
-                        </div>
-                        <!-- hidden old submenu (kept for compatibility) -->
-                        <ul class="nav-submenu" id="assetsSubmenu"></ul>
-                    </li>
-
-                    <?php if ($isAdmin): ?>
-                    <li class="menu-section">จัดการ</li>
-                    <li><a href="users.php"><i class="fas fa-users" style="width:18px;"></i> ผู้ใช้งาน</a></li>
-                    <li><a href="reports.php"><i class="fas fa-chart-bar" style="width:18px;"></i> รายงาน</a></li>
-                    <li><a href="assetsreports.php"><i class="fas fa-chart-line" style="width:18px;"></i> รายงานสินทรัพย์</a></li>
-                    <li><a href="slaconfig.php"><i class="fas fa-clock" style="width:18px;"></i> ตั้งค่า SLA</a></li>
-                    <?php endif; ?>
-
-                    <li class="menu-section">ระบบ</li>
-                    <?php if ($isAdmin): ?>
-                    <li><a href="settings.php"><i class="fas fa-cog" style="width:18px;"></i> ตั้งค่า</a></li>
-                    <?php endif; ?>
-                    <li><a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">
-                        <i class="fas fa-sign-out-alt" style="width:18px;"></i> ออกจากระบบ
-                    </a></li>
-                </ul>
-            </nav>
-        </div>
-
-        <!-- Main Content -->
-        <div class="main-content">
+<main class="main-content">
             <!-- Breadcrumb -->
             <div class="breadcrumb-nav">
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <a href="dashboard.php" style="color:#667eea;text-decoration:none;"><i class="fas fa-home"></i></a>
-                    <span style="color:#ccc;">›</span>
-                    <a href="assets.php?cat=all" style="color:#667eea;text-decoration:none;">Assets</a>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="dashboard.php"><i class="fas fa-home"></i></a>
+                    </li>
+                    <li class="breadcrumb-separator">&rsaquo;</li>
+                    <li class="breadcrumb-item">
+                        <a href="assets.php?cat=all"><?php echo ui_text('nav.assets'); ?></a>
+                    </li>
                     <?php if ($cat !== 'all'): ?>
-                    <span style="color:#ccc;">›</span>
-                    <span style="color:#2d3748;font-weight:600;"><i class="fas <?= $currentCat['icon'] ?>"></i> <?= $currentCat['label'] ?></span>
+                    <li class="breadcrumb-separator">&rsaquo;</li>
+                    <li class="breadcrumb-item active">
+                        <i class="fas <?= $currentCat['icon'] ?>"></i> <?= $currentCat['label'] ?>
+                    </li>
                     <?php endif; ?>
-                </div>
+                </ol>
             </div>
 
             <!-- Page Header -->
             <div class="page-header">
-                <h1>
-                    <i class="fas <?= $currentCat['icon'] ?>" style="color:<?= $currentCat['color'] ?>;"></i>
-                    <?= $currentCat['label'] ?>
-                    <span style="font-size:0.55em;background:#e2e8f0;color:#4a5568;padding:4px 12px;border-radius:20px;margin-left:10px;font-weight:500;"><?= count($assets) ?> รายการ</span>
-                </h1>
-                <?php if ($isAdmin): ?>
-                <button class="btn btn-primary" onclick="openCreateModal()">
-                    <i class="fas fa-plus"></i> เพิ่ม<?= $cat !== 'all' ? $currentCat['label'] : 'สินทรัพย์' ?>
-                </button>
-                <?php endif; ?>
+                <div class="page-title">
+                    <h1>
+                        <i class="fas <?= $currentCat['icon'] ?>" style="color:<?= $currentCat['color'] ?>;"></i>
+                        <?= $currentCat['label'] ?>
+                        <span class="asset-count-badge"><?= count($assets) ?> ��¡��</span>
+                    </h1>
+                </div>
+                <div class="page-actions">
+                    <?php if ($isAdmin): ?>
+                    <button class="btn btn-primary" onclick="openCreateModal()">
+                        <i class="fas fa-plus"></i>
+                        ����<?= $cat !== 'all' ? $currentCat['label'] : '�Թ��Ѿ��' ?>
+                    </button>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <?php if ($message): ?>
@@ -1109,53 +515,53 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
             <!-- Statistics -->
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-                        <i class="fas fa-box" style="color: white;"></i>
-                    </div>
+                <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <i class="fas fa-box"></i>
+                </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($stats['total'] ?? 0); ?></h3>
-                        <p>สินทรัพย์ทั้งหมด</p>
+                        <p>�Թ��Ѿ�������</p>
                     </div>
                 </div>
 
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #48bb78, #38a169);">
-                        <i class="fas fa-check-circle" style="color: white;"></i>
-                    </div>
+                <div class="stat-icon" style="background: linear-gradient(135deg, #48bb78, #38a169);">
+                    <i class="fas fa-check-circle"></i>
+                </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($stats['active_count'] ?? 0); ?></h3>
-                        <p>Active</p>
+                        <p>�Թ��Ѿ����ҹ��</p>
                     </div>
                 </div>
 
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #ed8936, #dd6b20);">
-                        <i class="fas fa-tools" style="color: white;"></i>
-                    </div>
+                <div class="stat-icon" style="background: linear-gradient(135deg, #ed8936, #dd6b20);">
+                    <i class="fas fa-tools"></i>
+                </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($stats['maintenance_count'] ?? 0); ?></h3>
-                        <p>Maintenance</p>
+                        <p>���������ҧ���ا�ѡ��</p>
                     </div>
                 </div>
 
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #f56565, #e53e3e);">
-                        <i class="fas fa-exclamation-triangle" style="color: white;"></i>
-                    </div>
+                <div class="stat-icon" style="background: linear-gradient(135deg, #f56565, #e53e3e);">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($stats['warranty_expired_count'] ?? 0); ?></h3>
-                        <p>Warranty Expired</p>
+                        <p>����Ѻ��Сѹ�������</p>
                     </div>
                 </div>
 
                 <?php if (($stats['warranty_expiring_count'] ?? 0) > 0): ?>
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #ecc94b, #d69e2e);">
-                        <i class="fas fa-clock" style="color: white;"></i>
-                    </div>
+                <div class="stat-icon" style="background: linear-gradient(135deg, #ecc94b, #d69e2e);">
+                    <i class="fas fa-clock"></i>
+                </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($stats['warranty_expiring_count']); ?></h3>
-                        <p>Warranty Expiring (30 days)</p>
+                        <p>��Сѹ������ (30 �ѹ)</p>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -1167,10 +573,10 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                 <div class="alert-header" onclick="toggleWarrantyAlert()">
                     <div class="alert-title">
                         <i class="fas fa-bell"></i>
-                        ประกันใกล้หมดอายุ — <?= count($warrantyAlerts) ?> รายการ (ภายใน 90 วัน)
+                        ����͹����Ѻ��Сѹ (<?= count($warrantyAlerts) ?> ��¡�� ���� 90 �ѹ)
                     </div>
-                    <span id="warrantyToggleIcon" style="color:#92400e;font-size:0.85em;">
-                        <i class="fas fa-chevron-down"></i> ดูรายละเอียด
+                    <span id="warrantyToggleIcon" class="warranty-toggle-icon">
+                        <i class="fas fa-chevron-down"></i> ����������´
                     </span>
                 </div>
                 <div id="warrantyAlertBody" style="display:none;">
@@ -1205,41 +611,39 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
 
             <!-- Assets Table -->
             <div class="card" id="tableView">
-                <div style="padding:15px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-                    <strong style="color:#4a5568;white-space:nowrap;">
+                <div class="card-toolbar">
+                    <strong>
                         <i class="fas <?= $currentCat['icon'] ?>" style="color:<?= $currentCat['color'] ?>;"></i>
                         <?= $currentCat['label'] ?>
-                        <span style="background:#e2e8f0;color:#718096;padding:2px 10px;border-radius:12px;font-size:0.85em;font-weight:500;margin-left:8px;"><?= count($assets) ?></span>
+                        <span class="asset-count-badge"><?= count($assets) ?></span>
                     </strong>
                     <!-- Inline search -->
-                    <form method="GET" style="display:flex;gap:8px;align-items:center;flex:1;max-width:600px;">
+                    <form method="GET" class="asset-filter-form">
                         <input type="hidden" name="cat" value="<?= htmlspecialchars($cat) ?>">
-                        <div style="position:relative;flex:1;">
-                            <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#a0aec0;font-size:0.85em;"></i>
-                            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
-                                   placeholder="ค้นหาชื่อ, Asset Tag, IP, Serial..."
-                                   style="width:100%;padding:9px 12px 9px 34px;border:1px solid #e2e8f0;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:0.9em;">
+                        <div class="input-icon-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" class="form-control"
+                                   placeholder="���� Asset Tag, �����Ţ, ����, IP ���� Serial">
                         </div>
-                        <select name="status" onchange="this.form.submit()"
-                                style="padding:9px 10px;border:1px solid #e2e8f0;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:0.9em;min-width:130px;">
+                        <select name="status" onchange="this.form.submit()" class="form-control form-select-compact">
                             <option value="">ทุกสถานะ</option>
                             <option value="active"      <?= $status==='active'     ?'selected':'' ?>>Active</option>
                             <option value="inactive"    <?= $status==='inactive'   ?'selected':'' ?>>Inactive</option>
                             <option value="maintenance" <?= $status==='maintenance'?'selected':'' ?>>Maintenance</option>
                             <option value="retired"     <?= $status==='retired'    ?'selected':'' ?>>Retired</option>
                         </select>
-                        <button type="submit" class="btn btn-primary" style="padding:9px 16px;white-space:nowrap;">
+                        <button type="submit" class="btn btn-primary btn-sm">
                             <i class="fas fa-search"></i> ค้นหา
                         </button>
                     </form>
-                    <div style="display:flex;gap:6px;">
-                        <button onclick="switchView('table')" id="btnTableView" class="btn btn-primary btn-sm" style="font-size:0.82em;padding:7px 12px;">
+                    <div class="toolbar-actions">
+                        <button onclick="switchView('table')" id="btnTableView" class="btn btn-primary btn-sm view-toggle active">
                             <i class="fas fa-list"></i> รายการ
                         </button>
-                        <button onclick="switchView('user')" id="btnUserView" class="btn btn-sm" style="font-size:0.82em;padding:7px 12px;background:#e2e8f0;">
+                        <button onclick="switchView('user')" id="btnUserView" class="btn btn-sm view-toggle">
                             <i class="fas fa-users"></i> แยกตามผู้รับผิดชอบ
                         </button>
-                        <a href="?export=excel" class="btn btn-sm" style="font-size:0.82em;padding:7px 12px;background:#38a169;color:#fff;text-decoration:none;border-radius:6px;display:inline-flex;align-items:center;gap:5px;">
+                        <a href="?export=excel" class="btn btn-sm view-toggle btn-green">
                             <i class="fas fa-file-excel"></i> Export Excel
                         </a>
                     </div>
@@ -1264,8 +668,8 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                     <tbody>
                         <?php if (empty($assets)): ?>
                         <tr>
-                            <td colspan="11" style="text-align: center; padding: 40px; color: #718096;">
-                                <i class="fas fa-box" style="font-size: 3em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
+                            <td colspan="11" class="table-empty">
+                                <i class="fas fa-box"></i>
                                 ไม่พบข้อมูลสินทรัพย์
                             </td>
                         </tr>
@@ -1275,13 +679,13 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                                 <td>
                                     <strong><?php echo htmlspecialchars($asset['asset_tag']); ?></strong>
                                     <?php if (!empty($asset['inventory_number'])): ?>
-                                    <br><small style="color:#718096;">INV: <?= htmlspecialchars($asset['inventory_number']) ?></small>
+                                    <br><small class="meta-note">INV: <?= htmlspecialchars($asset['inventory_number']) ?></small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php echo htmlspecialchars($asset['asset_name']); ?>
                                     <?php if (!empty($asset['serial_number'])): ?>
-                                    <br><small style="color:#999;">S/N: <?= htmlspecialchars($asset['serial_number']) ?></small>
+                                    <br><small class="meta-note muted">S/N: <?= htmlspecialchars($asset['serial_number']) ?></small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -1291,38 +695,38 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                                 </td>
                                 <td>
                                     <strong><?php echo htmlspecialchars($asset['brand'] ?? 'N/A'); ?></strong><br>
-                                    <small style="color: #718096;"><?php echo htmlspecialchars($asset['model'] ?? ''); ?></small>
+                                    <small class="meta-note"><?php echo htmlspecialchars($asset['model'] ?? ''); ?></small>
                                 </td>
                                 <td>
                                     <?php if (!empty($asset['os_name'])): ?>
-                                        <small style="color:#2b6cb0;font-weight:600;"><?= htmlspecialchars($asset['os_name']) ?></small>
+                                        <small class="meta-note highlight"><?= htmlspecialchars($asset['os_name']) ?></small>
                                         <?php if (!empty($asset['os_version'])): ?>
-                                        <br><small style="color:#718096;"><?= htmlspecialchars($asset['os_version']) ?></small>
+                                        <br><small class="meta-note"><?= htmlspecialchars($asset['os_version']) ?></small>
                                         <?php endif; ?>
                                     <?php else: ?>
-                                        <small style="color:#ccc;">—</small>
+                                        <small class="meta-note muted">—</small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if (!empty($asset['ip_address'])): ?>
-                                        <code style="font-size:0.85em;background:#edf2f7;padding:2px 6px;border-radius:4px;"><?= htmlspecialchars($asset['ip_address']) ?></code>
+                                        <code class="meta-code"><?= htmlspecialchars($asset['ip_address']) ?></code>
                                     <?php else: ?>
-                                        <small style="color:#ccc;">—</small>
+                                        <small class="meta-note muted">—</small>
                                     <?php endif; ?>
                                     <?php if (!empty($asset['mac_address'])): ?>
-                                    <br><small style="color:#999;"><?= htmlspecialchars($asset['mac_address']) ?></small>
+                                    <br><small class="meta-note muted"><?= htmlspecialchars($asset['mac_address']) ?></small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php echo htmlspecialchars($asset['location'] ?? 'N/A'); ?>
                                     <?php if (!empty($asset['department'])): ?>
-                                    <br><small style="color:#10ce30;font-weight:600;"><?= htmlspecialchars($asset['department']) ?></small>
+                                    <br><small class="meta-note highlight"><?= htmlspecialchars($asset['department']) ?></small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php echo htmlspecialchars($asset['assigned_user_name'] ?? 'ไม่ได้มอบหมาย'); ?>
                                     <?php if (!empty($asset['tech_name'])): ?>
-                                    <br><small style="color:#718096;"><i class="fas fa-tools"></i> <?= htmlspecialchars($asset['tech_name']) ?></small>
+                                    <br><small class="meta-note"><i class="fas fa-tools"></i> <?= htmlspecialchars($asset['tech_name']) ?></small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -1350,7 +754,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                                 </td>
                                 <td>
                                     <div class="action-btns">
-                                        <a href="assetsdetail.php?id=<?php echo $asset['asset_id']; ?>" class="btn btn-sm" style="background:linear-gradient(135deg,#10ce30,#38a169);color:white;" title="ดูรายละเอียด">
+                                        <a href="assetsdetail.php?id=<?php echo $asset['asset_id']; ?>" class="btn btn-sm btn-green" title="ดูรายละเอียด">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <?php if ($isAdmin): ?>
@@ -1456,7 +860,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                         </div>
                         <div class="form-group">
                             <label for="create_inventory_number">Inventory Number</label>
-                            <input type="text" name="inventory_number" id="create_inventory_number" class="form-control" placeholder="หมายเลขครุภัณฑ์">
+                            <input type="text" name="inventory_number" id="create_inventory_number" class="form-control" placeholder="�� INV-2024-001">
                         </div>
                     </div>
                     <div class="form-row">
@@ -1516,7 +920,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                     <div class="form-row">
                         <div class="form-group">
                             <label for="create_location">Location (ห้อง/สถานที่)</label>
-                            <input type="text" name="location" id="create_location" class="form-control" placeholder="e.g., IT Room, ฝ่ายผลิต">
+                            <input type="text" name="location" id="create_location" class="form-control" placeholder="�� ��ͧ IT, ��� 2 �Ҥ���ӹѡ�ҹ�˭�">
                         </div>
                         <div class="form-group">
                             <label for="create_department">แผนก/ฝ่าย</label>
@@ -1546,7 +950,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                     <div class="form-row">
                         <div class="form-group">
                             <label for="create_alternate_user">Alternate Username</label>
-                            <input type="text" name="alternate_user" id="create_alternate_user" class="form-control" placeholder="ชื่อผู้ใช้สำรอง">
+                            <input type="text" name="alternate_user" id="create_alternate_user" class="form-control" placeholder="�кت��ͼ����ҹ���ͧ (�����)">
                         </div>
                         <div class="form-group">
                             <label for="create_asset_group">กลุ่ม/ทีม</label>
@@ -1711,7 +1115,7 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
                         </div>
                         <div class="form-group">
                             <label for="create_supplier">ผู้จัดจำหน่าย (Supplier)</label>
-                            <input type="text" name="supplier" id="create_supplier" class="form-control" placeholder="ชื่อบริษัทผู้ขาย">
+                            <input type="text" name="supplier" id="create_supplier" class="form-control" placeholder="�� ����ѷ�Ѵ��˹��� ���ͼ���Ѻ����">
                         </div>
                     </div>
                 </div>
@@ -2039,83 +1443,8 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
         <input type="hidden" name="asset_id" id="delete_asset_id">
     </form>
 
+<?php ob_start(); ?>
     <script>
-
-        // ── Assets Popup Flyout ──────────────────────────────────
-        const POPUP_ITEMS = <?php
-            $items = [];
-            foreach ($ASSET_CATEGORIES as $key => $catDef) {
-                $items[] = [
-                    'key'   => $key,
-                    'label' => $catDef['label'],
-                    'icon'  => $catDef['icon'],
-                    'count' => $catCounts[$key] ?? 0,
-                ];
-            }
-            echo json_encode($items);
-        ?>;
-        const CURRENT_CAT = '<?= $cat ?>';
-
-        let popupEl = null;
-
-        function buildPopup() {
-            const div = document.createElement('div');
-            div.id = 'assetsPopup';
-            div.className = 'assets-popup';
-            div.innerHTML = '<div class="assets-popup-title"><i class="fas fa-boxes"></i> ประเภทสินทรัพย์</div>';
-            POPUP_ITEMS.forEach(item => {
-                const isAll  = item.key === 'all';
-                const active = item.key === CURRENT_CAT ? 'active-item' : '';
-                const badge  = item.count > 0 ? `<span class="submenu-badge">${item.count}</span>` : '';
-                const icon   = isAll ? 'fa-layer-group' : item.icon;
-                div.innerHTML += `
-                    <a href="assets.php?cat=${item.key}" class="${active}">
-                        <span class="left-label"><i class="fas ${icon}" style="width:16px;text-align:center;"></i> ${item.label}</span>
-                        ${badge}
-                    </a>`;
-            });
-            document.body.appendChild(div);
-            // close when clicking outside
-            setTimeout(() => {
-                document.addEventListener('click', closePopupOutside);
-            }, 10);
-            return div;
-        }
-
-        function toggleAssetsPopup(e, triggerEl) {
-            e.stopPropagation();
-            if (popupEl && popupEl.classList.contains('show')) {
-                popupEl.classList.remove('show');
-                triggerEl.classList.remove('open');
-                document.removeEventListener('click', closePopupOutside);
-                return;
-            }
-            if (!popupEl) popupEl = buildPopup();
-            // Position next to trigger
-            const rect = triggerEl.getBoundingClientRect();
-            popupEl.style.top  = rect.top + 'px';
-            popupEl.style.left = '220px';
-            popupEl.classList.add('show');
-            triggerEl.classList.add('open');
-        }
-
-        function closePopupOutside(e) {
-            if (popupEl && !popupEl.contains(e.target) && !document.getElementById('assetsToggle').contains(e.target)) {
-                popupEl.classList.remove('show');
-                const toggle = document.getElementById('assetsToggle');
-                if (toggle) toggle.classList.remove('open');
-                document.removeEventListener('click', closePopupOutside);
-            }
-        }
-
-        // Auto-open popup on page load if on assets page
-        document.addEventListener('DOMContentLoaded', function() {
-            if (CURRENT_CAT !== '') {
-                const toggle = document.getElementById('assetsToggle');
-                if (toggle) toggle.classList.add('open');
-            }
-        });
-
 
         function openCreateModal() {
             switchModalTab('c','basic');
@@ -2229,5 +1558,20 @@ $locations = $db->query("SELECT DISTINCT location FROM assets WHERE location IS 
             }
         }
     </script>
-</body>
-</html>
+<?php $pageScripts = ob_get_clean(); ?>
+
+<?php include_once __DIR__ . '/../includes/footer.php'; ?>
+
+
+
+
+
+
+
+
+
+
+
+
+
+

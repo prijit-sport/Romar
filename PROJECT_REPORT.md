@@ -25,17 +25,7 @@
 - สร้าง default admin user
 - เพิ่ม default meeting rooms, SLA rules, และ sample assets
 
-### 3. Duplicate Functions
 
-**ปัญหา:**
-มีฟังก์ชันที่ประกาศซ้ำกันหลายตำแหน่ง:
-- `redirect()` - ประกาศใน config.php และ functions.php
-- `isLoggedIn()` - ประกาศใน config.php และ functions.php  
-- `isAdmin()` - ประกาศใน config.php และ functions.php
-- `getCurrentUserId()` - ประกาศใน config.php และ functions.php
-
-**แนวทางแก้ไข:**
-ใช้ `function_exists()` check ก่อนประกาศฟังก์ชัน (มีอยู่แล้วใน functions.php)
 
 ### 4. Session Handling
 
@@ -84,7 +74,7 @@ ROMAR_DB_NAME=romar_dormitory
 ### 4. Run Migration Script
 
 ```bash
-php modules/database/migrate_to_mysql.php
+php scripts/ops/migrate_to_mysql.php
 ```
 
 ### 5. เริ่มใช้งาน
@@ -172,9 +162,10 @@ Romar/
 |--------|-------|
 | MySQL Schema | ✅ เสร็จสิ้น |
 | Migration Script | ✅ เสร็จสิ้น |
-| Duplicate Functions | ⚠️ ใช้ function_exists แล้ว |
-| Session Handling | ⚠️ มีการ handle ในบางไฟล์ |
-| SQL Injection | ⚠️ ใช้ Prepared Statements ส่วนใหญ่ |
+| Duplicate Functions | ✅ Fixed (function_exists) |
+| Session Handling | ✅ Fixed (session_status checks) |
+| SQL Injection | ✅ Fixed (100% prepared statements) |
+| Error Handling | ✅ Added error/500.html + logging |
 
 ---
 

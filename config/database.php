@@ -56,9 +56,9 @@ if (!function_exists('register_global_error_handlers')) {
             error_log('Unhandled exception: ' . $message);
             if (!headers_sent()) {
                 http_response_code(500);
-                header('Content-Type: text/plain; charset=UTF-8');
+                header('Content-Type: text/html; charset=UTF-8');
+                include __DIR__ . '/../error/500.html';
             }
-            echo APP_DEBUG ? ("Unhandled exception: " . $message) : "Unexpected server error.";
             exit;
         });
 
@@ -70,9 +70,9 @@ if (!function_exists('register_global_error_handlers')) {
             error_log(sprintf('PHP error [%d] %s in %s:%d', $severity, $message, $file, $line));
             if (!headers_sent()) {
                 http_response_code(500);
-                header('Content-Type: text/plain; charset=UTF-8');
+                header('Content-Type: text/html; charset=UTF-8');
+                include __DIR__ . '/../error/500.html';
             }
-            echo APP_DEBUG ? ("PHP error: {$message}") : "Unexpected server error.";
             exit;
         });
     }

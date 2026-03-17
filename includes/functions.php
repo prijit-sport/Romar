@@ -1,15 +1,17 @@
 <?php
 /**
- * Helper Functions - MySQL Version (Final Fixed)
- * ป้องกันการประกาศฟังก์ชันซ้ำด้วย function_exists()
+ * Helper Functions - shared utilities for the Romar platform.
+ * Wrapped in function_exists() guards to avoid duplicate declarations.
  */
 
 require_once __DIR__ . '/../config/database.php';
 
-// เช็คว่ามี config.php หรือไม่
+// Load optional config overrides if present
 if (file_exists(__DIR__ . '/../config/config.php')) {
     require_once __DIR__ . '/../config/config.php';
 }
+
+require_once __DIR__ . '/i18n.php';
 
 /**
  * Verify user login
@@ -294,54 +296,53 @@ if (!function_exists('isRoomAvailable')) {
  */
 if (!function_exists('uploadFile')) {
     function uploadFile($file, $subFolder = 'documents') {
-        if (!isset($file['tmp_name']) || empty($file['tmp_name'])) {
-            return ['success' => false, 'error' => 'ไม่มีไฟล์ที่อัปโหลด'];
+        if (empty($file['tmp_name'])) {
+            return ['success' => false, 'error' => 'No file uploaded'];
         }
-        
-        // ใช้ฟังก์ชันจาก config.php ถ้ามี
-        if (function_exists('getFileExtension')) {
-            $extension = getFileExtension($file['name']);
-        } else {
-            $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        }
-        
+
+        $extension = function_exists('getFileExtension')
+            ? getFileExtension($file['name'])
+            : strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
         $maxSize = defined('MAX_FILE_SIZE') ? MAX_FILE_SIZE : 10485760;
         if ($file['size'] > $maxSize) {
-            return ['success' => false, 'error' => 'ขนาดไฟล์ใหญ่เกินกำหนด'];
+            return ['success' => false, 'error' => 'File size exceeds the allowed limit'];
         }
-        
-        $allowedTypes = defined('ALLOWED_FILE_TYPES') ? ALLOWED_FILE_TYPES : ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'];
-        
-        if (!in_array($extension, $allowedTypes)) {
-            return ['success' => false, 'error' => 'ประเภทไฟล์ไม่ได้รับอนุญาต'];
+
+        $allowedTypes = defined('ALLOWED_FILE_TYPES')
+            ? ALLOWED_FILE_TYPES
+            : ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'];
+
+        if (!in_array($extension, $allowedTypes, true)) {
+            return ['success' => false, 'error' => 'File type is not allowed'];
         }
-        
+
         $uploadPath = defined('UPLOAD_PATH') ? UPLOAD_PATH : __DIR__ . '/../uploads/';
-        $uploadDir = $uploadPath . $subFolder . '/';
-        
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        $uploadDir = rtrim($uploadPath, DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . trim($subFolder, DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR;
+
+        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+            return ['success' => false, 'error' => 'Unable to create upload directory'];
         }
-        
-        // ใช้ฟังก์ชันจาก config.php ถ้ามี
-        if (function_exists('generateRandomString')) {
-            $randomStr = generateRandomString(8);
-        } else {
-            $randomStr = substr(md5(uniqid()), 0, 8);
-        }
-        
+
+        $randomStr = function_exists('generateRandomString')
+            ? generateRandomString(8)
+            : substr(md5(uniqid()), 0, 8);
+
         $newFilename = time() . '_' . $randomStr . '.' . $extension;
         $uploadFilePath = $uploadDir . $newFilename;
-        
+
         if (move_uploaded_file($file['tmp_name'], $uploadFilePath)) {
             return [
                 'success' => true,
-                'path' => $subFolder . '/' . $newFilename,
+                'path' => trim($subFolder, DIRECTORY_SEPARATOR) . '/' . $newFilename,
                 'filename' => $newFilename
             ];
         }
-        
-        return ['success' => false, 'error' => 'ไม่สามารถอัปโหลดไฟล์ได้'];
+
+        return ['success' => false, 'error' => 'Failed to move uploaded file'];
     }
 }
 
@@ -722,3 +723,4 @@ if (!function_exists('json_error')) {
     }
 }
 ?>
+

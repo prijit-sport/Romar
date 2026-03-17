@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -19,7 +19,7 @@ $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-01');
 $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
 $reportType = isset($_GET['report_type']) ? $_GET['report_type'] : 'summary';
 
-// ── Export Excel ──────────────────────────────────────────────
+// โ”€โ”€ Export Excel โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
 if (isset($_GET['export']) && $_GET['export'] === 'excel') {
     $exportSQL = "SELECT t.ticket_id, t.title, t.category, t.priority, t.status,
                          t.created_at, t.resolved_at,
@@ -41,9 +41,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel') {
     echo '<head><meta charset="UTF-8"></head><body>';
     echo '<table border="1">';
     echo '<tr style="background:#2b6cb0;color:#fff;font-weight:bold;">
-        <th>Ticket ID</th><th>หัวข้อ</th><th>หมวดหมู่</th><th>Priority</th>
-        <th>สถานะ</th><th>ผู้รับผิดชอบ</th><th>วันที่สร้าง</th>
-        <th>วันที่แก้ไข</th><th>รายละเอียด</th><th>วิธีแก้ไข</th>
+        <th>Ticket ID</th><th>เธซเธฑเธงเธเนเธญ</th><th>เธซเธกเธงเธ”เธซเธกเธนเน</th><th>Priority</th>
+        <th>เธชเธ–เธฒเธเธฐ</th><th>เธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธ</th><th>เธงเธฑเธเธ—เธตเนเธชเธฃเนเธฒเธ</th>
+        <th>เธงเธฑเธเธ—เธตเนเนเธเนเนเธ</th><th>เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”</th><th>เธงเธดเธเธตเนเธเนเนเธ</th>
     </tr>';
     foreach ($exportRows as $r) {
         $e = fn($v) => htmlspecialchars($v ?? '', ENT_QUOTES);
@@ -166,758 +166,416 @@ $slaPercentage = 0;
 if ($slaCompliance['total'] > 0) {
     $slaPercentage = round(($slaCompliance['within_sla'] / $slaCompliance['total']) * 100, 2);
 }
+
+$trendLineData = array_reverse($ticketTrend);
+$avgResolution = $summary['avg_resolution_time'] ?? null;
+$avgResolutionDisplay = $avgResolution ? number_format($avgResolution, 1) . ' ชั่วโมง' : '-';
+$baseParams = array_filter([
+    'start_date' => $startDate,
+    'end_date' => $endDate,
+    'report_type' => $reportType,
+], fn($value) => $value !== '');
+$exportUrl = 'reports.php?' . http_build_query(array_merge($baseParams, ['export' => 'excel']));
+$reportSubtitles = [
+    'summary' => ui_text('reports.subtitle.summary'),
+    'category' => ui_text('reports.subtitle.category'),
+    'priority' => ui_text('reports.subtitle.priority'),
+    'sla' => ui_text('reports.subtitle.sla'),
+];
+$reportSubtitle = $reportSubtitles[$reportType] ?? ui_text('reports.subtitle.default');
+$withinSLA = (int)($slaCompliance['within_sla'] ?? 0);
+$breachedSLA = (int)($slaCompliance['breached_sla'] ?? 0);
+$totalSLA = (int)($slaCompliance['total'] ?? 0);
+$urgentCount = (int)($summary['urgent_tickets'] ?? 0);
+$highCount = (int)($summary['high_tickets'] ?? 0);
+$overdueCount = (int)($summary['overdue_tickets'] ?? 0);
+$pageTitle = ui_text('page.title.reports');
+$activePage = 'reports';
+include_once __DIR__ . '/../includes/header.php';
+include_once __DIR__ . '/../includes/sidebar.php';
 ?>
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>รายงาน - IT Support</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<main class="main-content">
+    <div class="breadcrumb-nav">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="../admin/dashboard.php">
+                    <i class="fas fa-home"></i> <?php echo ui_text('nav.dashboard'); ?>
+                </a>
+            </li>
+            <li class="breadcrumb-separator">&rsaquo;</li>
+            <li class="breadcrumb-item active">
+                <i class="fas fa-chart-line"></i> <?php echo ui_text('page.title.reports'); ?>
+            </li>
+        </ol>
+    </div>
 
-        body {
-            font-family: 'Sarabun', sans-serif;
-            background: linear-gradient( #065f159c);
-            color: #2d3748;
-            min-height: 100vh;
-        }
-
-        .container {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 280px;
-            background: linear-gradient(180deg, #10ce30 0%, #000000 100%
-            );
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100vh;
-            overflow-y: auto;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-        }
-
-        .sidebar-brand {
-            padding: 25px 20px;
-            border-bottom: 1px solid rgb(255, 255, 255);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: white;
-        }
-
-        .brand-title {
-            font-size: 1.8em;
-            font-weight: 700;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .brand-subtitle {
-            font-size: 0.85em;
-            color: rgb(0, 0, 0);
-            margin-top: 5px;
-        }
-
-        .sidebar-nav ul {
-            list-style: none;
-            padding: 20px 0;
-        }
-
-        .sidebar-nav a {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px 20px;
-            color: rgb(255, 255, 255);
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-
-        .sidebar-nav a:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            padding-left: 25px;
-        }
-
-        .sidebar-nav li.active a {
-            background: linear-gradient(90deg, rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8));
-            color: white;
-            border-left: 4px solid #fff;
-        }
-
-        .menu-section {
-            padding: 25px 20px 10px;
-            color: rgb(255, 255, 255);
-            font-size: 0.75em;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            font-weight: 600;
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-left: 280px;
-            padding: 30px;
-        }
-
-        .breadcrumb-nav {
-            background: rgb(255, 255, 255);
-            padding: 15px 30px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .page-header {
-            background: white;
-            padding: 30px;
-            border-radius: 16px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .page-header h1 {
-            font-size: 2em;
-            color: #1a202c;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-
-        .page-header p {
-            color: #718096;
-        }
-
-        /* Date Filter */
-        .filter-section {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .filter-grid {
-            display: grid;
-            grid-template-columns: auto auto auto auto 1fr;
-            gap: 15px;
-            align-items: end;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #2d3748;
-        }
-
-        .form-control {
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 1em;
-            font-family: 'Sarabun', sans-serif;
-            width: 100%;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            transition: all 0.3s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-        }
-
-        .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8em;
-        }
-
-        .stat-info h3 {
-            font-size: 2em;
-            font-weight: 700;
-            color: #1a202c;
-        }
-
-        .stat-info p {
-            color: #718096;
-            font-size: 0.9em;
-        }
-
-        /* Charts Grid */
-        .charts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .chart-card {
-            background: white;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .chart-header {
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f7fafc;
-        }
-
-        .chart-title {
-            font-size: 1.3em;
-            font-weight: 600;
-            color: #1a202c;
-        }
-
-        /* Table */
-        .card {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            margin-bottom: 30px;
-        }
-
-        .card-header {
-            padding: 20px 25px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-
-        .card-title {
-            font-size: 1.3em;
-            font-weight: 600;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        thead {
-            background: #f7fafc;
-        }
-
-        th {
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-            color: #2d3748;
-        }
-
-        td {
-            padding: 15px;
-            border-bottom: 1px solid #f7fafc;
-        }
-
-        tbody tr:hover {
-            background: #f7fafc;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #e2e8f0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #48bb78, #38a169);
-            transition: width 0.3s;
-        }
-
-        .badge {
-            padding: 6px 12px;
-            border-radius: 12px;
-            font-size: 0.85em;
-            font-weight: 600;
-        }
-
-        .badge-success { background: #c6f6d5; color: #2f855a; }
-        .badge-warning { background: #feebc8; color: #c05621; }
-        .badge-danger { background: #fed7d7; color: #c53030; }
-        .badge-info { background: #bee3f8; color: #2c5282; }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            .main-content {
-                margin-left: 0;
-            }
-            .filter-grid {
-                grid-template-columns: 1fr;
-            }
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="sidebar-brand">
-                <div>
-                    <div class="brand-title">
-                        <i class="fas fa-ticket-alt"></i>
-                        IT Support
-                    </div>
-                    <div class="brand-subtitle">Ticket Management System</div>
-                </div>
-            </div>
-
-            <nav class="sidebar-nav">
-                <ul>
-                    <li>
-                        <a href="../admin/dashboard.php">
-                            <i class="fas fa-arrow-left"></i> กลับ Dashboard หลัก
-                        </a>
-                    </li>
-                    
-                    <li class="menu-section">หลัก</li>
-                    <li><a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a></li>
-                    <li><a href="tickets.php"><i class="fas fa-ticket-alt"></i> IT Tickets</a></li>
-                    <li><a href="assets.php"><i class="fas fa-box"></i> สินทรัพย์</a></li>
-                    <li><a href="Knowledgebase.php"><i class="fas fa-book"></i> Knowledge Base</a></li>
-                    <li class="menu-section">จัดการ</li>
-                    <li><a href="users.php"><i class="fas fa-users"></i> ผู้ใช้งาน</a></li>
-                    <li class="active"><a href="reports.php"><i class="fas fa-chart-bar"></i> รายงาน</a></li>
-                    <li><a href="slaconfig.php"><i class="fas fa-clock"></i> ตั้งค่า SLA</a></li>
-                    <li class="menu-section">ระบบ</li>
-                    <li><a href="settings.php"><i class="fas fa-cog"></i> ตั้งค่า</a></li>
-                    <li><a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">
-                        <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
-                    </a></li>
-                </ul>
-            </nav>
+    <div class="page-header">
+        <div>
+            <h1><i class="fas fa-chart-line"></i> <?php echo ui_text('page.title.reports'); ?></h1>
+            <p class="section-subtitle"><?php echo htmlspecialchars($reportSubtitle); ?></p>
         </div>
-
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Breadcrumb -->
-            <div class="breadcrumb-nav">
-                <a href="dashboard.php" style="color: #667eea; text-decoration: none;">Dashboard</a> › 
-                <span style="color: #2d3748; font-weight: 600;">รายงาน</span>
-            </div>
-
-            <!-- Page Header -->
-            <div class="page-header">
-                <h1><i class="fas fa-chart-bar"></i> รายงานและสถิติ</h1>
-                <p>ภาพรวมและวิเคราะห์ข้อมูล IT Tickets</p>
-            </div>
-
-            <!-- Date Filter -->
-            <div class="filter-section">
-                <form method="GET">
-                    <div class="filter-grid">
-                        <div class="form-group">
-                            <label for="start_date">วันที่เริ่มต้น</label>
-                            <input type="date" name="start_date" id="start_date" class="form-control" value="<?php echo $startDate; ?>">
-                        </div>
-                        <div class="form-group">
-                            <label for="end_date">วันที่สิ้นสุด</label>
-                            <input type="date" name="end_date" id="end_date" class="form-control" value="<?php echo $endDate; ?>">
-                        </div>
-                        <div class="form-group">
-                            <label for="report_type">ประเภทรายงาน</label>
-                            <select name="report_type" id="report_type" class="form-control">
-                                <option value="summary" <?php echo $reportType === 'summary' ? 'selected' : ''; ?>>สรุปภาพรวม</option>
-                                <option value="detailed" <?php echo $reportType === 'detailed' ? 'selected' : ''; ?>>รายละเอียด</option>
-                            </select>
-                        </div>
-                        <button type="submit" id="btn_search" name="btn_search" class="btn btn-primary">
-                            <i class="fas fa-search"></i> ดูรายงาน
-                        </button>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <a href="?start_date=<?= $startDate ?>&end_date=<?= $endDate ?>&report_type=<?= $reportType ?>&export=excel"
-                               style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;background:#38a169;color:#fff;border-radius:8px;text-decoration:none;font-size:0.9em;font-weight:600;">
-                                <i class="fas fa-file-excel"></i> Export Excel
-                            </a>
-                            <button type="button" id="btn_pdf" name="btn_pdf" onclick="setTimeout(()=>window.print(),100)"
-                                    style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;background:#e53e3e;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.9em;font-weight:600;font-family:'Sarabun',sans-serif;">
-                                <i class="fas fa-file-pdf"></i> Export PDF
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Summary Statistics -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-                        <i class="fas fa-ticket-alt" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($summary['total_tickets'] ?? 0); ?></h3>
-                        <p>Tickets ทั้งหมด</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #48bb78, #38a169);">
-                        <i class="fas fa-check-circle" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($summary['resolved_tickets'] ?? 0); ?></h3>
-                        <p>แก้ไขแล้ว</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #ed8936, #dd6b20);">
-                        <i class="fas fa-tasks" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($summary['in_progress_tickets'] ?? 0); ?></h3>
-                        <p>กำลังดำเนินการ</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #f56565, #e53e3e);">
-                        <i class="fas fa-exclamation-triangle" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($summary['overdue_tickets'] ?? 0); ?></h3>
-                        <p>เกิน SLA</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #4299e1, #3182ce);">
-                        <i class="fas fa-clock" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($summary['avg_resolution_time'] ?? 0, 1); ?></h3>
-                        <p>เวลาเฉลี่ย (ชม.)</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #9f7aea, #805ad5);">
-                        <i class="fas fa-percentage" style="color: white;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3><?php echo number_format($slaPercentage, 1); ?>%</h3>
-                        <p>SLA Compliance</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts -->
-            <div class="charts-grid">
-                <!-- Category Chart -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <h3 class="chart-title"><i class="fas fa-folder"></i> Tickets ตามหมวดหมู่</h3>
-                    </div>
-                    <canvas id="categoryChart" role="img" aria-label="กราฟ Tickets ตามหมวดหมู่"></canvas>
-                </div>
-
-                <!-- Priority Chart -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <h3 class="chart-title"><i class="fas fa-exclamation-circle"></i> Tickets ตาม Priority</h3>
-                    </div>
-                    <canvas id="priorityChart" role="img" aria-label="กราฟ Tickets ตาม Priority"></canvas>
-                </div>
-
-                <!-- Status Chart -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <h3 class="chart-title"><i class="fas fa-tasks"></i> Tickets ตาม Status</h3>
-                    </div>
-                    <canvas id="statusChart" role="img" aria-label="กราฟ Tickets ตาม Status"></canvas>
-                </div>
-
-                <!-- Trend Chart -->
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <h3 class="chart-title"><i class="fas fa-chart-line"></i> แนวโน้ม 30 วันล่าสุด</h3>
-                    </div>
-                    <canvas id="trendChart" role="img" aria-label="กราฟแนวโน้ม Tickets 30 วันล่าสุด"></canvas>
-                </div>
-            </div>
-
-            <!-- Staff Performance Table -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-user-tie"></i> ประสิทธิภาพทีมงาน (Top 5)</h3>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ชื่อ-นามสกุล</th>
-                            <th>Tickets ที่ได้รับ</th>
-                            <th>แก้ไขแล้ว</th>
-                            <th>ปิดแล้ว</th>
-                            <th>เวลาเฉลี่ย (ชม.)</th>
-                            <th>อัตราความสำเร็จ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (empty($staffPerformance)): ?>
-                        <tr>
-                            <td colspan="6" style="text-align: center; padding: 40px; color: #718096;">
-                                <i class="fas fa-user-clock" style="font-size: 3em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
-                                ไม่มีข้อมูลในช่วงเวลานี้
-                            </td>
-                        </tr>
-                        <?php else: ?>
-                            <?php foreach ($staffPerformance as $staff): ?>
-                            <?php
-                                $successRate = 0;
-                                if ($staff['assigned_tickets'] > 0) {
-                                    $successRate = round(($staff['resolved_tickets'] / $staff['assigned_tickets']) * 100, 1);
-                                }
-                            ?>
-                            <tr>
-                                <td><strong><?php echo htmlspecialchars($staff['full_name']); ?></strong></td>
-                                <td><?php echo number_format($staff['assigned_tickets']); ?></td>
-                                <td><?php echo number_format($staff['resolved_tickets']); ?></td>
-                                <td><?php echo number_format($staff['closed_tickets']); ?></td>
-                                <td><?php echo number_format($staff['avg_resolution_time'] ?? 0, 1); ?></td>
-                                <td>
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <div class="progress-bar" style="flex: 1;">
-                                            <div class="progress-fill" style="width: <?php echo $successRate; ?>%"></div>
-                                        </div>
-                                        <span style="font-weight: 600;"><?php echo $successRate; ?>%</span>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+        <div class="page-actions">
+            <a class="btn btn-secondary" href="<?php echo htmlspecialchars($exportUrl); ?>">
+                <i class="fas fa-file-export"></i> <?php echo ui_text('button.export_excel'); ?>
+            </a>
         </div>
     </div>
 
-    <script>
-        // Category Chart
-        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-        new Chart(categoryCtx, {
+    <div class="filter-bar">
+        <form method="GET" action="reports.php">
+            <div class="filter-grid">
+                <div class="form-group">
+                    <label class="form-label" for="start_date"><?php echo ui_text('filter.label.start_date'); ?></label>
+                    <input type="date" id="start_date" name="start_date" class="form-control" value="<?php echo htmlspecialchars($startDate); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="end_date"><?php echo ui_text('filter.label.end_date'); ?></label>
+                    <input type="date" id="end_date" name="end_date" class="form-control" value="<?php echo htmlspecialchars($endDate); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="report_type"><?php echo ui_text('filter.label.report_type'); ?></label>
+                    <select name="report_type" id="report_type" class="form-control">
+                        <option value="summary" <?php echo $reportType === 'summary' ? 'selected' : ''; ?>><?php echo ui_text('report_type.summary'); ?></option>
+                        <option value="category" <?php echo $reportType === 'category' ? 'selected' : ''; ?>><?php echo ui_text('report_type.category'); ?></option>
+                        <option value="priority" <?php echo $reportType === 'priority' ? 'selected' : ''; ?>><?php echo ui_text('report_type.priority'); ?></option>
+                        <option value="sla" <?php echo $reportType === 'sla' ? 'selected' : ''; ?>><?php echo ui_text('report_type.sla'); ?></option>
+                    </select>
+                </div>
+                <div class="form-group" style="align-self:flex-end;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> <?php echo ui_text('button.search'); ?>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <section class="section">
+        <div class="section-body">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #475569, #312e81);">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3><?php echo number_format($summary['total_tickets'] ?? 0); ?></h3>
+                        <p><?php echo ui_text('status.total_tickets'); ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #60a5fa, #2563eb);">
+                        <i class="fas fa-circle-plus"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3><?php echo number_format($summary['new_tickets'] ?? 0); ?></h3>
+                        <p><?php echo ui_text('status.new_tickets'); ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);">
+                        <i class="fas fa-spinner"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3><?php echo number_format($summary['in_progress_tickets'] ?? 0); ?></h3>
+                        <p><?php echo ui_text('status.in_progress_tickets'); ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #14b8a6, #047857);">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3><?php echo number_format($summary['resolved_tickets'] ?? 0); ?></h3>
+                        <p><?php echo ui_text('status.resolved_tickets'); ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #6d28d9, #a855f7);">
+                        <i class="fas fa-door-closed"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3><?php echo number_format($summary['closed_tickets'] ?? 0); ?></h3>
+                        <p><?php echo ui_text('status.closed_tickets'); ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c);">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3><?php echo number_format($overdueCount); ?></h3>
+                        <p><?php echo ui_text('status.overdue_tickets'); ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #f97316, #ea580c);">
+                        <i class="fas fa-flag"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3><?php echo number_format($highCount); ?></h3>
+                        <p><?php echo ui_text('status.high_priority'); ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #facc15, #f97316);">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3><?php echo number_format($urgentCount); ?></h3>
+                        <p><?php echo ui_text('status.urgent_priority'); ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #4ade80, #16a34a);">
+                        <i class="fas fa-stopwatch"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3><?php echo htmlspecialchars($avgResolutionDisplay); ?></h3>
+                        <p><?php echo ui_text('status.avg_resolution_time'); ?></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title"><i class="fas fa-chart-pie"></i> แยกแท็กและสถานะ</h2>
+                <p class="section-subtitle">วิเคราะห์หมวดหมู่ สถานะ และความเร่งด่วนของตั๋ว</p>
+            </div>
+        </div>
+        <div class="section-body">
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="card-header">
+                        <span class="card-title"><i class="fas fa-folder"></i> หมวดหมู่</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="categoryChart" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="card-header">
+                        <span class="card-title"><i class="fas fa-flag"></i> Priority</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="priorityChart" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="card-header">
+                        <span class="card-title"><i class="fas fa-clipboard-list"></i> Status</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="statusChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title"><i class="fas fa-users"></i> Staff Performance</h2>
+                <p class="section-subtitle">Top 5 ผู้รับผิดชอบตั๋ว</p>
+            </div>
+        </div>
+        <div class="section-body">
+            <?php if (!empty($staffPerformance)): ?>
+            <div class="card">
+                <div class="card-header">
+                    <strong>Top Performers</strong>
+                    <span class="meta-note">จัดลำดับโดยตั๋วที่ Resolve มากที่สุด</span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Staff</th>
+                                <th>Assigned</th>
+                                <th>Resolved</th>
+                                <th>Closed</th>
+                                <th>Avg Resolution (hrs)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($staffPerformance as $staff): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($staff['full_name'] ?? '-'); ?></td>
+                                <td><?php echo number_format($staff['assigned_tickets'] ?? 0); ?></td>
+                                <td><?php echo number_format($staff['resolved_tickets'] ?? 0); ?></td>
+                                <td><?php echo number_format($staff['closed_tickets'] ?? 0); ?></td>
+                                <td>
+                                    <?php
+                                    if (!empty($staff['avg_resolution_time'])) {
+                                        echo number_format($staff['avg_resolution_time'], 1);
+                                    } else {
+                                        echo '-';
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <?php else: ?>
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h3>ยังไม่มีข้อมูลเจ้าหน้าที่</h3>
+                <p>เพิ่มการมอบหมายตั๋วเพื่อให้ข้อมูลนี้แสดงผล</p>
+            </div>
+            <?php endif; ?>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-body">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="chart-card">
+                    <div class="card-header">
+                        <strong>Trend รายวัน (30 วันล่าสุด)</strong>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="trendChart" height="260"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <strong>SLA Compliance</strong>
+                    </div>
+                    <div class="section-stack">
+                        <div>
+                            <div class="section-subtitle">ตั๋วที่รายงาน SLA ทั้งหมด <?php echo number_format($totalSLA); ?></div>
+                            <div style="font-size: 2.6rem; font-weight: 700;"><?php echo number_format($slaPercentage, 1); ?>%</div>
+                            <div class="meta-note">
+                                Within SLA: <?php echo number_format($withinSLA); ?> &bull;
+                                Breached: <?php echo number_format($breachedSLA); ?>
+                            </div>
+                            <div style="background: #e2e8f0; border-radius: 12px; height: 10px; overflow: hidden; margin-top: 12px;">
+                                <div style="height: 100%; width: <?php echo max(0, min($slaPercentage, 100)); ?>%; background: linear-gradient(135deg, #22c55e, #059669);"></div>
+                            </div>
+                            <p class="meta-note" style="margin-top: 0.75rem;">ช่วงเวลาที่เลือก: <?php echo htmlspecialchars($startDate); ?> ถึง <?php echo htmlspecialchars($endDate); ?></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<?php ob_start(); ?>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const chartColors = ['#667eea', '#475569', '#4ade80', '#f97316', '#ef4444', '#6366f1', '#14b8a6', '#facc15'];
+    const categoryData = <?php echo json_encode($byCategory); ?>;
+    const priorityData = <?php echo json_encode($byPriority); ?>;
+    const statusData = <?php echo json_encode($byStatus); ?>;
+    const trendLineData = <?php echo json_encode($trendLineData); ?>;
+
+    function initDoughnut(ctx, labels, values, colorMap = []) {
+        if (!ctx) return;
+        const colors = labels.map((_, index) => colorMap[index] || chartColors[index % chartColors.length]);
+        new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: <?php echo json_encode(array_column($byCategory, 'category')); ?>,
+                labels,
                 datasets: [{
-                    data: <?php echo json_encode(array_column($byCategory, 'count')); ?>,
-                    backgroundColor: [
-                        '#667eea', '#48bb78', '#ed8936', '#f56565', '#4299e1', '#9f7aea'
-                    ]
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: '#fff',
+                    borderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
                 plugins: {
-                    legend: { position: 'bottom' },
-                    title: { display: false, text: 'Tickets ตามหมวดหมู่' }
+                    legend: { position: 'bottom', labels: { padding: 12, boxWidth: 12 } }
                 }
             }
         });
+    }
 
-        // Priority Chart
-        const priorityCtx = document.getElementById('priorityChart').getContext('2d');
-        new Chart(priorityCtx, {
-            type: 'bar',
-            data: {
-                labels: <?php echo json_encode(array_map('strtoupper', array_column($byPriority, 'priority'))); ?>,
-                datasets: [{
-                    label: 'จำนวน Tickets',
-                    data: <?php echo json_encode(array_column($byPriority, 'count')); ?>,
-                    backgroundColor: ['#f56565', '#ed8936', '#4299e1', '#48bb78']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { display: false },
-                    title: { display: false, text: 'Tickets ตาม Priority' }
-                },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
+    const categoryLabels = categoryData.map(item => item.category ?? 'ไม่ระบุ');
+    const categoryValues = categoryData.map(item => Number(item.count) || 0);
+    initDoughnut(document.getElementById('categoryChart'), categoryLabels, categoryValues);
 
-        // Status Chart
-        const statusCtx = document.getElementById('statusChart').getContext('2d');
-        new Chart(statusCtx, {
-            type: 'pie',
-            data: {
-                labels: <?php echo json_encode(array_map('strtoupper', array_column($byStatus, 'status'))); ?>,
-                datasets: [{
-                    data: <?php echo json_encode(array_column($byStatus, 'count')); ?>,
-                    backgroundColor: ['#4299e1', '#ed8936', '#9f7aea', '#48bb78', '#718096']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { position: 'bottom' },
-                    title: { display: false, text: 'Tickets ตาม Status' }
-                }
-            }
-        });
+    const priorityMap = {
+        urgent: '#ef4444',
+        high: '#f97316',
+        normal: '#3b82f6',
+        low: '#10b981'
+    };
+    const priorityLabels = priorityData.map(item => (item.priority ?? 'Unknown').replace('_', ' '));
+    const priorityValues = priorityData.map(item => Number(item.count) || 0);
+    const priorityColors = priorityData.map(item => priorityMap[item.priority] || '#cbd5e0');
+    initDoughnut(document.getElementById('priorityChart'), priorityLabels, priorityValues, priorityColors);
 
-        // Trend Chart
-        const trendCtx = document.getElementById('trendChart').getContext('2d');
+    const statusMap = {
+        new: '#38bdf8',
+        assigned: '#2563eb',
+        in_progress: '#facc15',
+        resolved: '#22c55e',
+        closed: '#475569'
+    };
+    const statusLabels = statusData.map(item => (item.status ?? 'Unknown').replace('_', ' '));
+    const statusValues = statusData.map(item => Number(item.count) || 0);
+    const statusColors = statusData.map(item => statusMap[item.status] || '#cbd5e0');
+    initDoughnut(document.getElementById('statusChart'), statusLabels, statusValues, statusColors);
+
+    const trendCtx = document.getElementById('trendChart');
+    if (trendCtx && trendLineData.length) {
+        const labels = trendLineData.map(item => new Date(item.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }));
+        const counts = trendLineData.map(item => Number(item.count) || 0);
         new Chart(trendCtx, {
             type: 'line',
             data: {
-                labels: <?php echo json_encode(array_reverse(array_column($ticketTrend, 'date'))); ?>,
+                labels,
                 datasets: [{
                     label: 'Tickets',
-                    data: <?php echo json_encode(array_reverse(array_column($ticketTrend, 'count'))); ?>,
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    tension: 0.4,
-                    fill: true
+                    data: counts,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.25)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#1d4ed8'
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
                 plugins: {
                     legend: { display: false },
-                    title: { display: false, text: 'แนวโน้ม Tickets 30 วันล่าสุด' }
+                    tooltip: { mode: 'index', intersect: false }
                 },
-                scales: { y: { beginAtZero: true } }
+                scales: {
+                    x: {
+                        ticks: { color: '#475569' },
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#475569' },
+                        grid: { color: '#e2e8f0' }
+                    }
+                }
             }
         });
-    </script>
-    <style>
-    @media print {
-        /* ซ่อนส่วนที่ไม่ต้องพิมพ์ */
-        .sidebar,
-        .breadcrumb-nav,
-        .filter-section,
-        nav, form button, form a { display: none !important; }
-
-        /* Reset layout - ลบ margin-left ของ sidebar ออก */
-        body {
-            background: #fff !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        .container {
-            display: block !important;
-        }
-
-        .main-content {
-            margin-left: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-        }
-
-        /* ตั้งค่า Page */
-        @page {
-            size: A4 portrait;
-            margin: 15mm 15mm 15mm 15mm;
-        }
-
-        /* Card & Chart */
-        .card, .chart-card {
-            box-shadow: none !important;
-            border: 1px solid #ddd !important;
-            page-break-inside: avoid;
-            margin-bottom: 15px !important;
-        }
-
-        /* Stats Grid - 2 คอลัมน์ใน A4 */
-        .stats-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 10px !important;
-            margin-bottom: 15px !important;
-        }
-
-        /* Charts Grid - 2 คอลัมน์ */
-        .charts-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 10px !important;
-            margin-bottom: 15px !important;
-        }
-
-        /* Page Header */
-        .page-header {
-            box-shadow: none !important;
-            border: 1px solid #ddd !important;
-            padding: 15px !important;
-            margin-bottom: 15px !important;
-        }
-
-        h1 { color: #1a202c !important; font-size: 1.4em !important; }
-        .card-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    } else if (trendCtx) {
+        const context = trendCtx.getContext('2d');
+        context.font = '14px "Sarabun", sans-serif';
+        context.fillStyle = '#94a3b8';
+        context.textAlign = 'center';
+        context.fillText('ยังไม่มีข้อมูลเทรนด์', trendCtx.width / 2, trendCtx.height / 2);
     }
-    </style>
-</body>
-</html>
+});
+</script>
+<?php $pageScripts = ob_get_clean(); ?>
+
+<?php include_once __DIR__ . '/../includes/footer.php'; ?>

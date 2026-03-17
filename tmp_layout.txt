@@ -1,191 +1,5 @@
 ﻿<?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-require_once '../config/database.php';
-require_once '../includes/functions.php';
-
-// Check login
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ../auth/login.php');
-    exit;
-}
-
-$db = getDB();
-$isAdmin = $_SESSION['role'] === 'admin';
-$message = '';
-$messageType = '';
-csrf_token();
-$jsonAttrFlags = JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP;
-
-$requestedAction = ($_SERVER['REQUEST_METHOD'] === 'POST') ? ($_POST['action'] ?? '') : '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?? '')) {
-    if ($requestedAction === 'helpful') {
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => 'Invalid CSRF token.']);
-        exit;
-    }
-    $message = 'Invalid CSRF token.';
-    $messageType = 'error';
-    $requestedAction = '';
-}
-
-// Handle Create Article
-if ($requestedAction === 'create') {
-    if (!$isAdmin) {
-        http_response_code(403);
-        $message = 'Access denied.';
-        $messageType = 'error';
-        $requestedAction = '';
-    } else {
-    $title = sanitize($_POST['title']);
-    $category_id = (int)$_POST['category_id'];
-    $content = trim((string)($_POST['content'] ?? ''));
-    $tags = sanitize($_POST['tags']);
-    
-    $stmt = $db->prepare("INSERT INTO knowledgebase (title, category_id, content, tags, created_by, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param('sissi', $title, $category_id, $content, $tags, $_SESSION['user_id']);
-    
-    if ($stmt->execute()) {
-        $message = 'เน€เธเธดเนเธกเธเธ—เธเธงเธฒเธกเธชเธณเน€เธฃเนเธ!';
-        $messageType = 'success';
-        logActivity($_SESSION['user_id'], 'เน€เธเธดเนเธกเธเธ—เธเธงเธฒเธก KB', 'Knowledge Base', "เน€เธเธดเนเธก: $title");
-    } else {
-        $message = 'เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' . $stmt->error;
-        $messageType = 'error';
-    }
-    }
-}
-
-// Handle Update Article
-if ($requestedAction === 'update') {
-    if (!$isAdmin) {
-        http_response_code(403);
-        $message = 'Access denied.';
-        $messageType = 'error';
-        $requestedAction = '';
-    } else {
-    $kb_id = (int)$_POST['kb_id'];
-    $title = sanitize($_POST['title']);
-    $category_id = (int)$_POST['category_id'];
-    $content = trim((string)($_POST['content'] ?? ''));
-    $tags = sanitize($_POST['tags']);
-    
-    $stmt = $db->prepare("UPDATE knowledgebase SET title = ?, category_id = ?, content = ?, tags = ?, updated_at = NOW() WHERE kb_id = ?");
-    $stmt->bind_param('sissi', $title, $category_id, $content, $tags, $kb_id);
-    
-    if ($stmt->execute()) {
-        $message = 'เธญเธฑเธเน€เธ”เธ•เธเธ—เธเธงเธฒเธกเธชเธณเน€เธฃเนเธ!';
-        $messageType = 'success';
-        logActivity($_SESSION['user_id'], 'เธญเธฑเธเน€เธ”เธ•เธเธ—เธเธงเธฒเธก KB', 'Knowledge Base', "เธญเธฑเธเน€เธ”เธ•: $title");
-    } else {
-        $message = 'เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' . $stmt->error;
-        $messageType = 'error';
-    }
-    }
-}
-
-// Handle Delete Article
-if ($requestedAction === 'delete') {
-    if (!$isAdmin) {
-        http_response_code(403);
-        $message = 'Access denied.';
-        $messageType = 'error';
-        $requestedAction = '';
-    } else {
-    $kb_id = (int)$_POST['kb_id'];
-    
-    $stmt = $db->prepare("DELETE FROM knowledgebase WHERE kb_id = ?");
-    $stmt->bind_param('i', $kb_id);
-    
-    if ($stmt->execute()) {
-        $message = 'เธฅเธเธเธ—เธเธงเธฒเธกเธชเธณเน€เธฃเนเธ!';
-        $messageType = 'success';
-        logActivity($_SESSION['user_id'], 'เธฅเธเธเธ—เธเธงเธฒเธก KB', 'Knowledge Base', "เธฅเธ KB ID: $kb_id");
-    } else {
-        $message = 'เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' . $stmt->error;
-        $messageType = 'error';
-    }
-    }
-}
-
-// Handle Mark as Helpful
-if ($requestedAction === 'helpful') {
-    $kb_id = (int)$_POST['kb_id'];
-    
-    $stmt = $db->prepare("UPDATE knowledgebase SET helpful_count = helpful_count + 1 WHERE kb_id = ?");
-    $stmt->bind_param('i', $kb_id);
-    $stmt->execute();
-    
-    echo json_encode(['success' => true]);
-    exit;
-}
-
-// Handle View Count  
-if (isset($_GET['view']) && is_numeric($_GET['view'])) {
-    $kb_id = (int)$_GET['view'];
-    $stmt = $db->prepare("UPDATE knowledgebase SET views = views + 1 WHERE kb_id = ?");
-    $stmt->bind_param('i', $kb_id);
-    $stmt->execute();
-}
-
-// Get Filters
-$search = isset($_GET['search']) ? sanitize($_GET['search']) : '';
-$category = isset($_GET['category']) ? (int)$_GET['category'] : 0;
-
-// Build Query
-$sql = "SELECT kb.*, kbc.name as category_name, kbc.icon as category_icon, u.full_name as author_name
-        FROM knowledgebase kb
-        LEFT JOIN kbcategories kbc ON kb.category_id = kbc.category_id
-        LEFT JOIN users u ON kb.created_by = u.user_id
-        WHERE 1=1";
-$params = [];
-$types = '';
-
-if ($search) {
-    $sql .= " AND (kb.title LIKE ? OR kb.content LIKE ? OR kb.tags LIKE ?)";
-    $searchTerm = "%$search%";
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $types .= 'sss';
-}
-
-if ($category > 0) {
-    $sql .= " AND kb.category_id = ?";
-    $params[] = $category;
-    $types .= 'i';
-}
-
-$sql .= " ORDER BY kb.created_at DESC";
-
-$stmt = $db->prepare($sql);
-if ($params) {
-    $stmt->bind_param($types, ...$params);
-}
-$stmt->execute();
-$articles = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
-// Get Categories
-// เน€เธฃเธตเธขเธเธ•เธฒเธกเธฅเธณเธ”เธฑเธเธเธงเธฒเธกเธชเธณเธเธฑเธ (display_order) เนเธฅเธฐเธเธฃเธญเธเน€เธเธเธฒเธฐเธ—เธตเนเน€เธเธดเธ”เนเธเนเธเธฒเธ (is_active = 1)
-$categories = $db->query("SELECT * FROM kbcategories WHERE is_active = 1 ORDER BY display_order ASC, name ASC")->fetch_all(MYSQLI_ASSOC);
-
-// Get Statistics
-$statsSQL = "SELECT 
-    COUNT(*) as total_articles,
-    SUM(views) as total_views,
-    SUM(helpful_count) as total_helpful
-    FROM knowledgebase";
-$stats = $db->query($statsSQL)->fetch_assoc();
-
-// Get Popular Articles
-$popularSQL = "SELECT kb.*, kbc.name as category_name, kbc.icon as category_icon
-               FROM knowledgebase kb
-               LEFT JOIN kbcategories kbc ON kb.category_id = kbc.category_id
-               ORDER BY kb.views DESC
-               LIMIT 5";
-$popular = $db->query($popularSQL)->fetch_all(MYSQLI_ASSOC);
-$pageTitle = ui_text('page.title.knowledgebase');
+$pageTitle = 'Knowledge Base';
 $activePage = 'knowledgebase';
 include_once __DIR__ . '/../includes/header.php';
 include_once __DIR__ . '/../includes/sidebar.php';
@@ -194,21 +8,21 @@ include_once __DIR__ . '/../includes/sidebar.php';
     <div class="breadcrumb-nav">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
-                <a href="dashboard.php"><i class="fas fa-home"></i> <?php echo ui_text('nav.dashboard'); ?></a>
+                <a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a>
             </li>
-            <li class="breadcrumb-separator">&rsaquo;</li>
-            <li class="breadcrumb-item active"><i class="fas fa-book"></i> <?php echo ui_text('page.title.knowledgebase'); ?></li>
+            <li class="breadcrumb-separator">โ€บ</li>
+            <li class="breadcrumb-item active"><i class="fas fa-book"></i> Knowledge Base</li>
         </ol>
     </div>
 
     <div class="page-header">
         <div>
-            <h1><i class="fas fa-book"></i> <?php echo ui_text('page.title.knowledgebase'); ?></h1>
-            <p class="section-subtitle"><?php echo ui_text('page.subtitle.knowledgebase'); ?></p>
+            <h1><i class="fas fa-book"></i> Knowledge Base</h1>
+            <p class="section-subtitle">ศูนย์รวมบทความช่วยแก้ปัญหาและแนะนำการใช้งาน</p>
         </div>
         <?php if ($isAdmin): ?>
         <button class="btn btn-primary" onclick="openCreateModal()">
-            <i class="fas fa-plus"></i> <?php echo ui_text('button.create_article'); ?>
+            <i class="fas fa-plus"></i> สร้างบทความใหม่
         </button>
         <?php endif; ?>
     </div>
@@ -226,21 +40,21 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <div class="stat-icon gradient-purple"><i class="fas fa-book"></i></div>
                 <div class="stat-info">
                     <h3><?php echo number_format($stats['total_articles'] ?? 0); ?></h3>
-                    <p><?php echo ui_text('status.total_articles'); ?></p>
+                    <p>บทความทั้งหมด</p>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon gradient-blue"><i class="fas fa-eye"></i></div>
                 <div class="stat-info">
                     <h3><?php echo number_format($stats['total_views'] ?? 0); ?></h3>
-                    <p><?php echo ui_text('status.total_views'); ?></p>
+                    <p>ยอดเข้าชมรวม</p>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon gradient-green"><i class="fas fa-thumbs-up"></i></div>
                 <div class="stat-info">
                     <h3><?php echo number_format($stats['total_helpful'] ?? 0); ?></h3>
-                    <p><?php echo ui_text('status.total_helpful'); ?></p>
+                    <p>ช่วยได้ / ถูกใจ</p>
                 </div>
             </div>
         </div>
@@ -250,9 +64,9 @@ include_once __DIR__ . '/../includes/sidebar.php';
         <div class="filter-bar">
             <form method="GET">
                 <div class="filter-grid">
-                    <input type="text" name="search" class="form-control" placeholder="<?php echo ui_text('filter.search_placeholder'); ?>" value="<?php echo htmlspecialchars($search); ?>">
+                    <input type="text" name="search" class="form-control" placeholder="ค้นหาบทความ..." value="<?php echo htmlspecialchars($search); ?>">
                     <select name="category" class="form-control" onchange="this.form.submit()">
-                        <option value="0"><?php echo ui_text('filter.all_categories'); ?></option>
+                        <option value="0">ทุกหมวดหมู่</option>
                         <?php foreach ($categories as $cat): ?>
                         <option value="<?php echo $cat['category_id']; ?>" <?php echo (int)$category === (int)$cat['category_id'] ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($cat['name'] ?? ''); ?>
@@ -260,7 +74,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         <?php endforeach; ?>
                     </select>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-search"></i> <?php echo ui_text('button.search'); ?>
+                        <i class="fas fa-search"></i> ค้นหา
                     </button>
                 </div>
             </form>
@@ -273,8 +87,8 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <?php if (empty($articles)): ?>
                 <div class="empty-state knowledgebase-empty">
                     <i class="fas fa-book-open"></i>
-                    <h3><?php echo ui_text('empty.knowledgebase.title'); ?></h3>
-                    <p><?php echo ui_text('empty.knowledgebase.body'); ?></p>
+                    <h3>ยังไม่มีบทความ</h3>
+                    <p>กรุณาสร้างบทความแรกหรือปรับเงื่อนไขการค้นหา</p>
                 </div>
                 <?php else: ?>
                     <?php foreach ($articles as $article): ?>
@@ -314,10 +128,10 @@ include_once __DIR__ . '/../includes/sidebar.php';
                                 </div>
                                 <div class="action-btns">
                                     <button type="button" class="btn btn-primary btn-sm" onclick='viewArticle(<?php echo json_encode($article, $jsonAttrFlags); ?>)'>
-                                        <i class="fas fa-eye"></i> <?php echo ui_text('button.view_article'); ?>
+                                        <i class="fas fa-eye"></i> ดู
                                     </button>
                                     <button type="button" class="btn btn-helpful btn-sm" onclick="markHelpful(<?php echo $article['kb_id']; ?>)">
-                                        <i class="fas fa-thumbs-up"></i> <?php echo ui_text('button.helpful'); ?>
+                                        <i class="fas fa-thumbs-up"></i> Helpful
                                     </button>
                                     <?php if ($isAdmin): ?>
                                     <button type="button" class="btn btn-edit btn-sm" onclick='editArticle(<?php echo json_encode($article, $jsonAttrFlags); ?>)'>
@@ -336,7 +150,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
 
             <aside class="section-body knowledgebase-sidebar">
                 <div class="sidebar-widget">
-                    <h3 class="widget-title"><i class="fas fa-folder"></i> <?php echo ui_text('widget.categories'); ?></h3>
+                    <h3 class="widget-title"><i class="fas fa-folder"></i> หมวดหมู่</h3>
                     <?php foreach ($categories as $cat): ?>
                     <a href="?category=<?php echo $cat['category_id']; ?>" class="category-link <?php echo (int)$category === (int)$cat['category_id'] ? 'active' : ''; ?>">
                         <i class="<?php echo $cat['icon'] ?? 'fas fa-folder'; ?>"></i>
@@ -346,7 +160,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 </div>
 
                 <div class="sidebar-widget">
-                    <h3 class="widget-title"><i class="fas fa-fire"></i> <?php echo ui_text('widget.popular_articles'); ?></h3>
+                    <h3 class="widget-title"><i class="fas fa-fire"></i> บทความยอดนิยม</h3>
                     <?php foreach ($popular as $pop): ?>
                     <button type="button" class="popular-item" onclick='viewArticle(<?php echo json_encode($pop, $jsonAttrFlags); ?>)'>
                         <div class="popular-title"><?php echo htmlspecialchars($pop['title']); ?></div>
@@ -364,7 +178,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
 <div id="viewModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="viewTitle" class="modal-title"><i class="fas fa-book-open"></i> <?php echo ui_text('modal.article_view_title'); ?></h2>
+            <h2 id="viewTitle" class="modal-title"><i class="fas fa-book-open"></i> รายละเอียดบทความ</h2>
             <button class="modal-close" onclick="closeViewModal()">&times;</button>
         </div>
         <div id="viewBody"></div>
@@ -374,7 +188,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
 <div id="articleModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="modalTitle" class="modal-title"><i class="fas fa-plus-circle"></i> <?php echo ui_text('modal.article_add_title'); ?></h2>
+            <h2 id="modalTitle" class="modal-title"><i class="fas fa-plus-circle"></i> เพิ่มบทความ</h2>
             <button class="modal-close" onclick="closeModal()">&times;</button>
         </div>
         <form method="POST" id="articleForm">
@@ -528,8 +342,4 @@ include_once __DIR__ . '/../includes/sidebar.php';
 <?php $pageScripts = ob_get_clean(); ?>
 
 <?php include_once __DIR__ . '/../includes/footer.php'; ?>
-
-
-
-
 
