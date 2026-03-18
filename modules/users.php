@@ -461,45 +461,6 @@ include_once __DIR__ . '/../includes/sidebar.php';
     </form>
 </main>
 
-<?php ob_start(); ?>
-<script>
-function openCreateModal() {
-    document.getElementById('createModal').classList.add('show');
-}
-
-function closeCreateModal() {
-    document.getElementById('createModal').classList.remove('show');
-}
-
-function editUser(user) {
-    document.getElementById('edit_user_id').value = user.user_id;
-    document.getElementById('edit_full_name').value = user.full_name || '';
-    document.getElementById('edit_email').value = user.email || '';
-    document.getElementById('edit_phone').value = user.phone || '';
-    document.getElementById('edit_department').value = user.department || '';
-    document.getElementById('edit_position').value = user.position || '';
-    document.getElementById('edit_role').value = user.role;
-    document.getElementById('edit_status').value = user.status || 'inactive';
-    document.getElementById('editModal').classList.add('show');
-}
-
-function closeEditModal() {
-    document.getElementById('editModal').classList.remove('show');
-}
-
-function deleteUser(userId, name) {
-    if (confirm('ต้องการลบผู้ใช้งาน "' + name + '" ใช่หรือไม่?')) {
-        document.getElementById('delete_user_id').value = userId;
-        document.getElementById('deleteForm').submit();
-    }
-}
-
-window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.classList.remove('show');
-    }
-}
-</script>
-<?php $pageScripts = ob_get_clean(); ?>
+<?php $pageScripts = '<script src="' . BASE_URL . 'assets/js/users.js"></script>'; ?>
 
 <?php include_once __DIR__ . '/../includes/footer.php'; ?>

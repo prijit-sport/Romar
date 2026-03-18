@@ -100,6 +100,7 @@ return [
     'notification.empty' => 'No new notifications in the last 7 days',
     'toast.notifications_marked' => 'All notifications marked read',
     'toast.notifications_mark_error' => 'Unable to mark notifications, please retry',
+    'toast.notifications_marking' => 'Marking notifications...',
     'toast.server_unreachable' => 'Cannot reach the server, please try again',
 
     // Asset reports

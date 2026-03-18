@@ -1,12 +1,6 @@
 <?php
 $activePage = $activePage ?? '';
 $isAdmin = isAdmin();
-require_once __DIR__ . '/asset_categories.php';
-$assetCategories = getAssetCategories();
-$activeAssetCategory = $activeAssetCategory ?? '';
-$assetCategoryCounts = $catCounts ?? [];
-$assetParentClasses = trim('nav-parent ' . ($activePage === 'assets' ? 'active ' : '') . 'open');
-$assetSubmenuClasses = 'nav-submenu open';
 ?>
 <aside class="sidebar">
     <div class="sidebar-brand">
@@ -37,35 +31,12 @@ $assetSubmenuClasses = 'nav-submenu open';
                     <i class="fas fa-ticket-alt"></i> <?php echo ui_text('nav.tickets'); ?>
                 </a>
             </li>
-            <li class="<?php echo $assetParentClasses; ?>">
-                <div class="nav-parent-main">
-                    <a class="<?php echo $activePage === 'assets' ? 'active' : ''; ?>" href="<?php echo BASE_URL; ?>modules/assets.php">
-                        <i class="fas fa-box"></i> <?php echo ui_text('nav.assets'); ?>
-                    </a>
-                    <button type="button"
-                            class="nav-parent-toggle"
-                            aria-label="Toggle asset categories"
-                            aria-expanded="true">
-                        <i class="fas fa-chevron-up"></i>
-                    </button>
-                </div>
-                <ul class="<?php echo $assetSubmenuClasses; ?>">
-                    <?php foreach ($assetCategories as $key => $category): ?>
-                    <li class="<?php echo ($activePage === 'assets' && $activeAssetCategory === $key) ? 'active' : ''; ?>">
-                        <a href="<?php echo BASE_URL; ?>modules/assets.php?cat=<?php echo urlencode($key); ?>">
-                            <span class="nav-submenu-label">
-                                <i class="fas <?php echo $category['icon']; ?>"></i>
-                                <?php echo htmlspecialchars($category['label']); ?>
-                            </span>
-                            <?php if (!empty($assetCategoryCounts[$key])): ?>
-                                <span class="submenu-badge"><?php echo number_format($assetCategoryCounts[$key]); ?></span>
-                            <?php endif; ?>
-                        </a>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
+            <li class="<?php echo $activePage === 'assets' ? 'active' : ''; ?>">
+                <a href="<?php echo BASE_URL; ?>modules/assets.php">
+                    <i class="fas fa-box"></i> <?php echo ui_text('nav.assets'); ?>
+                </a>
             </li>
-            <li class="<?php echo $activePage === 'knowledgebase' ? 'active' : ''; ?>">
+            <li class="<?php echo $activePage === 'knowledgebase' ? 'active' : ''; ?>"> 
                 <a href="<?php echo BASE_URL; ?>modules/Knowledgebase.php">
                     <i class="fas fa-book"></i> <?php echo ui_text('nav.knowledgebase'); ?>
                 </a>
@@ -107,26 +78,3 @@ $assetSubmenuClasses = 'nav-submenu open';
         </ul>
     </nav>
 </aside>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.nav-parent-toggle').forEach(toggle => {
-        toggle.addEventListener('click', function(event) {
-            event.preventDefault();
-            const parent = toggle.closest('.nav-parent');
-            const submenu = parent ? parent.querySelector('.nav-submenu') : null;
-            if (!submenu) {
-                return;
-            }
-            const isOpen = submenu.classList.toggle('open');
-            parent.classList.toggle('open', isOpen);
-            const icon = toggle.querySelector('i');
-            if (icon) {
-                icon.classList.toggle('fa-chevron-up', isOpen);
-                icon.classList.toggle('fa-chevron-down', !isOpen);
-            }
-            toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        });
-    });
-});
-</script>
-

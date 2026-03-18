@@ -572,7 +572,8 @@ function statusLabel($s) {
             </div>
 
             <div class="profile-actions">
-                <button class="btn btn-edit" onclick='openEditModal(<?php echo json_encode($profileUser, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)'>
+                <button type="button" class="btn btn-edit"
+                        data-profile="<?php echo htmlspecialchars(json_encode($profileUser, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8'); ?>">
                     <i class="fas fa-edit"></i> แก้ไขข้อมูล
                 </button>
                 <a href="users.php" class="btn btn-secondary">
@@ -624,19 +625,19 @@ function statusLabel($s) {
         <!-- Tabs -->
         <div class="tabs-wrapper">
             <div class="tabs-nav">
-                <button class="tab-btn active" onclick="switchTab('tickets', this)">
+                <button type="button" class="tab-btn active" data-tab="tickets">
                     <i class="fas fa-ticket-alt"></i> ประวัติ Ticket
                     <span class="tab-count"><?php echo $ticketStats['total'] ?? 0; ?></span>
                 </button>
-                <button class="tab-btn" onclick="switchTab('assets', this)">
+                <button type="button" class="tab-btn" data-tab="assets">
                     <i class="fas fa-laptop"></i> สินทรัพย์ IT
                     <span class="tab-count"><?php echo count($assets); ?></span>
                 </button>
-                <button class="tab-btn" onclick="switchTab('info', this)">
+                <button type="button" class="tab-btn" data-tab="info">
                     <i class="fas fa-id-card"></i> ข้อมูลส่วนตัว
                 </button>
                 <?php if (!empty($activityLogs)): ?>
-                <button class="tab-btn" onclick="switchTab('activity', this)">
+                <button type="button" class="tab-btn" data-tab="activity">
                     <i class="fas fa-history"></i> ประวัติกิจกรรม
                     <span class="tab-count"><?php echo count($activityLogs); ?></span>
                 </button>
@@ -965,7 +966,7 @@ function statusLabel($s) {
     <div style="background:white; padding:30px; border-radius:16px; width:90%; max-width:600px; max-height:90vh; overflow-y:auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h2 style="font-size:1.5em;"><i class="fas fa-user-edit"></i> แก้ไขผู้ใช้งาน</h2>
-            <button onclick="closeEditModal()" style="background:none; border:none; font-size:1.5em; cursor:pointer; color:#718096;">&times;</button>
+            <button type="button" data-edit-action="close-edit-modal" style="background:none; border:none; font-size:1.5em; cursor:pointer; color:#718096;">&times;</button>
         </div>
         <form method="POST" action="users.php">
             <input type="hidden" name="action" value="update" autocomplete="off">
@@ -1025,7 +1026,7 @@ function statusLabel($s) {
             </div>
 
             <div style="display:flex; gap:10px; justify-content:flex-end;">
-                <button type="button" onclick="closeEditModal()" class="btn btn-secondary">ยกเลิก</button>
+                <button type="button" class="btn btn-secondary" data-edit-action="close-edit-modal">ยกเลิก</button>
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> บันทึก
                 </button>
@@ -1034,34 +1035,6 @@ function statusLabel($s) {
     </div>
 </div>
 
-<script>
-    function switchTab(name, btn) {
-        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('tab-' + name).classList.add('active');
-        btn.classList.add('active');
-    }
-
-    function openEditModal(user) {
-        document.getElementById('edit_user_id').value    = user.user_id;
-        document.getElementById('edit_full_name').value  = user.full_name   || '';
-        document.getElementById('edit_email').value      = user.email       || '';
-        document.getElementById('edit_phone').value      = user.phone       || '';
-        document.getElementById('edit_department').value = user.department  || '';
-        document.getElementById('edit_position').value   = user.position    || '';
-        document.getElementById('edit_role').value       = user.role;
-        document.getElementById('edit_status').value     = user.status      || 'inactive';
-        document.getElementById('editModal').style.display = 'flex';
-    }
-
-    function closeEditModal() {
-        document.getElementById('editModal').style.display = 'none';
-    }
-
-    window.onclick = function(e) {
-        const m = document.getElementById('editModal');
-        if (e.target === m) closeEditModal();
-    }
-</script>
+<script src="../assets/js/userProfile.js"></script>
 </body>
 </html>

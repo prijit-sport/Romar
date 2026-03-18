@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// ── Flash message (PRG pattern) ────────────────────────────────
+// โ”€โ”€ Flash message (PRG pattern) โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
 $message     = $_SESSION['flash_message'] ?? '';
 $messageType = $_SESSION['flash_type']    ?? '';
 unset($_SESSION['flash_message'], $_SESSION['flash_type']);
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         header('Location: assets.php');
         exit;
     }
-    // ── Basic ──────────────────────────────────────────────
+    // โ”€โ”€ Basic โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
     $asset_name        = sanitize($_POST['asset_name']);
     $asset_tag         = sanitize($_POST['asset_tag']);
     $asset_type        = sanitize($_POST['asset_type']);
@@ -59,11 +59,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $status            = sanitize($_POST['status']);
     $condition         = sanitize($_POST['condition'] ?? 'good');
     $notes             = sanitize($_POST['notes']);
-    // ── Personnel ──────────────────────────────────────────
+    // โ”€โ”€ Personnel โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
     $assigned_to       = !empty($_POST['assigned_to'])      ? (int)$_POST['assigned_to']      : null;
     $tech_in_charge    = !empty($_POST['tech_in_charge'])   ? (int)$_POST['tech_in_charge']   : null;
     $alternate_user    = sanitize($_POST['alternate_user'] ?? '');
-    // ── Purchase ───────────────────────────────────────────
+    // โ”€โ”€ Purchase โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
     $purchase_date     = !empty($_POST['purchase_date'])    ? $_POST['purchase_date']    : null;
     $warranty_expiry   = !empty($_POST['warranty_expiry'])  ? $_POST['warranty_expiry']  : null;
     $purchase_price    = !empty($_POST['purchase_price'])   ? (float)$_POST['purchase_price']  : null;
@@ -71,19 +71,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $useful_life_years = !empty($_POST['useful_life_years'])? (int)$_POST['useful_life_years']  : 5;
     $supplier          = sanitize($_POST['supplier'] ?? '');
     $last_inventory_date = !empty($_POST['last_inventory_date']) ? $_POST['last_inventory_date'] : null;
-    // ── OS ─────────────────────────────────────────────────
+    // โ”€โ”€ OS โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
     $os_name           = sanitize($_POST['os_name'] ?? '');
     $os_version        = sanitize($_POST['os_version'] ?? '');
     $os_architecture   = sanitize($_POST['os_architecture'] ?? '');
     $os_service_pack   = sanitize($_POST['os_service_pack'] ?? '');
     $os_product_key    = sanitize($_POST['os_product_key'] ?? '');
-    // ── Network ────────────────────────────────────────────
+    // โ”€โ”€ Network โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
     $ip_address        = sanitize($_POST['ip_address'] ?? '');
     $mac_address       = sanitize($_POST['mac_address'] ?? '');
     $network_domain    = sanitize($_POST['network_domain'] ?? '');
     $gateway           = sanitize($_POST['gateway'] ?? '');
     $dns_server        = sanitize($_POST['dns_server'] ?? '');
-    // ── Hardware ───────────────────────────────────────────
+    // โ”€โ”€ Hardware โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
     $cpu               = sanitize($_POST['cpu'] ?? '');
     $cpu_cores         = !empty($_POST['cpu_cores']) ? (int)$_POST['cpu_cores'] : null;
     $ram_gb            = !empty($_POST['ram_gb'])    ? (int)$_POST['ram_gb']    : null;
@@ -95,13 +95,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $assignedSQL     = $assigned_to     ? $assigned_to     : null;
     $techSQL         = $tech_in_charge  ? $tech_in_charge  : null;
 
-    // ── ตรวจสอบ asset_tag ซ้ำก่อน INSERT ──────────────────────
+    // โ”€โ”€ เธ•เธฃเธงเธเธชเธญเธ asset_tag เธเนเธณเธเนเธญเธ INSERT โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
     $chk = $db->prepare("SELECT asset_id FROM assets WHERE asset_tag = ?");
     $chk->bind_param('s', $asset_tag);
     $chk->execute();
     $dupRes = $chk->get_result();
     if ($dupRes && $dupRes->num_rows > 0) {
-        $_SESSION['flash_message'] = "Asset Tag \"" . htmlspecialchars($asset_tag) . "\" มีในระบบแล้ว กรุณาใช้รหัสสินทรัพย์ใหม่";
+        $_SESSION['flash_message'] = "Asset Tag \"" . htmlspecialchars($asset_tag) . "\" เธกเธตเนเธเธฃเธฐเธเธเนเธฅเนเธง เธเธฃเธธเธ“เธฒเนเธเนเธฃเธซเธฑเธชเธชเธดเธเธ—เธฃเธฑเธเธขเนเนเธซเธกเน";
         $_SESSION['flash_type']    = 'error';
         $cat = $_GET['cat'] ?? 'all';
         header('Location: assets.php?cat=' . $cat);
@@ -137,11 +137,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     );
 
     if ($stmt->execute()) {
-        logActivity($_SESSION['user_id'], 'เพิ่มสินทรัพย์', 'Assets', "เพิ่ม: $asset_name ($asset_tag)");
-        $_SESSION['flash_message'] = 'เพิ่มสินทรัพย์สำเร็จ!';
+        logActivity($_SESSION['user_id'], 'เน€เธเธดเนเธกเธชเธดเธเธ—เธฃเธฑเธเธขเน', 'Assets', "เน€เธเธดเนเธก: $asset_name ($asset_tag)");
+        $_SESSION['flash_message'] = 'เน€เธเธดเนเธกเธชเธดเธเธ—เธฃเธฑเธเธขเนเธชเธณเน€เธฃเนเธ!';
         $_SESSION['flash_type']    = 'success';
     } else {
-        $_SESSION['flash_message'] = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+        $_SESSION['flash_message'] = 'เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' . $stmt->error;
         $_SESSION['flash_type']    = 'error';
     }
 
@@ -266,11 +266,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $stmt = $db->prepare($sql);
     $stmt->bind_param($types, ...$values);
     if ($stmt->execute()) {
-        logActivity($_SESSION['user_id'], 'อัปเดตสินทรัพย์', 'Assets', "อัปเดต: $asset_name");
-        $_SESSION['flash_message'] = 'อัปเดตสินทรัพย์สำเร็จ!';
+        logActivity($_SESSION['user_id'], 'เธญเธฑเธเน€เธ”เธ•เธชเธดเธเธ—เธฃเธฑเธเธขเน', 'Assets', "เธญเธฑเธเน€เธ”เธ•: $asset_name");
+        $_SESSION['flash_message'] = 'เธญเธฑเธเน€เธ”เธ•เธชเธดเธเธ—เธฃเธฑเธเธขเนเธชเธณเน€เธฃเนเธ!';
         $_SESSION['flash_type']    = 'success';
     } else {
-        $_SESSION['flash_message'] = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+        $_SESSION['flash_message'] = 'เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' . $stmt->error;
         $_SESSION['flash_type']    = 'error';
     }
     $cat = $_GET['cat'] ?? 'all';
@@ -286,11 +286,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $stmt->bind_param('i', $asset_id);
     
     if ($stmt->execute()) {
-        logActivity($_SESSION['user_id'], 'ลบสินทรัพย์', 'Assets', "ลบ Asset ID: $asset_id");
-        $_SESSION['flash_message'] = 'ลบสินทรัพย์สำเร็จ!';
+        logActivity($_SESSION['user_id'], 'เธฅเธเธชเธดเธเธ—เธฃเธฑเธเธขเน', 'Assets', "เธฅเธ Asset ID: $asset_id");
+        $_SESSION['flash_message'] = 'เธฅเธเธชเธดเธเธ—เธฃเธฑเธเธขเนเธชเธณเน€เธฃเนเธ!';
         $_SESSION['flash_type']    = 'success';
     } else {
-        $_SESSION['flash_message'] = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+        $_SESSION['flash_message'] = 'เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' . $stmt->error;
         $_SESSION['flash_type']    = 'error';
     }
     $cat = $_GET['cat'] ?? 'all';
@@ -385,7 +385,7 @@ $assets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 // Group assets by assigned user (for "by user" view)
 $assetsByUser = [];
 foreach ($assets as $a) {
-    $key = $a['assigned_to'] ? $a['assigned_user_name'] : '— ไม่ได้มอบหมาย —';
+    $key = $a['assigned_to'] ? $a['assigned_user_name'] : 'โ€” เนเธกเนเนเธ”เนเธกเธญเธเธซเธกเธฒเธข โ€”';
     $assetsByUser[$key][] = $a;
 }
 ksort($assetsByUser);
@@ -413,7 +413,7 @@ $warrantyAlerts = $db->query("
     ORDER BY a.warranty_expiry ASC
 ")->fetch_all(MYSQLI_ASSOC);
 
-// ── Export Excel ──────────────────────────────────────────────
+// โ”€โ”€ Export Excel โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
 if (isset($_GET['export']) && $_GET['export'] === 'excel') {
     $exportRows = $db->query("
         SELECT a.asset_tag, a.inventory_number, a.asset_name, a.asset_type,
@@ -432,11 +432,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel') {
     echo '<head><meta charset="UTF-8"></head><body>';
     echo '<table border="1">';
     echo '<tr style="background:#2d6a4f;color:#fff;font-weight:bold;">
-        <th>Asset Tag</th><th>Inventory No.</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th>
-        <th>Brand</th><th>Model</th><th>Serial Number</th><th>สถานะ</th>
-        <th>Location</th><th>แผนก</th><th>ผู้รับผิดชอบ</th>
+        <th>Asset Tag</th><th>Inventory No.</th><th>เธเธทเนเธญเธญเธธเธเธเธฃเธ“เน</th><th>เธเธฃเธฐเน€เธ เธ—</th>
+        <th>Brand</th><th>Model</th><th>Serial Number</th><th>เธชเธ–เธฒเธเธฐ</th>
+        <th>Location</th><th>เนเธเธเธ</th><th>เธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธ</th>
         <th>IP Address</th><th>MAC Address</th><th>OS</th>
-        <th>Warranty Expiry</th><th>ราคาซื้อ (฿)</th><th>หมายเหตุ</th>
+        <th>Warranty Expiry</th><th>เธฃเธฒเธเธฒเธเธทเนเธญ (เธฟ)</th><th>เธซเธกเธฒเธขเน€เธซเธ•เธธ</th>
     </tr>';
     foreach ($exportRows as $r) {
         $e = fn($v) => htmlspecialchars($v ?? '', ENT_QUOTES);
@@ -492,14 +492,19 @@ include_once __DIR__ . '/../includes/sidebar.php';
                     <h1>
                         <i class="fas <?= $currentCat['icon'] ?>" style="color:<?= $currentCat['color'] ?>;"></i>
                         <?= $currentCat['label'] ?>
-                        <span class="asset-count-badge"><?= count($assets) ?> ��¡��</span>
+                        <span class="asset-count-badge"><?= count($assets) ?> assets</span>
                     </h1>
+                    <p class="page-subtitle">Inventory overview for <?= $currentCat['label'] ?> assets</p>
                 </div>
                 <div class="page-actions">
+                    <button type="button" id="categoryToggle" class="btn btn-secondary category-toggle-btn" title="Asset categories" aria-controls="categoryPanel" aria-expanded="false">
+                        <i class="fas fa-layer-group" aria-hidden="true"></i>
+                        <span><?php echo ui_text('nav.assets_categories'); ?></span>
+                    </button>
                     <?php if ($isAdmin): ?>
                     <button class="btn btn-primary" onclick="openCreateModal()">
                         <i class="fas fa-plus"></i>
-                        ����<?= $cat !== 'all' ? $currentCat['label'] : '�Թ��Ѿ��' ?>
+                        Add <?= $cat !== 'all' ? strtolower($currentCat['label']) : 'asset' ?>
                     </button>
                     <?php endif; ?>
                 </div>
@@ -520,7 +525,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($stats['total'] ?? 0); ?></h3>
-                        <p>�Թ��Ѿ�������</p>
+                        <p>Total assets</p>
                     </div>
                 </div>
 
@@ -530,7 +535,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($stats['active_count'] ?? 0); ?></h3>
-                        <p>�Թ��Ѿ����ҹ��</p>
+                        <p>Active assets</p>
                     </div>
                 </div>
 
@@ -540,7 +545,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($stats['maintenance_count'] ?? 0); ?></h3>
-                        <p>���������ҧ���ا�ѡ��</p>
+                        <p>Under maintenance</p>
                     </div>
                 </div>
 
@@ -550,7 +555,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($stats['warranty_expired_count'] ?? 0); ?></h3>
-                        <p>����Ѻ��Сѹ�������</p>
+                        <p>Warranty expired</p>
                     </div>
                 </div>
 
@@ -561,7 +566,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 </div>
                     <div class="stat-info">
                         <h3><?php echo number_format($stats['warranty_expiring_count']); ?></h3>
-                        <p>��Сѹ������ (30 �ѹ)</p>
+                        <p>Warranties expiring within 30 days</p>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -573,19 +578,19 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <div class="alert-header" onclick="toggleWarrantyAlert()">
                     <div class="alert-title">
                         <i class="fas fa-bell"></i>
-                        ����͹����Ѻ��Сѹ (<?= count($warrantyAlerts) ?> ��¡�� ���� 90 �ѹ)
+                        ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝอน๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝับ๏ฟฝ๏ฟฝะกัน (<?= count($warrantyAlerts) ?> ๏ฟฝ๏ฟฝยก๏ฟฝ๏ฟฝ ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ 90 ๏ฟฝัน)
                     </div>
                     <span id="warrantyToggleIcon" class="warranty-toggle-icon">
-                        <i class="fas fa-chevron-down"></i> ����������´
+                        <i class="fas fa-chevron-down"></i> ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝยด
                     </span>
                 </div>
                 <div id="warrantyAlertBody" style="display:none;">
                     <table class="warranty-alert-table">
                         <thead>
                             <tr>
-                                <th>Asset Tag</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th>
-                                <th>ผู้รับผิดชอบ</th><th>Location</th>
-                                <th>วันหมดประกัน</th><th>เหลือ</th>
+                                <th>Asset Tag</th><th>เธเธทเนเธญเธญเธธเธเธเธฃเธ“เน</th><th>เธเธฃเธฐเน€เธ เธ—</th>
+                                <th>เธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธ</th><th>Location</th>
+                                <th>เธงเธฑเธเธซเธกเธ”เธเธฃเธฐเธเธฑเธ</th><th>เน€เธซเธฅเธทเธญ</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -597,10 +602,10 @@ include_once __DIR__ . '/../includes/sidebar.php';
                                 <td><strong><?= htmlspecialchars($wa['asset_tag']) ?></strong></td>
                                 <td><?= htmlspecialchars($wa['asset_name']) ?></td>
                                 <td><span class="type-badge type-<?= $wa['asset_type'] ?>"><?= strtoupper($wa['asset_type']) ?></span></td>
-                                <td><?= htmlspecialchars($wa['assigned_user_name'] ?? '—') ?></td>
-                                <td><?= htmlspecialchars($wa['location'] ?? '—') ?></td>
+                                <td><?= htmlspecialchars($wa['assigned_user_name'] ?? 'โ€”') ?></td>
+                                <td><?= htmlspecialchars($wa['location'] ?? 'โ€”') ?></td>
                                 <td><?= date('d/m/Y', strtotime($wa['warranty_expiry'])) ?></td>
-                                <td><span class="days-badge <?= $bc ?>"><?= $d ?> วัน</span></td>
+                                <td><span class="days-badge <?= $bc ?>"><?= $d ?> เธงเธฑเธ</span></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
@@ -623,25 +628,25 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         <div class="input-icon-wrapper">
                             <i class="fas fa-search"></i>
                             <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" class="form-control"
-                                   placeholder="���� Asset Tag, �����Ţ, ����, IP ���� Serial">
+                                   placeholder="๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ Asset Tag, ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝลข, ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ, IP ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ Serial">
                         </div>
                         <select name="status" onchange="this.form.submit()" class="form-control form-select-compact">
-                            <option value="">ทุกสถานะ</option>
+                            <option value="">เธ—เธธเธเธชเธ–เธฒเธเธฐ</option>
                             <option value="active"      <?= $status==='active'     ?'selected':'' ?>>Active</option>
                             <option value="inactive"    <?= $status==='inactive'   ?'selected':'' ?>>Inactive</option>
                             <option value="maintenance" <?= $status==='maintenance'?'selected':'' ?>>Maintenance</option>
                             <option value="retired"     <?= $status==='retired'    ?'selected':'' ?>>Retired</option>
                         </select>
                         <button type="submit" class="btn btn-primary btn-sm">
-                            <i class="fas fa-search"></i> ค้นหา
+                            <i class="fas fa-search"></i> เธเนเธเธซเธฒ
                         </button>
                     </form>
                     <div class="toolbar-actions">
                         <button onclick="switchView('table')" id="btnTableView" class="btn btn-primary btn-sm view-toggle active">
-                            <i class="fas fa-list"></i> รายการ
+                            <i class="fas fa-list"></i> เธฃเธฒเธขเธเธฒเธฃ
                         </button>
                         <button onclick="switchView('user')" id="btnUserView" class="btn btn-sm view-toggle">
-                            <i class="fas fa-users"></i> แยกตามผู้รับผิดชอบ
+                            <i class="fas fa-users"></i> เนเธขเธเธ•เธฒเธกเธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธ
                         </button>
                         <a href="?export=excel" class="btn btn-sm view-toggle btn-green">
                             <i class="fas fa-file-excel"></i> Export Excel
@@ -653,16 +658,16 @@ include_once __DIR__ . '/../includes/sidebar.php';
                     <thead>
                         <tr>
                             <th>Asset Tag / Inventory</th>
-                            <th>ชื่ออุปกรณ์</th>
-                            <th>ประเภท</th>
+                            <th>เธเธทเนเธญเธญเธธเธเธเธฃเธ“เน</th>
+                            <th>เธเธฃเธฐเน€เธ เธ—</th>
                             <th>Brand / Model</th>
                             <th>OS</th>
                             <th>IP Address</th>
-                            <th>Location / แผนก</th>
-                            <th>ผู้รับผิดชอบ</th>
+                            <th>Location / เนเธเธเธ</th>
+                            <th>เธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธ</th>
                             <th>Warranty</th>
-                            <th>สถานะ</th>
-                            <th>การกระทำ</th>
+                            <th>เธชเธ–เธฒเธเธฐ</th>
+                            <th>เธเธฒเธฃเธเธฃเธฐเธ—เธณ</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -670,7 +675,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         <tr>
                             <td colspan="11" class="table-empty">
                                 <i class="fas fa-box"></i>
-                                ไม่พบข้อมูลสินทรัพย์
+                                เนเธกเนเธเธเธเนเธญเธกเธนเธฅเธชเธดเธเธ—เธฃเธฑเธเธขเน
                             </td>
                         </tr>
                         <?php else: ?>
@@ -704,14 +709,14 @@ include_once __DIR__ . '/../includes/sidebar.php';
                                         <br><small class="meta-note"><?= htmlspecialchars($asset['os_version']) ?></small>
                                         <?php endif; ?>
                                     <?php else: ?>
-                                        <small class="meta-note muted">—</small>
+                                        <small class="meta-note muted">โ€”</small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if (!empty($asset['ip_address'])): ?>
                                         <code class="meta-code"><?= htmlspecialchars($asset['ip_address']) ?></code>
                                     <?php else: ?>
-                                        <small class="meta-note muted">—</small>
+                                        <small class="meta-note muted">โ€”</small>
                                     <?php endif; ?>
                                     <?php if (!empty($asset['mac_address'])): ?>
                                     <br><small class="meta-note muted"><?= htmlspecialchars($asset['mac_address']) ?></small>
@@ -724,7 +729,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php echo htmlspecialchars($asset['assigned_user_name'] ?? 'ไม่ได้มอบหมาย'); ?>
+                                    <?php echo htmlspecialchars($asset['assigned_user_name'] ?? 'เนเธกเนเนเธ”เนเธกเธญเธเธซเธกเธฒเธข'); ?>
                                     <?php if (!empty($asset['tech_name'])): ?>
                                     <br><small class="meta-note"><i class="fas fa-tools"></i> <?= htmlspecialchars($asset['tech_name']) ?></small>
                                     <?php endif; ?>
@@ -736,9 +741,9 @@ include_once __DIR__ . '/../includes/sidebar.php';
                                         $now = time();
                                         $days_diff = ($warr_date - $now) / 86400;
                                         if ($days_diff < 0) {
-                                            echo '<span class="warranty-expired">หมดอายุแล้ว</span>';
+                                            echo '<span class="warranty-expired">เธซเธกเธ”เธญเธฒเธขเธธเนเธฅเนเธง</span>';
                                         } elseif ($days_diff <= 30) {
-                                            echo '<span class="warranty-warning">เหลือ ' . ceil($days_diff) . ' วัน</span>';
+                                            echo '<span class="warranty-warning">เน€เธซเธฅเธทเธญ ' . ceil($days_diff) . ' เธงเธฑเธ</span>';
                                         } else {
                                             echo date('d/m/Y', $warr_date);
                                         }
@@ -754,14 +759,14 @@ include_once __DIR__ . '/../includes/sidebar.php';
                                 </td>
                                 <td>
                                     <div class="action-btns">
-                                        <a href="assetsdetail.php?id=<?php echo $asset['asset_id']; ?>" class="btn btn-sm btn-green" title="ดูรายละเอียด">
+                                        <a href="assetsdetail.php?id=<?php echo $asset['asset_id']; ?>" class="btn btn-sm btn-green" title="เธ”เธนเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <?php if ($isAdmin): ?>
-                                        <button class="btn btn-edit btn-sm" onclick='editAsset(<?php echo json_encode($asset, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)' title="แก้ไข">
+                                        <button class="btn btn-edit btn-sm" onclick='editAsset(<?php echo json_encode($asset, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)' title="เนเธเนเนเธ">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn btn-delete btn-sm" onclick="deleteAsset(<?php echo $asset['asset_id']; ?>, '<?php echo htmlspecialchars($asset['asset_name']); ?>')" title="ลบ">
+                                        <button class="btn btn-delete btn-sm" onclick="deleteAsset(<?php echo $asset['asset_id']; ?>, '<?php echo htmlspecialchars($asset['asset_name']); ?>')" title="เธฅเธ">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                         <?php endif; ?>
@@ -780,18 +785,18 @@ include_once __DIR__ . '/../includes/sidebar.php';
                     <div style="margin-bottom:25px;">
                         <div style="background:linear-gradient(135deg,#10ce30,#000);color:white;padding:12px 18px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                             <span><i class="fas fa-user" style="margin-right:8px;"></i><strong><?= htmlspecialchars($userName) ?></strong></span>
-                            <span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:0.85em;"><?= count($userAssets) ?> รายการ</span>
+                            <span style="background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;font-size:0.85em;"><?= count($userAssets) ?> เธฃเธฒเธขเธเธฒเธฃ</span>
                         </div>
                         <table style="margin:0;">
                             <thead>
                                 <tr>
                                     <th>Asset Tag</th>
-                                    <th>ชื่อสินทรัพย์</th>
-                                    <th>ประเภท</th>
+                                    <th>เธเธทเนเธญเธชเธดเธเธ—เธฃเธฑเธเธขเน</th>
+                                    <th>เธเธฃเธฐเน€เธ เธ—</th>
                                     <th>Brand/Model</th>
                                     <th>Location</th>
                                     <th>S/N</th>
-                                    <th>สถานะ</th>
+                                    <th>เธชเธ–เธฒเธเธฐ</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -818,14 +823,51 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <?php endforeach; ?>
                 </div>
             </div>
+
+            <!-- Category Side Panel -->
+            <div id="categoryBackdrop" class="category-backdrop" aria-hidden="true"></div>
+            <aside id="categoryPanel" class="category-panel" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="categoryPanelTitle">
+                <header class="category-panel-header">
+                    <div>
+                        <h3 id="categoryPanelTitle">
+                            <i class="fas fa-layer-group" aria-hidden="true"></i>
+                            Asset categories
+                        </h3>
+                        <p class="category-panel-help">Filter your assets by category for faster navigation.</p>
+                    </div>
+                    <button type="button" class="category-panel-close" aria-label="Close category panel">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </button>
+                </header>
+                <div class="category-panel-body">
+                    <div class="category-grid">
+                        <?php foreach ($ASSET_CATEGORIES as $key => $category): ?>
+                        <a href="#" class="category-card <?= ($activeAssetCategory === $key) ? 'active' : '' ?> category-link" data-cat="<?= htmlspecialchars($key) ?>" <?php echo ($activeAssetCategory === $key) ? 'aria-current="true"' : ''; ?>>
+                            <div class="category-icon" style="color: <?= htmlspecialchars($category['color']) ?>">
+                                <i class="fas <?= htmlspecialchars($category['icon']) ?>"></i>
+                            </div>
+                            <div class="category-label"><?= htmlspecialchars($category['label']) ?></div>
+                            <?php if (isset($catCounts[$key])): ?>
+                            <div class="category-count"><?= number_format($catCounts[$key]) ?> assets</div>
+                            <?php endif; ?>
+                        </a>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="category-panel-footer">
+                        <a href="assets.php?cat=all" class="btn btn-sm btn-secondary category-panel-footer-link">
+                            <i class="fas fa-box" aria-hidden="true"></i>
+                            Show all assets
+                        </a>
+                    </div>
+                </div>
+            </aside>
         </div>
     </div>
-
     <!-- Create Asset Modal -->
     <div id="createModal" class="modal">
         <div class="modal-content" style="max-width:820px;">
             <div class="modal-header">
-                <h2><i class="fas fa-plus-circle"></i> เพิ่มสินทรัพย์ใหม่</h2>
+                <h2><i class="fas fa-plus-circle"></i> เน€เธเธดเนเธกเธชเธดเธเธ—เธฃเธฑเธเธขเนเนเธซเธกเน</h2>
                 <button class="close-btn" onclick="closeCreateModal()">&times;</button>
             </div>
             <form method="POST">
@@ -835,7 +877,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <!-- Tab Navigation -->
                 <div style="display:flex;gap:4px;background:#f7fafc;padding:6px;border-radius:10px;margin-bottom:20px;flex-wrap:wrap;">
                     <button type="button" onclick="switchModalTab('c','basic')" id="c_tab_basic" class="modal-tab active-tab">
-                        <i class="fas fa-info-circle"></i> ข้อมูลทั่วไป
+                        <i class="fas fa-info-circle"></i> เธเนเธญเธกเธนเธฅเธ—เธฑเนเธงเนเธ
                     </button>
                     <button type="button" onclick="switchModalTab('c','os')" id="c_tab_os" class="modal-tab">
                         <i class="fab fa-windows"></i> OS
@@ -847,7 +889,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         <i class="fas fa-network-wired"></i> Network
                     </button>
                     <button type="button" onclick="switchModalTab('c','purchase')" id="c_tab_purchase" class="modal-tab">
-                        <i class="fas fa-shopping-cart"></i> การจัดซื้อ
+                        <i class="fas fa-shopping-cart"></i> เธเธฒเธฃเธเธฑเธ”เธเธทเนเธญ
                     </button>
                 </div>
 
@@ -860,35 +902,26 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         </div>
                         <div class="form-group">
                             <label for="create_inventory_number">Inventory Number</label>
-                            <input type="text" name="inventory_number" id="create_inventory_number" class="form-control" placeholder="�� INV-2024-001">
+                            <input type="text" name="inventory_number" id="create_inventory_number" class="form-control" placeholder="๏ฟฝ๏ฟฝ INV-2024-001">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="create_asset_name">ชื่ออุปกรณ์ <span style="color:red;">*</span></label>
+                            <label for="create_asset_name">เธเธทเนเธญเธญเธธเธเธเธฃเธ“เน <span style="color:red;">*</span></label>
                             <input type="text" name="asset_name" id="create_asset_name" class="form-control" required placeholder="e.g., pc-romar001.romar.co.th">
                         </div>
                         <div class="form-group">
-                            <label for="create_asset_type">ประเภท <span style="color:red;">*</span></label>
+                            <label for="create_asset_type">เธเธฃเธฐเน€เธ เธ— <span style="color:red;">*</span></label>
                             <select name="asset_type" id="create_asset_type" class="form-control" required>
-                                <option value="desktop">Desktop - คอมพิวเตอร์ตั้งโต๊ะ</option>
-                                <option value="laptop">Laptop - โน้ตบุ๊ค</option>
-                                <option value="monitor">Monitor - จอมอนิเตอร์</option>
-                                <option value="server">Server - เซิร์ฟเวอร์</option>
-                                <option value="printer">Printer - เครื่องพิมพ์</option>
-                                <option value="network">Network Device - อุปกรณ์เครือข่าย</option>
-                                <option value="mobile">Mobile - มือถือ</option>
-                                <option value="phone">Phone - โทรศัพท์บ้าน</option>
-                                <option value="software">Software - ซอฟต์แวร์/โปรแกรม</option>
-                                <option value="rack">Rack - แร็ควางอุปกรณ์</option>
-                                <option value="enclosure">Enclosure - กล่องอุปกรณ์</option>
-                                <option value="pdu">PDU - แหล่งจ่ายไฟ</option>
-                                <option value="passive_device">Passive Device - อุปกรณ์พาสซีฟ</option>
-                                <option value="cable">Cable - สายเชื่อมต่อ</option>
-                                <option value="simcard">Simcard - ซิมการ์ด</option>
-                                <option value="ink_cartridge">สแตนหมึก - ตลับหมึก</option>
-                                <option value="consumable">วัสดุสิ้นเปลือง - Consumables</option>
-                                <option value="addon">อุปกรณ์เพิ่มเติม - Add-on</option>
+                                <?php foreach ($ASSET_CATEGORIES as $catKey => $catData): ?>
+                                    <?php if (!empty($catData['types'])): ?>
+                                        <optgroup label="<?= htmlspecialchars($catData['label']) ?>">
+                                            <?php foreach ($catData['types'] as $type): ?>
+                                                <option value="<?= htmlspecialchars($type) ?>"><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $type))) ?></option>
+                                            <?php endforeach; ?>
+                                        </optgroup>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
@@ -908,39 +941,39 @@ include_once __DIR__ . '/../includes/sidebar.php';
                             <input type="text" name="serial_number" id="create_serial_number" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label for="create_status">สถานะ <span style="color:red;">*</span></label>
+                            <label for="create_status">เธชเธ–เธฒเธเธฐ <span style="color:red;">*</span></label>
                             <select name="status" id="create_status" class="form-control" required>
-                                <option value="active">Active - ใช้งานอยู่</option>
-                                <option value="inactive">Inactive - ไม่ได้ใช้งาน</option>
-                                <option value="maintenance">Maintenance - ซ่อมบำรุง</option>
-                                <option value="retired">Retired - เลิกใช้งาน</option>
+                                <option value="active">Active - เนเธเนเธเธฒเธเธญเธขเธนเน</option>
+                                <option value="inactive">Inactive - เนเธกเนเนเธ”เนเนเธเนเธเธฒเธ</option>
+                                <option value="maintenance">Maintenance - เธเนเธญเธกเธเธณเธฃเธธเธ</option>
+                                <option value="retired">Retired - เน€เธฅเธดเธเนเธเนเธเธฒเธ</option>
                             </select>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="create_location">Location (ห้อง/สถานที่)</label>
-                            <input type="text" name="location" id="create_location" class="form-control" placeholder="�� ��ͧ IT, ��� 2 �Ҥ���ӹѡ�ҹ�˭�">
+                            <label for="create_location">Location (เธซเนเธญเธ/เธชเธ–เธฒเธเธ—เธตเน)</label>
+                            <input type="text" name="location" id="create_location" class="form-control" placeholder="๏ฟฝ๏ฟฝ ๏ฟฝ๏ฟฝอง IT, ๏ฟฝ๏ฟฝ๏ฟฝ 2 ๏ฟฝาค๏ฟฝ๏ฟฝ๏ฟฝำนัก๏ฟฝาน๏ฟฝหญ๏ฟฝ">
                         </div>
                         <div class="form-group">
-                            <label for="create_department">แผนก/ฝ่าย</label>
+                            <label for="create_department">เนเธเธเธ/เธเนเธฒเธข</label>
                             <input type="text" name="department" id="create_department" class="form-control" placeholder="e.g., IT, HR, Production">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="create_assigned_to">ผู้รับผิดชอบ (Assigned To / User)</label>
+                            <label for="create_assigned_to">เธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธ (Assigned To / User)</label>
                             <select name="assigned_to" id="create_assigned_to" class="form-control">
-                                <option value="">ไม่ได้มอบหมาย</option>
+                                <option value="">เนเธกเนเนเธ”เนเธกเธญเธเธซเธกเธฒเธข</option>
                                 <?php foreach ($users as $u): ?>
                                 <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="create_tech_in_charge">ช่างเทคนิค (Technician in Charge)</label>
+                            <label for="create_tech_in_charge">เธเนเธฒเธเน€เธ—เธเธเธดเธ (Technician in Charge)</label>
                             <select name="tech_in_charge" id="create_tech_in_charge" class="form-control">
-                                <option value="">— เลือกช่าง —</option>
+                                <option value="">โ€” เน€เธฅเธทเธญเธเธเนเธฒเธ โ€”</option>
                                 <?php foreach ($users as $u): ?>
                                 <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
                                 <?php endforeach; ?>
@@ -950,30 +983,30 @@ include_once __DIR__ . '/../includes/sidebar.php';
                     <div class="form-row">
                         <div class="form-group">
                             <label for="create_alternate_user">Alternate Username</label>
-                            <input type="text" name="alternate_user" id="create_alternate_user" class="form-control" placeholder="�кت��ͼ����ҹ���ͧ (�����)">
+                            <input type="text" name="alternate_user" id="create_alternate_user" class="form-control" placeholder="๏ฟฝะบุช๏ฟฝ๏ฟฝอผ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝาน๏ฟฝ๏ฟฝ๏ฟฝอง (๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ)">
                         </div>
                         <div class="form-group">
-                            <label for="create_asset_group">กลุ่ม/ทีม</label>
+                            <label for="create_asset_group">เธเธฅเธธเนเธก/เธ—เธตเธก</label>
                             <input type="text" name="asset_group" id="create_asset_group" class="form-control" placeholder="e.g., IT Team, Admin">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="create_condition">สภาพอุปกรณ์</label>
+                            <label for="create_condition">เธชเธ เธฒเธเธญเธธเธเธเธฃเธ“เน</label>
                             <select name="condition" id="create_condition" class="form-control">
-                                <option value="good">Good - ดี</option>
-                                <option value="fair">Fair - พอใช้</option>
-                                <option value="poor">Poor - แย่</option>
-                                <option value="damaged">Damaged - เสียหาย</option>
+                                <option value="good">Good - เธ”เธต</option>
+                                <option value="fair">Fair - เธเธญเนเธเน</option>
+                                <option value="poor">Poor - เนเธขเน</option>
+                                <option value="damaged">Damaged - เน€เธชเธตเธขเธซเธฒเธข</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="create_last_inventory_date">วันที่ Inventory ล่าสุด</label>
+                            <label for="create_last_inventory_date">เธงเธฑเธเธ—เธตเน Inventory เธฅเนเธฒเธชเธธเธ”</label>
                             <input type="date" name="last_inventory_date" id="create_last_inventory_date" class="form-control">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="create_notes">Comments / หมายเหตุ</label>
+                        <label for="create_notes">Comments / เธซเธกเธฒเธขเน€เธซเธ•เธธ</label>
                         <textarea name="notes" id="create_notes" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
                     </div>
                 </div>
@@ -984,7 +1017,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         <div class="form-group">
                             <label for="create_os_name">Operating System</label>
                             <select name="os_name" id="create_os_name" class="form-control">
-                                <option value="">— เลือก OS —</option>
+                                <option value="">โ€” เน€เธฅเธทเธญเธ OS โ€”</option>
                                 <option>Windows 11 Pro</option>
                                 <option>Windows 11 Enterprise</option>
                                 <option>Windows 10 Pro</option>
@@ -1008,7 +1041,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         <div class="form-group">
                             <label for="create_os_architecture">Architecture</label>
                             <select name="os_architecture" id="create_os_architecture" class="form-control">
-                                <option value="">—</option>
+                                <option value="">โ€”</option>
                                 <option value="64-bit">64-bit</option>
                                 <option value="32-bit">32-bit</option>
                             </select>
@@ -1090,39 +1123,39 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <div id="c_section_purchase" style="display:none;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="create_purchase_date">Purchase Date (วันที่ซื้อ)</label>
+                            <label for="create_purchase_date">Purchase Date (เธงเธฑเธเธ—เธตเนเธเธทเนเธญ)</label>
                             <input type="date" name="purchase_date" id="create_purchase_date" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label for="create_warranty_expiry">Warranty Expiry (วันหมดประกัน)</label>
+                            <label for="create_warranty_expiry">Warranty Expiry (เธงเธฑเธเธซเธกเธ”เธเธฃเธฐเธเธฑเธ)</label>
                             <input type="date" name="warranty_expiry" id="create_warranty_expiry" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="create_purchase_price">ราคาซื้อ (บาท)</label>
+                            <label for="create_purchase_price">เธฃเธฒเธเธฒเธเธทเนเธญ (เธเธฒเธ—)</label>
                             <input type="number" name="purchase_price" id="create_purchase_price" class="form-control" step="0.01" min="0" placeholder="0.00">
                         </div>
                         <div class="form-group">
-                            <label for="create_salvage_value">มูลค่าซาก (บาท)</label>
+                            <label for="create_salvage_value">เธกเธนเธฅเธเนเธฒเธเธฒเธ (เธเธฒเธ—)</label>
                             <input type="number" name="salvage_value" id="create_salvage_value" class="form-control" step="0.01" min="0" value="0">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="create_useful_life_years">อายุการใช้งาน (ปี)</label>
+                            <label for="create_useful_life_years">เธญเธฒเธขเธธเธเธฒเธฃเนเธเนเธเธฒเธ (เธเธต)</label>
                             <input type="number" name="useful_life_years" id="create_useful_life_years" class="form-control" value="5" min="1" max="30">
                         </div>
                         <div class="form-group">
-                            <label for="create_supplier">ผู้จัดจำหน่าย (Supplier)</label>
-                            <input type="text" name="supplier" id="create_supplier" class="form-control" placeholder="�� ����ѷ�Ѵ��˹��� ���ͼ���Ѻ����">
+                            <label for="create_supplier">เธเธนเนเธเธฑเธ”เธเธณเธซเธเนเธฒเธข (Supplier)</label>
+                            <input type="text" name="supplier" id="create_supplier" class="form-control" placeholder="๏ฟฝ๏ฟฝ ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝัท๏ฟฝัด๏ฟฝ๏ฟฝหน๏ฟฝ๏ฟฝ๏ฟฝ ๏ฟฝ๏ฟฝ๏ฟฝอผ๏ฟฝ๏ฟฝ๏ฟฝับ๏ฟฝ๏ฟฝ๏ฟฝ๏ฟฝ">
                         </div>
                     </div>
                 </div>
 
                 <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:15px;">
-                    <button type="button" class="btn" onclick="closeCreateModal()" style="background:#e2e8f0;">ยกเลิก</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> บันทึกสินทรัพย์</button>
+                    <button type="button" class="btn" onclick="closeCreateModal()" style="background:#e2e8f0;">เธขเธเน€เธฅเธดเธ</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> เธเธฑเธเธ—เธถเธเธชเธดเธเธ—เธฃเธฑเธเธขเน</button>
                 </div>
             </form>
         </div>
@@ -1132,7 +1165,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
     <div id="editModal" class="modal">
         <div class="modal-content" style="max-width:820px;">
             <div class="modal-header">
-                <h2><i class="fas fa-edit"></i> แก้ไขสินทรัพย์</h2>
+                <h2><i class="fas fa-edit"></i> เนเธเนเนเธเธชเธดเธเธ—เธฃเธฑเธเธขเน</h2>
                 <button class="close-btn" onclick="closeEditModal()">&times;</button>
             </div>
             <form method="POST">
@@ -1143,7 +1176,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <!-- Tab Navigation -->
                 <div style="display:flex;gap:4px;background:#f7fafc;padding:6px;border-radius:10px;margin-bottom:20px;flex-wrap:wrap;">
                     <button type="button" onclick="switchModalTab('e','basic')" id="e_tab_basic" class="modal-tab active-tab">
-                        <i class="fas fa-info-circle"></i> ข้อมูลทั่วไป
+                        <i class="fas fa-info-circle"></i> เธเนเธญเธกเธนเธฅเธ—เธฑเนเธงเนเธ
                     </button>
                     <button type="button" onclick="switchModalTab('e','os')" id="e_tab_os" class="modal-tab">
                         <i class="fab fa-windows"></i> OS
@@ -1155,7 +1188,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         <i class="fas fa-network-wired"></i> Network
                     </button>
                     <button type="button" onclick="switchModalTab('e','purchase')" id="e_tab_purchase" class="modal-tab">
-                        <i class="fas fa-shopping-cart"></i> การจัดซื้อ
+                        <i class="fas fa-shopping-cart"></i> เธเธฒเธฃเธเธฑเธ”เธเธทเนเธญ
                     </button>
                 </div>
 
@@ -1173,30 +1206,21 @@ include_once __DIR__ . '/../includes/sidebar.php';
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="edit_asset_name">ชื่ออุปกรณ์ <span style="color:red;">*</span></label>
+                            <label for="edit_asset_name">เธเธทเนเธญเธญเธธเธเธเธฃเธ“เน <span style="color:red;">*</span></label>
                             <input type="text" name="asset_name" id="edit_asset_name" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label for="edit_asset_type">ประเภท <span style="color:red;">*</span></label>
+                            <label for="edit_asset_type">เธเธฃเธฐเน€เธ เธ— <span style="color:red;">*</span></label>
                             <select name="asset_type" id="edit_asset_type" class="form-control" required>
-                                <option value="desktop">Desktop - คอมพิวเตอร์ตั้งโต๊ะ</option>
-                                <option value="laptop">Laptop - โน้ตบุ๊ค</option>
-                                <option value="monitor">Monitor - จอมอนิเตอร์</option>
-                                <option value="server">Server - เซิร์ฟเวอร์</option>
-                                <option value="printer">Printer - เครื่องพิมพ์</option>
-                                <option value="network">Network Device - อุปกรณ์เครือข่าย</option>
-                                <option value="mobile">Mobile - มือถือ</option>
-                                <option value="phone">Phone - โทรศัพท์บ้าน</option>
-                                <option value="software">Software - ซอฟต์แวร์/โปรแกรม</option>
-                                <option value="rack">Rack - แร็ควางอุปกรณ์</option>
-                                <option value="enclosure">Enclosure - กล่องอุปกรณ์</option>
-                                <option value="pdu">PDU - แหล่งจ่ายไฟ</option>
-                                <option value="passive_device">Passive Device - อุปกรณ์พาสซีฟ</option>
-                                <option value="cable">Cable - สายเชื่อมต่อ</option>
-                                <option value="simcard">Simcard - ซิมการ์ด</option>
-                                <option value="ink_cartridge">สแตนหมึก - ตลับหมึก</option>
-                                <option value="consumable">วัสดุสิ้นเปลือง - Consumables</option>
-                                <option value="addon">อุปกรณ์เพิ่มเติม - Add-on</option>
+                                <?php foreach ($ASSET_CATEGORIES as $catKey => $catData): ?>
+                                    <?php if (!empty($catData['types'])): ?>
+                                        <optgroup label="<?= htmlspecialchars($catData['label']) ?>">
+                                            <?php foreach ($catData['types'] as $type): ?>
+                                                <option value="<?= htmlspecialchars($type) ?>"><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $type))) ?></option>
+                                            <?php endforeach; ?>
+                                        </optgroup>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
@@ -1216,12 +1240,12 @@ include_once __DIR__ . '/../includes/sidebar.php';
                             <input type="text" name="serial_number" id="edit_serial_number" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label for="edit_status">สถานะ <span style="color:red;">*</span></label>
+                            <label for="edit_status">เธชเธ–เธฒเธเธฐ <span style="color:red;">*</span></label>
                             <select name="status" id="edit_status" class="form-control" required>
-                                <option value="active">Active - ใช้งานอยู่</option>
-                                <option value="inactive">Inactive - ไม่ได้ใช้งาน</option>
-                                <option value="maintenance">Maintenance - ซ่อมบำรุง</option>
-                                <option value="retired">Retired - เลิกใช้งาน</option>
+                                <option value="active">Active - เนเธเนเธเธฒเธเธญเธขเธนเน</option>
+                                <option value="inactive">Inactive - เนเธกเนเนเธ”เนเนเธเนเธเธฒเธ</option>
+                                <option value="maintenance">Maintenance - เธเนเธญเธกเธเธณเธฃเธธเธ</option>
+                                <option value="retired">Retired - เน€เธฅเธดเธเนเธเนเธเธฒเธ</option>
                             </select>
                         </div>
                     </div>
@@ -1231,24 +1255,24 @@ include_once __DIR__ . '/../includes/sidebar.php';
                             <input type="text" name="location" id="edit_location" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label for="edit_department">แผนก/ฝ่าย</label>
+                            <label for="edit_department">เนเธเธเธ/เธเนเธฒเธข</label>
                             <input type="text" name="department" id="edit_department" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="edit_assigned_to">ผู้รับผิดชอบ (User)</label>
+                            <label for="edit_assigned_to">เธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธ (User)</label>
                             <select name="assigned_to" id="edit_assigned_to" class="form-control">
-                                <option value="">ไม่ได้มอบหมาย</option>
+                                <option value="">เนเธกเนเนเธ”เนเธกเธญเธเธซเธกเธฒเธข</option>
                                 <?php foreach ($users as $u): ?>
                                 <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="edit_tech_in_charge">ช่างเทคนิค (Technician)</label>
+                            <label for="edit_tech_in_charge">เธเนเธฒเธเน€เธ—เธเธเธดเธ (Technician)</label>
                             <select name="tech_in_charge" id="edit_tech_in_charge" class="form-control">
-                                <option value="">— เลือกช่าง —</option>
+                                <option value="">โ€” เน€เธฅเธทเธญเธเธเนเธฒเธ โ€”</option>
                                 <?php foreach ($users as $u): ?>
                                 <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
                                 <?php endforeach; ?>
@@ -1261,27 +1285,27 @@ include_once __DIR__ . '/../includes/sidebar.php';
                             <input type="text" name="alternate_user" id="edit_alternate_user" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label for="edit_asset_group">กลุ่ม/ทีม</label>
+                            <label for="edit_asset_group">เธเธฅเธธเนเธก/เธ—เธตเธก</label>
                             <input type="text" name="asset_group" id="edit_asset_group" class="form-control">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="edit_condition">สภาพอุปกรณ์</label>
+                            <label for="edit_condition">เธชเธ เธฒเธเธญเธธเธเธเธฃเธ“เน</label>
                             <select name="condition" id="edit_condition" class="form-control">
-                                <option value="good">Good - ดี</option>
-                                <option value="fair">Fair - พอใช้</option>
-                                <option value="poor">Poor - แย่</option>
-                                <option value="damaged">Damaged - เสียหาย</option>
+                                <option value="good">Good - เธ”เธต</option>
+                                <option value="fair">Fair - เธเธญเนเธเน</option>
+                                <option value="poor">Poor - เนเธขเน</option>
+                                <option value="damaged">Damaged - เน€เธชเธตเธขเธซเธฒเธข</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="edit_last_inventory_date">วันที่ Inventory ล่าสุด</label>
+                            <label for="edit_last_inventory_date">เธงเธฑเธเธ—เธตเน Inventory เธฅเนเธฒเธชเธธเธ”</label>
                             <input type="date" name="last_inventory_date" id="edit_last_inventory_date" class="form-control">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="edit_notes">Comments / หมายเหตุ</label>
+                        <label for="edit_notes">Comments / เธซเธกเธฒเธขเน€เธซเธ•เธธ</label>
                         <textarea name="notes" id="edit_notes" class="form-control" rows="3"></textarea>
                     </div>
                 </div>
@@ -1292,7 +1316,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         <div class="form-group">
                             <label for="edit_os_name">Operating System</label>
                             <select name="os_name" id="edit_os_name" class="form-control">
-                                <option value="">— เลือก OS —</option>
+                                <option value="">โ€” เน€เธฅเธทเธญเธ OS โ€”</option>
                                 <option>Windows 11 Pro</option>
                                 <option>Windows 11 Enterprise</option>
                                 <option>Windows 10 Pro</option>
@@ -1316,7 +1340,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         <div class="form-group">
                             <label for="edit_os_architecture">Architecture</label>
                             <select name="os_architecture" id="edit_os_architecture" class="form-control">
-                                <option value="">—</option>
+                                <option value="">โ€”</option>
                                 <option value="64-bit">64-bit</option>
                                 <option value="32-bit">32-bit</option>
                             </select>
@@ -1408,29 +1432,29 @@ include_once __DIR__ . '/../includes/sidebar.php';
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="edit_purchase_price">ราคาซื้อ (บาท)</label>
+                            <label for="edit_purchase_price">เธฃเธฒเธเธฒเธเธทเนเธญ (เธเธฒเธ—)</label>
                             <input type="number" name="purchase_price" id="edit_purchase_price" class="form-control" step="0.01" min="0">
                         </div>
                         <div class="form-group">
-                            <label for="edit_salvage_value">มูลค่าซาก (บาท)</label>
+                            <label for="edit_salvage_value">เธกเธนเธฅเธเนเธฒเธเธฒเธ (เธเธฒเธ—)</label>
                             <input type="number" name="salvage_value" id="edit_salvage_value" class="form-control" step="0.01" min="0">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="edit_useful_life">อายุการใช้งาน (ปี)</label>
+                            <label for="edit_useful_life">เธญเธฒเธขเธธเธเธฒเธฃเนเธเนเธเธฒเธ (เธเธต)</label>
                             <input type="number" name="useful_life_years" id="edit_useful_life" class="form-control" min="1" max="30">
                         </div>
                         <div class="form-group">
-                            <label for="edit_supplier">ผู้จัดจำหน่าย (Supplier)</label>
+                            <label for="edit_supplier">เธเธนเนเธเธฑเธ”เธเธณเธซเธเนเธฒเธข (Supplier)</label>
                             <input type="text" name="supplier" id="edit_supplier" class="form-control">
                         </div>
                     </div>
                 </div>
 
                 <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:15px;">
-                    <button type="button" class="btn" onclick="closeEditModal()" style="background:#e2e8f0;">ยกเลิก</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> บันทึกการแก้ไข</button>
+                    <button type="button" class="btn" onclick="closeEditModal()" style="background:#e2e8f0;">เธขเธเน€เธฅเธดเธ</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> เธเธฑเธเธ—เธถเธเธเธฒเธฃเนเธเนเนเธ</button>
                 </div>
             </form>
         </div>
@@ -1443,124 +1467,10 @@ include_once __DIR__ . '/../includes/sidebar.php';
         <input type="hidden" name="asset_id" id="delete_asset_id">
     </form>
 
-<?php ob_start(); ?>
-    <script>
-
-        function openCreateModal() {
-            switchModalTab('c','basic');
-            document.getElementById('createModal').classList.add('show');
-        }
-        function closeCreateModal() { document.getElementById('createModal').classList.remove('show'); }
-        function closeEditModal()   { document.getElementById('editModal').classList.remove('show'); }
-
-        // Switch tabs inside create (c) or edit (e) modal
-        function switchModalTab(prefix, tab) {
-            const sections = ['basic','os','hw','net','purchase'];
-            sections.forEach(s => {
-                const el = document.getElementById(prefix + '_section_' + s);
-                const btn = document.getElementById(prefix + '_tab_' + s);
-                if (el) el.style.display = (s === tab) ? '' : 'none';
-                if (btn) btn.classList.toggle('active-tab', s === tab);
-            });
-        }
-
-        function editAsset(asset) {
-            // Reset to basic tab
-            switchModalTab('e','basic');
-
-            // Basic
-            document.getElementById('edit_asset_id').value           = asset.asset_id;
-            document.getElementById('edit_asset_tag').value          = asset.asset_tag || '';
-            document.getElementById('edit_inventory_number').value   = asset.inventory_number || '';
-            document.getElementById('edit_asset_name').value         = asset.asset_name || '';
-            document.getElementById('edit_asset_type').value         = asset.asset_type || '';
-            document.getElementById('edit_brand').value              = asset.brand || '';
-            document.getElementById('edit_model').value              = asset.model || '';
-            document.getElementById('edit_serial_number').value      = asset.serial_number || '';
-            document.getElementById('edit_status').value             = asset.status || 'active';
-            document.getElementById('edit_location').value           = asset.location || '';
-            document.getElementById('edit_department').value         = asset.department || '';
-            document.getElementById('edit_assigned_to').value        = asset.assigned_to || '';
-            document.getElementById('edit_tech_in_charge').value     = asset.tech_in_charge || '';
-            document.getElementById('edit_alternate_user').value     = asset.alternate_user || '';
-            document.getElementById('edit_asset_group').value        = asset.asset_group || '';
-            document.getElementById('edit_condition').value          = asset.condition_status || 'good';
-            document.getElementById('edit_last_inventory_date').value= asset.last_inventory_date || '';
-            document.getElementById('edit_notes').value              = asset.notes || '';
-            // OS
-            document.getElementById('edit_os_name').value            = asset.os_name || '';
-            document.getElementById('edit_os_version').value         = asset.os_version || '';
-            document.getElementById('edit_os_architecture').value    = asset.os_architecture || '';
-            document.getElementById('edit_os_service_pack').value    = asset.os_service_pack || '';
-            document.getElementById('edit_os_product_key').value     = asset.os_product_key || '';
-            // Hardware
-            document.getElementById('edit_cpu').value                = asset.cpu || '';
-            document.getElementById('edit_cpu_cores').value          = asset.cpu_cores || '';
-            document.getElementById('edit_ram_gb').value             = asset.ram_gb || '';
-            document.getElementById('edit_storage').value            = asset.storage || '';
-            document.getElementById('edit_gpu').value                = asset.gpu || '';
-            document.getElementById('edit_monitor').value            = asset.monitor || '';
-            // Network
-            document.getElementById('edit_ip_address').value         = asset.ip_address || '';
-            document.getElementById('edit_mac_address').value        = asset.mac_address || '';
-            document.getElementById('edit_network_domain').value     = asset.network_domain || '';
-            document.getElementById('edit_gateway').value            = asset.gateway || '';
-            document.getElementById('edit_dns_server').value         = asset.dns_server || '';
-            // Purchase
-            document.getElementById('edit_purchase_date').value      = asset.purchase_date || '';
-            document.getElementById('edit_warranty_expiry').value    = asset.warranty_expiry || '';
-            document.getElementById('edit_purchase_price').value     = asset.purchase_price || '';
-            document.getElementById('edit_salvage_value').value      = asset.salvage_value || 0;
-            document.getElementById('edit_useful_life').value        = asset.useful_life_years || 5;
-            document.getElementById('edit_supplier').value           = asset.supplier || '';
-
-            document.getElementById('editModal').classList.add('show');
-        }
-
-        function deleteAsset(assetId, name) {
-            if (confirm('ต้องการลบสินทรัพย์ "' + name + '" ใช่หรือไม่?')) {
-                document.getElementById('delete_asset_id').value = assetId;
-                document.getElementById('deleteForm').submit();
-            }
-        }
-
-        function switchView(mode) {
-            const tableDiv = document.getElementById('viewTable');
-            const userDiv  = document.getElementById('viewUser');
-            const btnTable = document.getElementById('btnTableView');
-            const btnUser  = document.getElementById('btnUserView');
-            if (mode === 'table') {
-                tableDiv.style.display = 'block'; userDiv.style.display = 'none';
-                btnTable.style.background = 'linear-gradient(180deg, #10ce30 0%, #000000)';
-                btnTable.style.color = 'white';
-                btnUser.style.background = '#e2e8f0'; btnUser.style.color = '#4a5568';
-            } else {
-                tableDiv.style.display = 'none'; userDiv.style.display = 'block';
-                btnUser.style.background = 'linear-gradient(180deg, #10ce30 0%, #000000)';
-                btnUser.style.color = 'white';
-                btnTable.style.background = '#e2e8f0'; btnTable.style.color = '#4a5568';
-            }
-        }
-
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) event.target.classList.remove('show');
-        }
-
-        function toggleWarrantyAlert() {
-            const body = document.getElementById('warrantyAlertBody');
-            const icon = document.getElementById('warrantyToggleIcon');
-            if (body.style.display === 'none') {
-                body.style.display = 'block';
-                icon.innerHTML = '<i class="fas fa-chevron-up"></i> ซ่อน';
-            } else {
-                body.style.display = 'none';
-                icon.innerHTML = '<i class="fas fa-chevron-down"></i> ดูรายละเอียด';
-            }
-        }
-    </script>
-<?php $pageScripts = ob_get_clean(); ?>
+<?php $pageScripts = '<script src="' . BASE_URL . 'assets/js/assets.js"></script>'; ?>
 
 <?php include_once __DIR__ . '/../includes/footer.php'; ?>
+
 
 
 

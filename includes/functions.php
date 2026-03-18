@@ -515,7 +515,7 @@ if (!function_exists('apply_security_headers')) {
         }
 
         // Stricter policy in report-only mode for gradual hardening on all pages.
-        header("Content-Security-Policy-Report-Only: default-src 'self' https: data: blob:; script-src 'self' https:; style-src 'self' https:; img-src 'self' https: data: blob:; frame-ancestors 'self'");
+header("Content-Security-Policy-Report-Only: default-src 'self' https: data: blob: 'unsafe-inline'; script-src 'self' https: 'unsafe-inline'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; frame-ancestors 'self'");
     }
 }
 

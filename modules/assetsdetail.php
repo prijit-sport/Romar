@@ -5,6 +5,8 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
+require_once __DIR__ . '/assetsdetail.helpers.php';
+
 if (!isset($_SESSION['user_id'])) { header('Location: ../auth/login.php'); exit; }
 
 csrf_token();
@@ -26,6 +28,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if (!$assetId) { header('Location: assets.php'); exit; }
+
+$ASSET_CATEGORIES = assetdetail_get_category_definitions();
+$catCounts = assetdetail_count_categories($db, $ASSET_CATEGORIES);
+$postState = assetdetail_handle_post_actions($db, $assetId, $isAdmin);
+$message = $postState['message'];
+$messageType = $postState['messageType'];
+
+$assetContext = assetdetail_fetch_asset_context($db, $assetId);
+if (empty($assetContext['asset'])) { header('Location: assets.php'); exit; }
+extract($assetContext);
+$activeTab = $_GET['tab'] ?? 'repair';
 
 // ── Category definitions (shared) ──────────────────────────────
 $ASSET_CATEGORIES = [

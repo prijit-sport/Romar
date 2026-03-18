@@ -15,7 +15,7 @@ $db = getDB();
 $isAdmin = $_SESSION['role'] === 'admin';
 $message = '';
 $messageType = '';
-csrf_token();
+$csrfToken = csrf_token();
 $jsonAttrFlags = JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP;
 
 $requestedAction = ($_SERVER['REQUEST_METHOD'] === 'POST') ? ($_POST['action'] ?? '') : '';
@@ -38,22 +38,22 @@ if ($requestedAction === 'create') {
         $messageType = 'error';
         $requestedAction = '';
     } else {
-    $title = sanitize($_POST['title']);
-    $category_id = (int)$_POST['category_id'];
-    $content = trim((string)($_POST['content'] ?? ''));
-    $tags = sanitize($_POST['tags']);
+        $title = sanitize($_POST['title']);
+        $category_id = (int)$_POST['category_id'];
+        $content = trim((string)($_POST['content'] ?? ''));
+        $tags = sanitize($_POST['tags']);
     
-    $stmt = $db->prepare("INSERT INTO knowledgebase (title, category_id, content, tags, created_by, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param('sissi', $title, $category_id, $content, $tags, $_SESSION['user_id']);
+        $stmt = $db->prepare("INSERT INTO knowledgebase (title, category_id, content, tags, created_by, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+        $stmt->bind_param('sissi', $title, $category_id, $content, $tags, $_SESSION['user_id']);
     
-    if ($stmt->execute()) {
-        $message = 'เน€เธเธดเนเธกเธเธ—เธเธงเธฒเธกเธชเธณเน€เธฃเนเธ!';
-        $messageType = 'success';
-        logActivity($_SESSION['user_id'], 'เน€เธเธดเนเธกเธเธ—เธเธงเธฒเธก KB', 'Knowledge Base', "เน€เธเธดเนเธก: $title");
-    } else {
-        $message = 'เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' . $stmt->error;
-        $messageType = 'error';
-    }
+        if ($stmt->execute()) {
+            $message = 'บันทึกบทความเรียบร้อยแล้ว!';
+            $messageType = 'success';
+            logActivity($_SESSION['user_id'], 'เพิ่มบทความ', 'Knowledge Base', "เพิ่ม: $title");
+        } else {
+            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+            $messageType = 'error';
+        }
     }
 }
 
@@ -65,23 +65,23 @@ if ($requestedAction === 'update') {
         $messageType = 'error';
         $requestedAction = '';
     } else {
-    $kb_id = (int)$_POST['kb_id'];
-    $title = sanitize($_POST['title']);
-    $category_id = (int)$_POST['category_id'];
-    $content = trim((string)($_POST['content'] ?? ''));
-    $tags = sanitize($_POST['tags']);
-    
-    $stmt = $db->prepare("UPDATE knowledgebase SET title = ?, category_id = ?, content = ?, tags = ?, updated_at = NOW() WHERE kb_id = ?");
-    $stmt->bind_param('sissi', $title, $category_id, $content, $tags, $kb_id);
-    
-    if ($stmt->execute()) {
-        $message = 'เธญเธฑเธเน€เธ”เธ•เธเธ—เธเธงเธฒเธกเธชเธณเน€เธฃเนเธ!';
-        $messageType = 'success';
-        logActivity($_SESSION['user_id'], 'เธญเธฑเธเน€เธ”เธ•เธเธ—เธเธงเธฒเธก KB', 'Knowledge Base', "เธญเธฑเธเน€เธ”เธ•: $title");
-    } else {
-        $message = 'เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' . $stmt->error;
-        $messageType = 'error';
-    }
+        $kb_id = (int)$_POST['kb_id'];
+        $title = sanitize($_POST['title']);
+        $category_id = (int)$_POST['category_id'];
+        $content = trim((string)($_POST['content'] ?? ''));
+        $tags = sanitize($_POST['tags']);
+        
+        $stmt = $db->prepare("UPDATE knowledgebase SET title = ?, category_id = ?, content = ?, tags = ?, updated_at = NOW() WHERE kb_id = ?");
+        $stmt->bind_param('sissi', $title, $category_id, $content, $tags, $kb_id);
+        
+        if ($stmt->execute()) {
+            $message = 'อัปเดตบทความเรียบร้อยแล้ว!';
+            $messageType = 'success';
+            logActivity($_SESSION['user_id'], 'อัปเดตบทความ', 'Knowledge Base', "อัปเดต: $title");
+        } else {
+            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+            $messageType = 'error';
+        }
     }
 }
 
@@ -93,19 +93,19 @@ if ($requestedAction === 'delete') {
         $messageType = 'error';
         $requestedAction = '';
     } else {
-    $kb_id = (int)$_POST['kb_id'];
-    
-    $stmt = $db->prepare("DELETE FROM knowledgebase WHERE kb_id = ?");
-    $stmt->bind_param('i', $kb_id);
-    
-    if ($stmt->execute()) {
-        $message = 'เธฅเธเธเธ—เธเธงเธฒเธกเธชเธณเน€เธฃเนเธ!';
-        $messageType = 'success';
-        logActivity($_SESSION['user_id'], 'เธฅเธเธเธ—เธเธงเธฒเธก KB', 'Knowledge Base', "เธฅเธ KB ID: $kb_id");
-    } else {
-        $message = 'เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ' . $stmt->error;
-        $messageType = 'error';
-    }
+        $kb_id = (int)$_POST['kb_id'];
+        
+        $stmt = $db->prepare("DELETE FROM knowledgebase WHERE kb_id = ?");
+        $stmt->bind_param('i', $kb_id);
+        
+        if ($stmt->execute()) {
+            $message = 'ลบบทความเรียบร้อยแล้ว!';
+            $messageType = 'success';
+            logActivity($_SESSION['user_id'], 'ลบบทความ', 'Knowledge Base', "ลบ KB ID: $kb_id");
+        } else {
+            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+            $messageType = 'error';
+        }
     }
 }
 
@@ -166,8 +166,6 @@ if ($params) {
 $stmt->execute();
 $articles = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Get Categories
-// เน€เธฃเธตเธขเธเธ•เธฒเธกเธฅเธณเธ”เธฑเธเธเธงเธฒเธกเธชเธณเธเธฑเธ (display_order) เนเธฅเธฐเธเธฃเธญเธเน€เธเธเธฒเธฐเธ—เธตเนเน€เธเธดเธ”เนเธเนเธเธฒเธ (is_active = 1)
 $categories = $db->query("SELECT * FROM kbcategories WHERE is_active = 1 ORDER BY display_order ASC, name ASC")->fetch_all(MYSQLI_ASSOC);
 
 // Get Statistics
@@ -190,7 +188,7 @@ $activePage = 'knowledgebase';
 include_once __DIR__ . '/../includes/header.php';
 include_once __DIR__ . '/../includes/sidebar.php';
 ?>
-<main class="main-content">
+<main class="main-content" data-csrf-token="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
     <div class="breadcrumb-nav">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
@@ -206,11 +204,13 @@ include_once __DIR__ . '/../includes/sidebar.php';
             <h1><i class="fas fa-book"></i> <?php echo ui_text('page.title.knowledgebase'); ?></h1>
             <p class="section-subtitle"><?php echo ui_text('page.subtitle.knowledgebase'); ?></p>
         </div>
-        <?php if ($isAdmin): ?>
-        <button class="btn btn-primary" onclick="openCreateModal()">
-            <i class="fas fa-plus"></i> <?php echo ui_text('button.create_article'); ?>
-        </button>
-        <?php endif; ?>
+        <div class="page-actions">
+            <?php if ($isAdmin): ?>
+            <button class="btn btn-primary" onclick="openCreateModal()">
+                <i class="fas fa-plus"></i> <?php echo ui_text('button.create_article'); ?>
+            </button>
+            <?php endif; ?>
+        </div>
     </div>
 
     <?php if ($message): ?>
@@ -430,102 +430,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
     <?php echo csrf_input(); ?>
 </form>
 
-<?php ob_start(); ?>
-<script>
-    function escapeHtml(value) {
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/\"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    function renderMultilineText(value) {
-        return escapeHtml(value).replace(/\r?\n/g, '<br>');
-    }
-
-    function viewArticle(article) {
-        fetch('?view=' + article.kb_id);
-        document.getElementById('viewTitle').textContent = article.title || 'รายละเอียดบทความ';
-        let html = '<div class="view-meta">';
-        html += '<span><i class="fas fa-folder"></i> ' + escapeHtml(article.category_name || 'ไม่ระบุ') + '</span>';
-        html += '<span><i class="fas fa-user"></i> ' + escapeHtml(article.author_name || 'ไม่ทราบ') + '</span>';
-        html += '<span><i class="fas fa-calendar"></i> ' + escapeHtml(new Date(article.created_at).toLocaleDateString('th-TH')) + '</span>';
-        html += '<span><i class="fas fa-eye"></i> ' + Number(article.views || 0).toLocaleString() + ' views</span>';
-        html += '<span><i class="fas fa-thumbs-up"></i> ' + Number(article.helpful_count || 0) + ' helpful</span>';
-        html += '</div>';
-        html += '<div class="view-content">' + renderMultilineText(article.content || '') + '</div>';
-        if (article.tags) {
-            html += '<div class="view-tags">';
-            html += '<strong>Tags:</strong> ';
-            article.tags.split(',').forEach(tag => {
-                html += '<span class="article-tag">#' + escapeHtml(tag.trim()) + '</span>';
-            });
-            html += '</div>';
-        }
-        document.getElementById('viewBody').innerHTML = html;
-        document.getElementById('viewModal').classList.add('show');
-    }
-
-    function closeViewModal() {
-        document.getElementById('viewModal').classList.remove('show');
-    }
-
-    function openCreateModal() {
-        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> เพิ่มบทความ';
-        document.getElementById('formAction').value = 'create';
-        document.getElementById('articleForm').reset();
-        document.getElementById('kb_id').value = '';
-        document.getElementById('articleModal').classList.add('show');
-    }
-
-    function editArticle(article) {
-        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> แก้ไขบทความ';
-        document.getElementById('formAction').value = 'update';
-        document.getElementById('kb_id').value = article.kb_id;
-        document.getElementById('title').value = article.title;
-        document.getElementById('category_id').value = article.category_id;
-        document.getElementById('content').value = article.content;
-        document.getElementById('tags').value = article.tags || '';
-        document.getElementById('articleModal').classList.add('show');
-    }
-
-    function closeModal() {
-        document.getElementById('articleModal').classList.remove('show');
-    }
-
-    function deleteArticle(kbId, title) {
-        if (confirm('ต้องการลบบทความ "' + title + '" ใช่หรือไม่?')) {
-            document.getElementById('delete_kb_id').value = kbId;
-            document.getElementById('deleteForm').submit();
-        }
-    }
-
-    function markHelpful(kbId) {
-        fetch('', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'action=helpful&kb_id=' + kbId + '&csrf_token=<?php echo rawurlencode(csrf_token()); ?>'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('ขอบคุณสำหรับ Feedback!');
-                location.reload();
-            }
-        });
-    }
-
-    window.onclick = function(event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.classList.remove('show');
-        }
-    }
-</script>
-<?php $pageScripts = ob_get_clean(); ?>
+<?php $pageScripts = '<script src="' . BASE_URL . 'assets/js/knowledgebase.js"></script>'; ?>
 
 <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 

@@ -862,7 +862,10 @@ include_once __DIR__ . '/../includes/sidebar.php';
                         <label class="form-label" for="fileInput">
                             <i class="fas fa-paperclip"></i> <?php echo ui_text('tickets.form.attachments'); ?>
                         </label>
-                        <div class="file-upload" onclick="document.getElementById('fileInput').click()">
+                        <div class="file-upload"
+                             data-placeholder="<?php echo ui_text('tickets.form.attachments_help'); ?>"
+                             data-note="<?php echo ui_text('tickets.form.attachments_note'); ?>"
+                             onclick="document.getElementById('fileInput').click()">
                             <i class="fas fa-cloud-upload-alt"></i>
                             <p><?php echo ui_text('tickets.form.attachments_help'); ?></p>
                             <small class="form-note"><?php echo ui_text('tickets.form.attachments_note'); ?></small>
@@ -883,47 +886,8 @@ include_once __DIR__ . '/../includes/sidebar.php';
         </div>
     </div>
 
-<?php ob_start(); ?>
-    <script>
-        function openCreateModal() {
-            document.getElementById('createModal').classList.add('active');
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
-        }
-
-        function openViewModal(ticketId) {
-            // Implement view ticket details
-            window.location.href = 'ticket_view.php?id=' + ticketId;
-        }
-
-        function openUpdateModal(ticketId) {
-            // Implement update ticket
-            window.location.href = 'ticket_update.php?id=' + ticketId;
-        }
-
-        // Close modal on outside click
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.classList.remove('active');
-            }
-        }
-
-        // Auto-hide alerts
-        setTimeout(() => {
-            const alert = document.querySelector('.alert');
-            if (alert) alert.classList.remove('show');
-        }, 5000);
-
-        // File upload preview
-        document.getElementById('fileInput')?.addEventListener('change', function(e) {
-            const files = e.target.files;
-            if (files.length > 0) {
-                const fileList = Array.from(files).map(f => f.name).join(', ');
-                document.querySelector('.file-upload p').textContent = `${files.length} files selected: ${fileList}`;
-            }
-        });
-    </script>
-<?php $pageScripts = ob_get_clean(); ?>
-<?php include_once __DIR__ . '/../includes/footer.php'; ?>
+<?php
+$nonce = htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8');
+$pageScripts = '<script src="' . BASE_URL . 'assets/js/tickets.js" nonce="' . $nonce . '"></script>';
+include_once __DIR__ . '/../includes/footer.php';
+?>

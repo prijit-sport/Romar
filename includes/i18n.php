@@ -5,6 +5,10 @@ if (!function_exists('load_ui_texts')) {
         static $texts = null;
         if ($texts === null) {
             $texts = require __DIR__ . '/ui_texts.php';
+            $overridePath = __DIR__ . '/ui_texts_overrides.php';
+            if (file_exists($overridePath)) {
+                $texts = array_merge($texts, require $overridePath);
+            }
         }
         return $texts;
     }
