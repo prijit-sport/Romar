@@ -46,7 +46,19 @@ Run preflight:
 php scripts/ops/deploy_preflight.php
 ```
 
-## 3) Security Log Monitoring
+## 3) GitHub Actions Secrets (for full test suite)
+For quality-gates.yml full pass, add Secrets in repo Settings > Secrets and variables > Actions:
+
+**Optional** - Add for full DB tests:
+```
+ROMAR_TEST_DB_HOST = your_test_db_host
+ROMAR_TEST_DB_USER = test_user
+ROMAR_TEST_DB_PASS = test_pass
+ROMAR_TEST_DB_NAME = romar_test
+```
+Lint/smoke pass without secrets. DB tests continue-on-error.
+
+## 4) Security Log Monitoring
 Monitoring options:
 
 - CI schedule: `.github/workflows/security-monitor.yml`

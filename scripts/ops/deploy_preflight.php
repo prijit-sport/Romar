@@ -107,8 +107,9 @@ if (!empty($errors)) {
     foreach ($errors as $e) {
         echo "- {$e}\n";
     }
-    exit(1);
 }
 
-echo "\nPreflight passed.\n";
-exit(0);
+echo "\nPreflight " . (empty($errors) ? 'passed' : 'failed') . ".\n";
+exit(empty($errors) ? 0 : 1);
+?>
+
