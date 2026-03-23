@@ -19,7 +19,7 @@ $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-01');
 $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
 $reportType = isset($_GET['report_type']) ? $_GET['report_type'] : 'summary';
 
-// โ”€โ”€ Export Excel โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// ===== Export Excel =====
 if (isset($_GET['export']) && $_GET['export'] === 'excel') {
     $exportSQL = "SELECT t.ticket_id, t.title, t.category, t.priority, t.status,
                          t.created_at, t.resolved_at,
@@ -41,9 +41,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel') {
     echo '<head><meta charset="UTF-8"></head><body>';
     echo '<table border="1">';
     echo '<tr style="background:#2b6cb0;color:#fff;font-weight:bold;">
-        <th>Ticket ID</th><th>เธซเธฑเธงเธเนเธญ</th><th>เธซเธกเธงเธ”เธซเธกเธนเน</th><th>Priority</th>
-        <th>เธชเธ–เธฒเธเธฐ</th><th>เธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธ</th><th>เธงเธฑเธเธ—เธตเนเธชเธฃเนเธฒเธ</th>
-        <th>เธงเธฑเธเธ—เธตเนเนเธเนเนเธ</th><th>เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”</th><th>เธงเธดเธเธตเนเธเนเนเธ</th>
+<th>Ticket ID</th><th>หัวข้อ</th><th>หมวดหมู่ปัญหา</th><th>Priority</th>
+        <th>สถานะ</th><th>มอบหมายให้</th><th>วันที่สร้าง</th>
+        <th>วันที่แก้ไข</th><th>รายละเอียดปัญหา</th><th>วิธีแก้ไข</th>
     </tr>';
     foreach ($exportRows as $r) {
         $e = fn($v) => htmlspecialchars($v ?? '', ENT_QUOTES);

@@ -7,15 +7,39 @@ if (!function_exists('assetdetail_get_category_definitions')) {
     function assetdetail_get_category_definitions(): array
     {
         return [
-            'all'       => ['label' => 'เธชเธดเธเธ—เธฃเธฑเธเธขเนเธ—เธฑเนเธเธซเธกเธ”', 'icon' => 'fa-boxes',       'types' => []],
-            'computers' => ['label' => 'เธเธญเธกเธเธดเธงเน€เธ•เธญเธฃเน',       'icon' => 'fa-desktop',     'types' => ['desktop', 'laptop']],
-            'monitors'  => ['label' => 'เธเธญเธกเธญเธเธดเน€เธ•เธญเธฃเน',       'icon' => 'fa-tv',          'types' => ['monitor']],
-            'network'   => ['label' => 'เธญเธธเธเธเธฃเธ“เนเน€เธเธฃเธทเธญเธเนเธฒเธข', 'icon' => 'fa-network-wired','types' => ['network']],
-            'printers'  => ['label' => 'เน€เธเธฃเธทเนเธญเธเธเธดเธกเธเน',      'icon' => 'fa-print',       'types' => ['printer']],
-            'phones'    => ['label' => 'เนเธ—เธฃเธจเธฑเธเธ—เน/เธกเธทเธญเธ–เธทเธญ',   'icon' => 'fa-mobile-alt',  'types' => ['mobile','phone']],
-            'software'  => ['label' => 'เธเธญเธเธ•เนเนเธงเธฃเน',         'icon' => 'fa-compact-disc','types' => ['software']],
-            'other'     => ['label' => 'เธญเธทเนเธเน',              'icon' => 'fa-cube',        'types' => ['other']],
+            'all'       => ['label' => 'สินทรัพย์ทั้งหมด', 'icon' => 'fa-boxes',       'types' => []],
+
+            'computers' => ['label' => 'คอมพิวเตอร์',       'icon' => 'fa-desktop',     'types' => ['desktop', 'laptop']],
+
+            'monitors'  => ['label' => 'จอมอนิเตอร์',       'icon' => 'fa-tv',          'types' => ['monitor']],
+
+            'network'   => ['label' => 'อุปกรณ์เครือข่าย', 'icon' => 'fa-network-wired','types' => ['network']],
+
+            'printers'  => ['label' => 'เครื่องพิมพ์',      'icon' => 'fa-print',       'types' => ['printer']],
+
+            'phones'    => ['label' => 'โทรศัพท์/มือถือ',   'icon' => 'fa-mobile-alt',  'types' => ['mobile','phone']],
+
+            'software'  => ['label' => 'ซอฟต์แวร์',         'icon' => 'fa-compact-disc','types' => ['software']],
+
+            'other'     => ['label' => 'อื่นๆ',              'icon' => 'fa-cube',        'types' => ['other']],
+
         ];
+    }
+}
+
+if (!function_exists('assetdetail_bind_params')) {
+    function assetdetail_bind_params(mysqli_stmt $stmt, string $types, array $values): bool
+    {
+        if (empty($values)) {
+            return false;
+        }
+        $params = [];
+        foreach ($values as $key => $value) {
+            $params[$key] = &$values[$key];
+        }
+        unset($value);
+        array_unshift($params, $types);
+        return (bool)call_user_func_array([$stmt, 'bind_param'], $params);
     }
 }
 
@@ -42,7 +66,11 @@ if (!function_exists('assetdetail_count_categories')) {
                 $counts[$key] = 0;
                 continue;
             }
-            $stmt->bind_param(str_repeat('s', count($types)), ...$types);
+            $typesString = str_repeat('s', count($types));
+            if (!assetdetail_bind_params($stmt, $typesString, $types)) {
+                $counts[$key] = 0;
+                continue;
+            }
             $stmt->execute();
             $result = $stmt->get_result();
             $counts[$key] = (int)($result->fetch_assoc()['cnt'] ?? 0);
@@ -97,23 +125,36 @@ if (!function_exists('assetdetail_handle_post_actions')) {
                 }
                 $stmt = $db->prepare("INSERT INTO asset_repairs (asset_id,repair_date,problem_desc,repair_detail,repair_cost,vendor,technician,status,warranty_claim,created_by) VALUES (?,?,?,?,?,?,?,?,?,?)");
                 $cost = (float)($_POST['repair_cost'] ?? 0);
-                $stmt->bind_param('isssdsssii',
+                $repairDate = $_POST['repair_date'] ?? null;
+                $problemDesc = sanitize($_POST['problem_desc'] ?? '');
+                $repairDetail = sanitize($_POST['repair_detail'] ?? '');
+                $vendor = sanitize($_POST['vendor'] ?? '');
+                $technician = sanitize($_POST['technician'] ?? '');
+                $repairStatus = sanitize($_POST['repair_status'] ?? '');
+                $warrantyClaim = isset($_POST['warranty_claim']) ? 1 : 0;
+                $createdBy = $_SESSION['user_id'];
+                if (!assetdetail_bind_params($stmt, 'isssdsssii', [
                     $assetId,
-                    $_POST['repair_date'] ?? null,
-                    sanitize($_POST['problem_desc'] ?? ''),
-                    sanitize($_POST['repair_detail'] ?? ''),
+                    $repairDate,
+                    $problemDesc,
+                    $repairDetail,
                     $cost,
-                    sanitize($_POST['vendor'] ?? ''),
-                    sanitize($_POST['technician'] ?? ''),
-                    sanitize($_POST['repair_status'] ?? ''),
-                    isset($_POST['warranty_claim']) ? 1 : 0,
-                    $_SESSION['user_id']
-                );
+                    $vendor,
+                    $technician,
+                    $repairStatus,
+                    $warrantyClaim,
+                    $createdBy,
+                ])) {
+                    $message = 'Binding parameters failed';
+                    $messageType = 'error';
+                    break;
+                }
                 if ($stmt->execute()) {
                     if (($_POST['repair_status'] ?? '') === 'in_progress') {
                         $upd = $db->prepare("UPDATE assets SET status = 'maintenance' WHERE asset_id = ?");
-                        $upd->bind_param('i', $assetId);
-                        $upd->execute();
+                        if ($upd && assetdetail_bind_params($upd, 'i', [$assetId])) {
+                            $upd->execute();
+                        }
                     }
                     logActivity($_SESSION['user_id'], 'เน€เธเธดเนเธกเธเธฃเธฐเธงเธฑเธ•เธดเธเนเธญเธก', 'Assets', "Asset ID: $assetId");
                     $message = 'เธเธฑเธเธ—เธถเธเธเธฃเธฐเธงเธฑเธ•เธดเธเธฒเธฃเธเนเธญเธกเน€เธฃเธตเธขเธเธฃเนเธญเธข';
@@ -132,20 +173,30 @@ if (!function_exists('assetdetail_handle_post_actions')) {
                 $stmt = $db->prepare("INSERT INTO asset_borrows (asset_id,borrower_id,approved_by,borrow_date,expected_return,purpose,condition_out,created_by,status) VALUES (?,?,?,?,?,?,?,?,'borrowed')");
                 $borrowerId = (int)($_POST['borrower_id'] ?? 0);
                 $approvedBy = $isAdmin ? $_SESSION['user_id'] : null;
-                $stmt->bind_param('iiissssi',
+                $borrowDate = $_POST['borrow_date'] ?? null;
+                $expectedReturn = !empty($_POST['expected_return']) ? $_POST['expected_return'] : null;
+                $purpose = sanitize($_POST['purpose'] ?? '');
+                $conditionOut = sanitize($_POST['condition_out'] ?? '');
+                $createdBy = $_SESSION['user_id'];
+                if (!assetdetail_bind_params($stmt, 'iiissssi', [
                     $assetId,
                     $borrowerId,
                     $approvedBy,
-                    $_POST['borrow_date'] ?? null,
-                    !empty($_POST['expected_return']) ? $_POST['expected_return'] : null,
-                    sanitize($_POST['purpose'] ?? ''),
-                    sanitize($_POST['condition_out'] ?? ''),
-                    $_SESSION['user_id']
-                );
+                    $borrowDate,
+                    $expectedReturn,
+                    $purpose,
+                    $conditionOut,
+                    $createdBy,
+                ])) {
+                    $message = 'Binding parameters failed';
+                    $messageType = 'error';
+                    break;
+                }
                 if ($stmt->execute()) {
                     $upd = $db->prepare("UPDATE assets SET status = 'inactive' WHERE asset_id = ?");
-                    $upd->bind_param('i', $assetId);
-                    $upd->execute();
+                    if ($upd && assetdetail_bind_params($upd, 'i', [$assetId])) {
+                        $upd->execute();
+                    }
                     logActivity($_SESSION['user_id'], 'เธเธฑเธเธ—เธถเธเธเธฒเธฃเธขเธทเธก', 'Assets', "Asset ID: $assetId เธเธนเนเธขเธทเธก: $borrowerId");
                     $message = 'เธเธฑเธเธ—เธถเธเธเธฒเธฃเธขเธทเธกเน€เธฃเธตเธขเธเธฃเนเธญเธข';
                     $messageType = 'success';
@@ -162,11 +213,22 @@ if (!function_exists('assetdetail_handle_post_actions')) {
                 }
                 $borrowId    = (int)($_POST['borrow_id'] ?? 0);
                 $stmt = $db->prepare("UPDATE asset_borrows SET actual_return=?, condition_in=?, status='returned' WHERE borrow_id=?");
-                $stmt->bind_param('ssi', $_POST['actual_return'] ?? null, sanitize($_POST['condition_in'] ?? ''), $borrowId);
+                $actualReturn = $_POST['actual_return'] ?? null;
+                $conditionIn = sanitize($_POST['condition_in'] ?? '');
+                if (!assetdetail_bind_params($stmt, 'ssi', [
+                    $actualReturn,
+                    $conditionIn,
+                    $borrowId,
+                ])) {
+                    $message = 'Binding parameters failed';
+                    $messageType = 'error';
+                    break;
+                }
                 if ($stmt->execute()) {
                     $upd = $db->prepare("UPDATE assets SET status = 'active' WHERE asset_id = ?");
-                    $upd->bind_param('i', $assetId);
-                    $upd->execute();
+                    if ($upd && assetdetail_bind_params($upd, 'i', [$assetId])) {
+                        $upd->execute();
+                    }
                     logActivity($_SESSION['user_id'], 'เธเธทเธเธญเธธเธเธเธฃเธ“เน', 'Assets', "Asset ID: $assetId");
                     $message = 'เธเธฑเธเธ—เธถเธเธเธฒเธฃเธเธทเธเน€เธฃเธตเธขเธเธฃเนเธญเธข';
                     $messageType = 'success';
@@ -184,18 +246,29 @@ if (!function_exists('assetdetail_handle_post_actions')) {
                     asset_id,from_user_id,to_user_id,from_location,to_location,
                     from_dept,to_dept,transfer_date,reason,transferred_by
                 ) VALUES (?,?,?,?,?,?,?,?,?,?)");
-                $stmt->bind_param('iiissssssi',
+                $fromLocation = sanitize($_POST['from_location'] ?? '');
+                $toLocation = sanitize($_POST['to_location'] ?? '');
+                $fromDept = sanitize($_POST['from_dept'] ?? '');
+                $toDept = sanitize($_POST['to_dept'] ?? '');
+                $transferDate = $_POST['transfer_date'] ?? null;
+                $reason = sanitize($_POST['reason'] ?? '');
+                $createdBy = $_SESSION['user_id'];
+                if (!assetdetail_bind_params($stmt, 'iiissssssi', [
                     $assetId,
                     $fromUser,
                     $toUser,
-                    sanitize($_POST['from_location'] ?? ''),
-                    sanitize($_POST['to_location'] ?? ''),
-                    sanitize($_POST['from_dept'] ?? ''),
-                    sanitize($_POST['to_dept'] ?? ''),
-                    $_POST['transfer_date'] ?? null,
-                    sanitize($_POST['reason'] ?? ''),
-                    $_SESSION['user_id']
-                );
+                    $fromLocation,
+                    $toLocation,
+                    $fromDept,
+                    $toDept,
+                    $transferDate,
+                    $reason,
+                    $createdBy,
+                ])) {
+                    $message = 'Binding parameters failed';
+                    $messageType = 'error';
+                    break;
+                }
                 $stmt->execute();
 
                 $updates = [];
@@ -209,22 +282,23 @@ if (!function_exists('assetdetail_handle_post_actions')) {
                 if (!empty($_POST['to_location'])) {
                     $updates[] = "location = ?";
                     $typesUpdate .= 's';
-                    $params[] = sanitize($_POST['to_location']);
+                    $params[] = $toLocation;
                 }
                 if (!empty($_POST['to_dept'])) {
                     $updates[] = "department = ?";
                     $typesUpdate .= 's';
-                    $params[] = sanitize($_POST['to_dept']);
+                    $params[] = $toDept;
                 }
                 if ($updates) {
                     $params[] = $assetId;
                     $typesUpdate .= 'i';
                     $updStmt = $db->prepare("UPDATE assets SET " . implode(', ', $updates) . " WHERE asset_id = ?");
-                    $updStmt->bind_param($typesUpdate, ...$params);
-                    $updStmt->execute();
+                    if ($updStmt && assetdetail_bind_params($updStmt, $typesUpdate, $params)) {
+                        $updStmt->execute();
+                    }
                 }
 
-                logActivity($_SESSION['user_id'], 'เนเธญเธเธขเนเธฒเธขเธชเธดเธเธ—เธฃเธฑเธเธขเน', 'Assets', "Asset ID: $assetId โ’ " . sanitize($_POST['to_location'] ?? ''));
+                logActivity($_SESSION['user_id'], 'เนเธญเธเธขเนเธฒเธขเธชเธดเธเธ—เธฃเธฑเธเธขเน', 'Assets', "Asset ID: $assetId โ’ " . $toLocation);
                 $message = 'เธเธฑเธเธ—เธถเธเธเธฒเธฃเนเธญเธเธขเนเธฒเธขเน€เธฃเธตเธขเธเธฃเนเธญเธข';
                 $messageType = 'success';
                 break;
@@ -240,7 +314,9 @@ if (!function_exists('assetdetail_fetch_asset_context')) {
     function assetdetail_fetch_asset_context(mysqli $db, int $assetId): array
     {
         $stmt = $db->prepare("SELECT a.*, u.full_name AS assigned_name FROM assets a LEFT JOIN users u ON a.assigned_to = u.user_id WHERE a.asset_id = ? LIMIT 1");
-        $stmt->bind_param('i', $assetId);
+        if (!$stmt || !assetdetail_bind_params($stmt, 'i', [$assetId])) {
+            return [];
+        }
         $stmt->execute();
         $assetRes = $stmt->get_result();
         if (!$assetRes || $assetRes->num_rows === 0) {
@@ -249,18 +325,21 @@ if (!function_exists('assetdetail_fetch_asset_context')) {
         $asset = $assetRes->fetch_assoc();
 
         $repStmt = $db->prepare("SELECT r.*, u.full_name as created_by_name FROM asset_repairs r LEFT JOIN users u ON r.created_by=u.user_id WHERE r.asset_id = ? ORDER BY r.repair_date DESC");
-        $repStmt->bind_param('i', $assetId);
-        $repStmt->execute();
+        if ($repStmt && assetdetail_bind_params($repStmt, 'i', [$assetId])) {
+            $repStmt->execute();
+        }
         $repairs = $repStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
         $borStmt = $db->prepare("SELECT b.*, u.full_name as borrower_name, a.full_name as approved_name FROM asset_borrows b LEFT JOIN users u ON b.borrower_id=u.user_id LEFT JOIN users a ON b.approved_by=a.user_id WHERE b.asset_id = ? ORDER BY b.borrow_date DESC");
-        $borStmt->bind_param('i', $assetId);
-        $borStmt->execute();
+        if ($borStmt && assetdetail_bind_params($borStmt, 'i', [$assetId])) {
+            $borStmt->execute();
+        }
         $borrows = $borStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
         $trnStmt = $db->prepare("SELECT t.*, fu.full_name as from_name, tu.full_name as to_name, by_u.full_name as by_name FROM asset_transfers t LEFT JOIN users fu ON t.from_user_id=fu.user_id LEFT JOIN users tu ON t.to_user_id=tu.user_id LEFT JOIN users by_u ON t.transferred_by=by_u.user_id WHERE t.asset_id = ? ORDER BY t.transfer_date DESC");
-        $trnStmt->bind_param('i', $assetId);
-        $trnStmt->execute();
+        if ($trnStmt && assetdetail_bind_params($trnStmt, 'i', [$assetId])) {
+            $trnStmt->execute();
+        }
         $transfers = $trnStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
         $users = $db->query("SELECT user_id, full_name FROM users WHERE status='active' ORDER BY full_name")->fetch_all(MYSQLI_ASSOC);

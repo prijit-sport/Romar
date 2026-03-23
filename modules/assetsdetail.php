@@ -60,7 +60,11 @@ foreach ($ASSET_CATEGORIES as $key => $catDef) {
         $types = $catDef['types'];
         $placeholders = implode(',', array_fill(0, count($types), '?'));
         $stmt = $db->prepare("SELECT COUNT(*) as cnt FROM assets WHERE asset_type IN ($placeholders)");
-        $stmt->bind_param(str_repeat('s', count($types)), ...$types);
+        $typeString = str_repeat('s', count($types));
+        if (!$stmt || !assetdetail_bind_params($stmt, $typeString, $types)) {
+            $counts[$key] = 0;
+            continue;
+        }
         $stmt->execute();
         $r = $stmt->get_result();
     }
@@ -94,18 +98,21 @@ if ($action === 'add_repair') {
         $technician   = sanitize($_POST['technician']);
         $repairStatus = sanitize($_POST['repair_status']);
         $userId       = $_SESSION['user_id'];
-        $stmt->bind_param('isssdsssii',
+        if (!$stmt || !assetdetail_bind_params($stmt, 'isssdsssii', [
             $assetId, $repairDate, $problemDesc,
             $repairDetail, $cost, $vendor,
             $technician, $repairStatus,
-            $wc, $userId
-        );
-        if ($stmt->execute()) {
+            $wc, $userId,
+        ])) {
+            $message = 'Binding parameters failed';
+            $messageType = 'error';
+        } elseif ($stmt->execute()) {
             // ถ้า status = in_progress → อัปเดตสถานะอุปกรณ์เป็น maintenance
             if ($_POST['repair_status'] === 'in_progress') {
                 $upd = $db->prepare("UPDATE assets SET status = 'maintenance' WHERE asset_id = ?");
-                $upd->bind_param('i', $assetId);
-                $upd->execute();
+                if ($upd && assetdetail_bind_params($upd, 'i', [$assetId])) {
+                    $upd->execute();
+                }
             }
             logActivity($_SESSION['user_id'], 'เพิ่มประวัติซ่อม', 'Assets', "Asset ID: $assetId");
             $message = 'บันทึกประวัติการซ่อมเรียบร้อย'; $messageType = 'success';
@@ -127,16 +134,19 @@ if ($action === 'add_borrow') {
         $purpose        = sanitize($_POST['purpose']);
         $conditionOut   = sanitize($_POST['condition_out']);
         $userId         = $_SESSION['user_id'];
-        $stmt->bind_param('iiissssi',
+        if (!$stmt || !assetdetail_bind_params($stmt, 'iiissssi', [
             $assetId, $borrowerId, $approvedBy,
             $borrowDate, $expectedReturn,
             $purpose, $conditionOut,
-            $userId
-        );
-        if ($stmt->execute()) {
+            $userId,
+        ])) {
+            $message = 'Binding parameters failed';
+            $messageType = 'error';
+        } elseif ($stmt->execute()) {
             $upd = $db->prepare("UPDATE assets SET status = 'inactive' WHERE asset_id = ?");
-            $upd->bind_param('i', $assetId);
-            $upd->execute();
+            if ($upd && assetdetail_bind_params($upd, 'i', [$assetId])) {
+                $upd->execute();
+            }
             logActivity($_SESSION['user_id'], 'บันทึกการยืม', 'Assets', "Asset ID: $assetId ผู้ยืม: $borrowerId");
             $message = 'บันทึกการยืมเรียบร้อย'; $messageType = 'success';
         } else { $message = 'เกิดข้อผิดพลาด: '.$stmt->error; $messageType = 'error'; }
@@ -153,11 +163,14 @@ if ($action === 'return_asset') {
         $condIn      = sanitize($_POST['condition_in']);
         $returnDate  = $_POST['actual_return'];
         $stmt = $db->prepare("UPDATE asset_borrows SET actual_return=?, condition_in=?, status='returned' WHERE borrow_id=?");
-        $stmt->bind_param('ssi', $returnDate, $condIn, $borrowId);
-        if ($stmt->execute()) {
+        if (!$stmt || !assetdetail_bind_params($stmt, 'ssi', [$returnDate, $condIn, $borrowId])) {
+            $message = 'Binding parameters failed';
+            $messageType = 'error';
+        } elseif ($stmt->execute()) {
             $upd = $db->prepare("UPDATE assets SET status = 'active' WHERE asset_id = ?");
-            $upd->bind_param('i', $assetId);
-            $upd->execute();
+            if ($upd && assetdetail_bind_params($upd, 'i', [$assetId])) {
+                $upd->execute();
+            }
             logActivity($_SESSION['user_id'], 'คืนอุปกรณ์', 'Assets', "Asset ID: $assetId");
             $message = 'บันทึกการคืนเรียบร้อย'; $messageType = 'success';
         }
@@ -184,42 +197,47 @@ if ($action === 'add_transfer') {
             asset_id,from_user_id,to_user_id,from_location,to_location,
             from_dept,to_dept,transfer_date,reason,transferred_by
         ) VALUES (?,?,?,?,?,?,?,?,?,?)");
-        $stmt->bind_param('iiissssssi',
+        if (!$stmt || !assetdetail_bind_params($stmt, 'iiissssssi', [
             $assetId, $fromUser, $toUser, $fromLoc, $toLoc,
-            $fromDept, $toDept, $transDate, $reason, $byUser
-        );
-        $stmt->execute();
+            $fromDept, $toDept, $transDate, $reason, $byUser,
+        ])) {
+            $message = 'Binding parameters failed';
+            $messageType = 'error';
+        } else {
+            $stmt->execute();
 
-        // Update asset details if provided
-        $updates = [];
-        $params = [];
-        $typesUpdate = '';
-        if ($toUser !== null) {
-            $updates[] = "assigned_to = ?";
-            $typesUpdate .= 'i';
-            $params[] = $toUser;
-        }
-        if ($toLoc !== '') {
-            $updates[] = "location = ?";
-            $typesUpdate .= 's';
-            $params[] = $toLoc;
-        }
-        if ($toDept !== '') {
-            $updates[] = "department = ?";
-            $typesUpdate .= 's';
-            $params[] = $toDept;
-        }
-        if ($updates) {
-            $sql = "UPDATE assets SET " . implode(', ', $updates) . " WHERE asset_id = ?";
-            $params[] = $assetId;
-            $typesUpdate .= 'i';
-            $updStmt = $db->prepare($sql);
-            $updStmt->bind_param($typesUpdate, ...$params);
-            $updStmt->execute();
-        }
+            // Update asset details if provided
+            $updates = [];
+            $params = [];
+            $typesUpdate = '';
+            if ($toUser !== null) {
+                $updates[] = "assigned_to = ?";
+                $typesUpdate .= 'i';
+                $params[] = $toUser;
+            }
+            if ($toLoc !== '') {
+                $updates[] = "location = ?";
+                $typesUpdate .= 's';
+                $params[] = $toLoc;
+            }
+            if ($toDept !== '') {
+                $updates[] = "department = ?";
+                $typesUpdate .= 's';
+                $params[] = $toDept;
+            }
+            if ($updates) {
+                $sql = "UPDATE assets SET " . implode(', ', $updates) . " WHERE asset_id = ?";
+                $params[] = $assetId;
+                $typesUpdate .= 'i';
+                $updStmt = $db->prepare($sql);
+                if ($updStmt && assetdetail_bind_params($updStmt, $typesUpdate, $params)) {
+                    $updStmt->execute();
+                }
+            }
 
-        logActivity($byUser, 'โอนย้ายสินทรัพย์', 'Assets', "Asset ID: $assetId → $toLoc");
-        $message = 'บันทึกการโอนย้ายเรียบร้อย'; $messageType = 'success';
+            logActivity($byUser, 'โอนย้ายสินทรัพย์', 'Assets', "Asset ID: $assetId → $toLoc");
+            $message = 'บันทึกการโอนย้ายเรียบร้อย'; $messageType = 'success';
+        }
     }
 }
 
@@ -280,111 +298,9 @@ $activeTab = $_GET['tab'] ?? 'repair';
     <title><?= htmlspecialchars($asset['asset_name']) ?> - รายละเอียดสินทรัพย์</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Sarabun',sans-serif; background:#065f159c; color:#000; min-height:100vh; }
-        .container { display:flex; min-height:100vh; }
-        /* Sidebar */
-        .sidebar { width:280px; background:linear-gradient(180deg,#10ce30 0%,#000 100%); position:fixed; left:0; top:0; height:100vh; overflow-y:auto; box-shadow:4px 0 20px rgba(0,0,0,0.3); z-index:1000; }
-        .sidebar-brand { padding:25px 20px; border-bottom:1px solid #fff; color:white; }
-        .brand-title { font-size:1.8em; font-weight:700; color:white; display:flex; align-items:center; gap:12px; }
-        .brand-subtitle { font-size:0.85em; color:#000; margin-top:5px; }
-        .sidebar-nav ul { list-style:none; padding:20px 0; }
-        .sidebar-nav a { display:flex; align-items:center; gap:15px; padding:15px 20px; color:#fff; text-decoration:none; transition:all 0.3s; }
-        .sidebar-nav a:hover { background:rgba(255,255,255,0.1); padding-left:25px; }
-        .sidebar-nav li.active a { background:linear-gradient(90deg,rgb(17,224,35),rgb(184,209,39)); border-left:4px solid #fff; }
-        .menu-section { padding:25px 20px 10px; color:#fff; font-size:0.75em; text-transform:uppercase; letter-spacing:1.5px; font-weight:600; }
-        /* Main */
-        .main-content { flex:1; margin-left:280px; padding:30px; }
-        .breadcrumb-nav { background:#fff; padding:15px 30px; border-radius:12px; margin-bottom:20px; box-shadow:0 2px 10px rgba(0,0,0,0.05); display:flex; align-items:center; justify-content:space-between; }
-        .breadcrumb { display:flex; align-items:center; gap:10px; list-style:none; }
-        .breadcrumb a { color:#10ce30; text-decoration:none; }
-        .back-button { background:linear-gradient(135deg,#10ce30,#000); color:white; border:none; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:600; display:flex; align-items:center; gap:8px; cursor:pointer; }
-        /* Asset Header Card */
-        .asset-header { background:white; padding:30px; border-radius:16px; margin-bottom:25px; box-shadow:0 4px 20px rgba(0,0,0,0.3); }
-        .asset-header-grid { display:grid; grid-template-columns:auto 1fr auto; gap:25px; align-items:start; }
-        .asset-icon-big { width:80px; height:80px; border-radius:16px; background:linear-gradient(135deg,#10ce30,#000); display:flex; align-items:center; justify-content:center; font-size:2.5em; color:white; }
-        .asset-name { font-size:1.8em; font-weight:700; }
-        .asset-tag-badge { display:inline-block; background:#edf2f7; color:#4a5568; padding:4px 14px; border-radius:8px; font-size:0.9em; font-weight:600; margin-top:5px; }
-        .meta-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:15px; margin-top:20px; }
-        .meta-item label { font-size:0.8em; color:#718096; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:4px; }
-        .meta-item span { font-size:0.95em; color:#2d3748; }
-        /* Stats Row */
-        .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:15px; margin-bottom:25px; }
-        .mini-stat { background:white; padding:20px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.2); text-align:center; }
-        .mini-stat h3 { font-size:1.6em; font-weight:700; }
-        .mini-stat p { font-size:0.85em; color:#718096; margin-top:4px; }
-        /* Tabs */
-        .tabs { display:flex; gap:5px; background:white; padding:8px; border-radius:12px; margin-bottom:20px; box-shadow:0 2px 10px rgba(0,0,0,0.2); }
-        .tab-btn { flex:1; padding:12px; border:none; background:none; border-radius:8px; font-size:0.95em; font-weight:600; cursor:pointer; transition:all 0.2s; color:#718096; font-family:'Sarabun',sans-serif; }
-        .tab-btn.active { background:linear-gradient(135deg,#10ce30,#38a169); color:white; }
-        .tab-btn:hover:not(.active) { background:#f7fafc; }
-        /* Card */
-        .card { background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.2); overflow:hidden; margin-bottom:20px; }
-        .card-header { padding:20px 25px; border-bottom:2px solid #f7fafc; display:flex; justify-content:space-between; align-items:center; }
-        .card-title { font-size:1.1em; font-weight:700; display:flex; align-items:center; gap:10px; }
-        .card-body { padding:20px 25px; }
-        table { width:100%; border-collapse:collapse; }
-        thead { background:linear-gradient(135deg,#10ce30,#000); color:white; }
-        th { padding:12px 15px; text-align:left; font-weight:600; font-size:0.9em; }
-        td { padding:12px 15px; border-bottom:1px solid #f7fafc; vertical-align:middle; font-size:0.9em; }
-        tr:hover td { background:#f7fafc; }
-        .no-data { text-align:center; padding:40px; color:#718096; }
-        /* Badge */
-        .badge { padding:4px 12px; border-radius:12px; font-size:0.8em; font-weight:600; }
-        .badge-completed  { background:#c6f6d5; color:#276749; }
-        .badge-in_progress{ background:#fef5e7; color:#d69e2e; }
-        .badge-pending    { background:#bee3f8; color:#2c5282; }
-        .badge-borrowed   { background:#fed7d7; color:#c53030; }
-        .badge-returned   { background:#c6f6d5; color:#276749; }
-        .badge-overdue    { background:#fed7d7; color:#c53030; }
-        .badge-good       { background:#c6f6d5; color:#276749; }
-        .badge-fair       { background:#fefcbf; color:#744210; }
-        .badge-poor       { background:#fed7d7; color:#c53030; }
-        .badge-damaged    { background:#fc8181; color:#fff; }
-        /* Form */
-        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
-        .form-group { margin-bottom:15px; }
-        .form-group label { display:block; font-weight:600; margin-bottom:6px; font-size:0.9em; color:#4a5568; }
-        .form-control { width:100%; padding:10px 14px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.95em; font-family:'Sarabun',sans-serif; }
-        .form-control:focus { outline:none; border-color:#10ce30; box-shadow:0 0 0 3px rgba(16,206,48,0.15); }
-        .btn { padding:10px 20px; border:none; border-radius:8px; font-size:0.95em; font-weight:600; cursor:pointer; transition:all 0.3s; display:inline-flex; align-items:center; gap:8px; font-family:'Sarabun',sans-serif; }
-        .btn-primary { background:linear-gradient(135deg,#10ce30,#38a169); color:white; }
-        .btn-danger  { background:linear-gradient(135deg,#fc8181,#e53e3e); color:white; }
-        .btn-warning { background:linear-gradient(135deg,#f6ad55,#dd6b20); color:white; }
-        .btn-sm { padding:6px 14px; font-size:0.85em; }
-        .alert { padding:14px 20px; border-radius:10px; margin-bottom:20px; font-weight:500; }
-        .alert-success { background:#c6f6d5; color:#276749; border:1px solid #9ae6b4; }
-        .alert-error   { background:#fed7d7; color:#c53030; border:1px solid #fc8181; }
-        /* Depreciation */
-        .dep-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-        .dep-card { background:#f7fafc; border-radius:12px; padding:20px; }
-        .dep-card h4 { font-size:0.85em; color:#718096; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
-        .dep-card .value { font-size:1.6em; font-weight:700; color:#2d3748; }
-        .dep-bar-wrap { background:#e2e8f0; border-radius:8px; height:12px; margin-top:15px; }
-        .dep-bar { background:linear-gradient(90deg,#fc8181,#e53e3e); height:12px; border-radius:8px; transition:width 0.5s; }
-        /* Modal */
-        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center; }
-        .modal.show { display:flex; }
-        .modal-content { background:white; border-radius:16px; padding:30px; width:600px; max-height:85vh; overflow-y:auto; }
-        .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-        .close-btn { background:none; border:none; font-size:1.5em; cursor:pointer; }
-        .warranty-claimed { background:#c6f6d5; color:#276749; padding:3px 10px; border-radius:8px; font-size:0.8em; }
-        /* Active borrow banner */
-        .borrow-banner { background:#fed7d7; border:2px solid #fc8181; border-radius:12px; padding:15px 20px; margin-bottom:20px; display:flex; align-items:center; gap:15px; }
-        .borrow-banner i { font-size:1.8em; color:#e53e3e; }
-        /* Assets accordion */
-        .nav-parent { display:flex; align-items:center; padding:13px 20px; color:white; text-decoration:none; cursor:pointer; transition:all 0.3s; justify-content:space-between; user-select:none; }
-        .nav-parent:hover { background:rgba(255,255,255,0.1); }
-        .nav-parent.open { background:rgba(255,255,255,0.12); }
-        .nav-parent .arrow { transition:transform 0.3s; font-size:0.75em; }
-        .nav-parent.open .arrow { transform:rotate(90deg); }
-        .nav-submenu { list-style:none; padding:0; margin:0; max-height:0; overflow:hidden; transition:max-height 0.35s ease; background:rgba(0,0,0,0.25); }
-        .nav-submenu.open { max-height:600px; }
-        .nav-submenu li a { padding:10px 20px 10px 42px !important; font-size:0.93em !important; }
-        .nav-submenu li.active a { background:linear-gradient(90deg,rgba(17,224,35,0.8),rgba(184,209,39,0.6)) !important; border-left:3px solid #fff !important; color:white !important; }
-        .submenu-badge { background:rgba(255,255,255,0.25); padding:1px 7px; border-radius:10px; font-size:0.78em; font-weight:700; }
-    </style>
+        <link rel="stylesheet" href="../includes/styles.css">
+    <link rel="stylesheet" href="../includes/assetsdetail.css">
+
 </head>
 <body>
 <div class="container">
@@ -1227,3 +1143,5 @@ window.onclick = e => { if (e.target.classList.contains('modal')) e.target.class
 </script>
 </body>
 </html>
+
+

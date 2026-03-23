@@ -104,7 +104,15 @@ if (!defined('APP_ENV')) {
         $normalizedAppEnv = 'development';
     }
 
-    define('APP_ENV', $normalizedAppEnv);
+define('APP_ENV', $normalizedAppEnv);
+}
+
+// บังคับให้ PHP ส่งข้อความที่เข้ารหัสด้วย UTF-8 เสมอ
+ini_set('default_charset', 'UTF-8');
+if (function_exists('mb_internal_encoding')) {
+    mb_internal_encoding('UTF-8');
+    mb_http_output('UTF-8');
+    mb_regex_encoding('UTF-8');
 }
 
 if (APP_ENV === 'production') {

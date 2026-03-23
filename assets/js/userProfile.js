@@ -48,12 +48,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         }
-        editModal.style.display = 'flex';
+        editModal.classList.add('active');
+        editModal.setAttribute('aria-hidden', 'false');
     }
 
     function closeEditModal() {
         if (!editModal) return;
-        editModal.style.display = 'none';
+        editModal.classList.remove('active');
+        editModal.setAttribute('aria-hidden', 'true');
     }
 
     if (editButton) {
