@@ -4,9 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once '../config/database.php';
 require_once '../includes/functions.php';
-if (file_exists(__DIR__ . '/Notificationhelper.php')) {
-    require_once __DIR__ . '/Notificationhelper.php';
-}
+require_once __DIR__ . '/../includes/functions_notification.php';
 
 csrf_token();
 apply_security_headers();

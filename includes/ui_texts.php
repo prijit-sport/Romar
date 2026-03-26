@@ -1,4 +1,4 @@
-<?php
+ <?php
 return [
     // Navigation
     'nav.back_to_dashboard' => 'กลับไปที่หน้าแรกของ Romar',
@@ -33,6 +33,17 @@ return [
     'page.subtitle.users' => 'จัดการบัญชีพนักงาน ผู้ดูแล และฝ่ายสนับสนุนจากที่เดียว',
     'page.title.slaconfig' => 'การกำหนดค่า SLA',
     'page.subtitle.slaconfig' => 'กำหนดเป้าหมายการตอบสนองและการแก้ไขตามระดับ SLA',
+
+    // Settings categories
+    'settings.category.general' => 'ทั่วไป',
+    'settings.category.email' => 'อีเมล',
+    'settings.category.notifications' => 'การแจ้งเตือน',
+    'settings.category.tickets' => 'ตั๋วสนับสนุน',
+
+    // Settings
+    'settings.updated' => 'อัปเดตการตั้งค่า %d รายการเรียบร้อยแล้ว',
+    'settings.failed' => 'ไม่สามารถอัปเดตการตั้งค่าได้',
+    'settings.csrf_error' => 'โทเค็น CSRF ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง',
 
     // Dashboard
     'dashboard.assets.section.title' => 'ทรัพย์สินไอที',
@@ -104,7 +115,9 @@ return [
 
     // Settings & system
     'settings.section_title' => 'หมวดหมู่การตั้งค่า',
-    'settings.section_subtitle' => 'ปรับค่าเริ่มต้นอีเมล การแจ้งเตือน และ SLA ให้สอดคล้องกับนโยบาย',
+    'settings.section_subtitle' => 'ปรับค่าเริ่มต้นอีเมล การแจ้งเตือน และ SLA ให้สอดคล้องกับนโยบาย Romar',
+
+    // System
     'system.section_title' => 'ข้อมูลระบบ',
     'system.section_subtitle' => 'สุขภาพเซิร์ฟเวอร์ สภาพแวดล้อม และรายละเอียดการทำงาน',
 

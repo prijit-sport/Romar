@@ -367,7 +367,9 @@ include_once __DIR__ . '/../includes/sidebar.php';
             <h2 id="viewTitle" class="modal-title"><i class="fas fa-book-open"></i> <?php echo ui_text('modal.article_view_title'); ?></h2>
             <button class="modal-close" onclick="closeViewModal()">&times;</button>
         </div>
-        <div id="viewBody"></div>
+        <div class="modal-body">
+            <div id="viewBody"></div>
+        </div>
     </div>
 </div>
 
@@ -377,50 +379,52 @@ include_once __DIR__ . '/../includes/sidebar.php';
             <h2 id="modalTitle" class="modal-title"><i class="fas fa-plus-circle"></i> <?php echo ui_text('modal.article_add_title'); ?></h2>
             <button class="modal-close" onclick="closeModal()">&times;</button>
         </div>
-        <form method="POST" id="articleForm">
-            <input type="hidden" name="action" id="formAction" value="create">
-            <input type="hidden" name="kb_id" id="kb_id">
-            <?php echo csrf_input(); ?>
+        <div class="modal-body">
+            <form method="POST" id="articleForm">
+                <input type="hidden" name="action" id="formAction" value="create">
+                <input type="hidden" name="kb_id" id="kb_id">
+                <?php echo csrf_input(); ?>
 
-            <div class="input-hint">
-                <i class="fas fa-info-circle"></i>
-                <strong>คำแนะนำ:</strong> กรอกข้อมูลให้ครบถ้วนเพื่อให้บทความมีคุณภาพและค้นหาได้ง่าย
-            </div>
+                <div class="input-hint">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>คำแนะนำ:</strong> กรอกข้อมูลให้ครบถ้วนเพื่อให้บทความมีคุณภาพและค้นหาได้ง่าย
+                </div>
 
-            <div class="form-group">
-                <label for="title">หัวข้อบทความ <span class="required">*</span></label>
-                <input type="text" name="title" id="title" class="form-control" placeholder="เช่น วิธีการ Reset รหัสผ่าน Windows" required>
-                <div class="form-help">ชื่อบทความที่ชัดเจน กระชับ และเข้าใจง่าย</div>
-            </div>
+                <div class="form-group">
+                    <label for="title">หัวข้อบทความ <span class="required">*</span></label>
+                    <input type="text" name="title" id="title" class="form-control" placeholder="เช่น วิธีการ Reset รหัสผ่าน Windows" required>
+                    <div class="form-help">ชื่อบทความที่ชัดเจน กระชับ และเข้าใจง่าย</div>
+                </div>
 
-            <div class="form-group">
-                <label for="category_id">หมวดหมู่ <span class="required">*</span></label>
-                <select name="category_id" id="category_id" class="form-control" required>
-                    <option value="">-- เลือกหมวดหมู่ --</option>
-                    <?php foreach ($categories as $cat): ?>
-                    <option value="<?php echo $cat['category_id']; ?>"><?php echo htmlspecialchars($cat['name'] ?? ''); ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <div class="form-help">เลือกหมวดหมู่ที่เหมาะสมกับเนื้อหา</div>
-            </div>
+                <div class="form-group">
+                    <label for="category_id">หมวดหมู่ <span class="required">*</span></label>
+                    <select name="category_id" id="category_id" class="form-control" required>
+                        <option value="">-- เลือกหมวดหมู่ --</option>
+                        <?php foreach ($categories as $cat): ?>
+                        <option value="<?php echo $cat['category_id']; ?>"><?php echo htmlspecialchars($cat['name'] ?? ''); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-help">เลือกหมวดหมู่ที่เหมาะสมกับเนื้อหา</div>
+                </div>
 
-            <div class="form-group">
-                <label for="content">เนื้อหา <span class="required">*</span></label>
-                <textarea name="content" id="content" class="form-control" placeholder="เขียนเนื้อหาบทความที่นี่..." required></textarea>
-                <div class="form-help"><i class="fas fa-lightbulb"></i> เขียนเนื้อหาให้ละเอียด ครบถ้วน และง่ายต่อการเข้าใจ</div>
-            </div>
+                <div class="form-group">
+                    <label for="content">เนื้อหา <span class="required">*</span></label>
+                    <textarea name="content" id="content" class="form-control" placeholder="เขียนเนื้อหาบทความที่นี่..." required></textarea>
+                    <div class="form-help"><i class="fas fa-lightbulb"></i> เขียนเนื้อหาให้ละเอียด ครบถ้วน และง่ายต่อการเข้าใจ</div>
+                </div>
 
-            <div class="form-group">
-                <label for="tags">Tags (คำค้นหา)</label>
-                <input type="text" name="tags" id="tags" class="form-control" placeholder="เช่น windows, password, reset, troubleshoot">
-                <div class="form-help"><i class="fas fa-tag"></i> คั่นแต่ละคำด้วยเครื่องหมายจุลภาค (,) เพื่อให้ค้นหาได้ง่าย</div>
-            </div>
+                <div class="form-group">
+                    <label for="tags">Tags (คำค้นหา)</label>
+                    <input type="text" name="tags" id="tags" class="form-control" placeholder="เช่น windows, password, reset, troubleshoot">
+                    <div class="form-help"><i class="fas fa-tag"></i> คั่นแต่ละคำด้วยเครื่องหมายจุลภาค (,) เพื่อให้ค้นหาได้ง่าย</div>
+                </div>
 
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()"><i class="fas fa-times"></i> ยกเลิก</button>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> บันทึกบทความ</button>
-            </div>
-        </form>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()"><i class="fas fa-times"></i> ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> บันทึกบทความ</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 

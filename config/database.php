@@ -235,4 +235,3 @@ register_global_error_handlers();
 if ((getenv('ROMAR_SKIP_DB_BOOT') ?: '0') !== '1') {
     getDB();
 }
-?>

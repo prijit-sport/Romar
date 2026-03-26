@@ -40,36 +40,12 @@ if (empty($assetContext['asset'])) { header('Location: assets.php'); exit; }
 extract($assetContext);
 $activeTab = $_GET['tab'] ?? 'repair';
 
-// ── Category definitions (shared) ──────────────────────────────
-$ASSET_CATEGORIES = [
-    'all'       => ['label'=>'สินทรัพย์ทั้งหมด', 'icon'=>'fa-boxes',       'types'=>[]],
-    'computers' => ['label'=>'คอมพิวเตอร์',       'icon'=>'fa-desktop',     'types'=>['desktop','laptop']],
-    'monitors'  => ['label'=>'จอมอนิเตอร์',       'icon'=>'fa-tv',          'types'=>['monitor']],
-    'network'   => ['label'=>'อุปกรณ์เครือข่าย', 'icon'=>'fa-network-wired','types'=>['network']],
-    'printers'  => ['label'=>'เครื่องพิมพ์',      'icon'=>'fa-print',       'types'=>['printer']],
-    'phones'    => ['label'=>'โทรศัพท์/มือถือ',   'icon'=>'fa-mobile-alt',  'types'=>['mobile','phone']],
-    'software'  => ['label'=>'ซอฟต์แวร์',         'icon'=>'fa-compact-disc','types'=>['software']],
-    'other'     => ['label'=>'อื่นๆ',              'icon'=>'fa-cube',        'types'=>['other']],
-];
-$catCounts = [];
-foreach ($ASSET_CATEGORIES as $key => $catDef) {
-    if ($key === 'all') {
-        $r = $db->query("SELECT COUNT(*) as cnt FROM assets");
-    } else {
-        // ✅ ใช้ Prepared Statements เพื่อป้องกัน SQL Injection
-        $types = $catDef['types'];
-        $placeholders = implode(',', array_fill(0, count($types), '?'));
-        $stmt = $db->prepare("SELECT COUNT(*) as cnt FROM assets WHERE asset_type IN ($placeholders)");
-        $typeString = str_repeat('s', count($types));
-        if (!$stmt || !assetdetail_bind_params($stmt, $typeString, $types)) {
-            $counts[$key] = 0;
-            continue;
-        }
-        $stmt->execute();
-        $r = $stmt->get_result();
-    }
-    $catCounts[$key] = $r ? $r->fetch_assoc()['cnt'] : 0;
-}
+require_once __DIR__ . '/../includes/asset_categories.php';
+
+$ASSET_CATEGORIES = getAssetCategories();
+$catCounts = assetdetail_count_categories($db, $ASSET_CATEGORIES);
+
+$quickAssets = ['computers', 'monitors', 'network'];
 
 // ── Handle POST Actions ────────────────────────────────────────
 $action = $_POST['action'] ?? '';
@@ -327,38 +303,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
                     if (!empty($cd['types']) && in_array($asset['asset_type'], $cd['types'])) { $thisCat2 = $k; break; }
                 }
                 ?>
-                <li>
-                    <div class="nav-parent open" onclick="toggleAssets(this)">
-                        <span style="display:flex;align-items:center;gap:10px;">
-                            <i class="fas fa-boxes" style="width:18px;"></i>
-                            สินทรัพย์ทั้งหมด
-                            <?php if ($catCounts['all'] > 0): ?>
-                            <span class="submenu-badge"><?= $catCounts['all'] ?></span>
-                            <?php endif; ?>
-                        </span>
-                        <i class="fas fa-chevron-right arrow"></i>
-                    </div>
-                    <ul class="nav-submenu open">
-                        <li>
-                            <a href="assets.php?cat=all" style="display:flex;justify-content:space-between;align-items:center;">
-                                <span><i class="fas fa-layer-group" style="width:16px;"></i> ทั้งหมด</span>
-                                <span class="submenu-badge"><?= $catCounts['all'] ?></span>
-                            </a>
-                        </li>
-                        <?php foreach ($ASSET_CATEGORIES as $key => $catDef):
-                            if ($key === 'all') continue;
-                            $isActiveCat = in_array($asset['asset_type'], $catDef['types']); ?>
-                        <li class="<?= $isActiveCat ? 'active' : '' ?>">
-                            <a href="assets.php?cat=<?= $key ?>" style="display:flex;justify-content:space-between;align-items:center;">
-                                <span><i class="fas <?= $catDef['icon'] ?>" style="width:16px;"></i> <?= $catDef['label'] ?></span>
-                                <?php if ($catCounts[$key] > 0): ?>
-                                <span class="submenu-badge"><?= $catCounts[$key] ?></span>
-                                <?php endif; ?>
-                            </a>
-                        </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </li>
+                <li><a href="assets.php"><i class="fas fa-boxes" style="width:18px;"></i> สินทรัพย์ทั้งหมด</a></li>
 
                 <?php if ($isAdmin): ?>
                 <li class="menu-section">จัดการ</li>
@@ -414,7 +359,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
         <div class="asset-header">
             <div class="asset-header-grid">
                 <div class="asset-icon-big"><i class="fas fa-<?= $asset['asset_type']==='laptop'?'laptop':($asset['asset_type']==='printer'?'print':($asset['asset_type']==='server'?'server':($asset['asset_type']==='network'?'network-wired':'desktop'))) ?>"></i></div>
-                <div>
+                <div style="overflow-y: auto;">
                     <div class="asset-name"><?= htmlspecialchars($asset['asset_name']) ?></div>
                     <span class="asset-tag-badge"><i class="fas fa-tag"></i> <?= htmlspecialchars($asset['asset_tag']) ?></span>
                     <?php if (!empty($asset['inventory_number'])): ?>
@@ -422,212 +367,192 @@ $activeTab = $_GET['tab'] ?? 'repair';
                     <?php endif; ?>
                     <span class="badge badge-<?= $asset['status'] ?>" style="margin-left:8px;"><?= strtoupper($asset['status']) ?></span>
 
-                    <!-- Section: อุปกรณ์ -->
-                    <div style="margin-top:20px;padding-top:15px;border-top:1px solid #e2e8f0;">
-                        <div style="font-size:0.75em;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;"><i class="fas fa-laptop"></i> ข้อมูลอุปกรณ์</div>
-                        <div class="meta-grid">
-                            <div class="meta-item"><label>Manufacturer / Brand</label><span><?= htmlspecialchars($asset['brand']??'-') ?></span></div>
-                            <div class="meta-item"><label>Model</label><span><?= htmlspecialchars($asset['model']??'-') ?></span></div>
-                            <div class="meta-item"><label>Serial Number</label><span><?= htmlspecialchars($asset['serial_number']??'-') ?></span></div>
-                            <div class="meta-item"><label>Location</label><span><?= htmlspecialchars($asset['location']??'-') ?></span></div>
-                            <div class="meta-item"><label>แผนก/ฝ่าย</label><span><?= htmlspecialchars($asset['department']??'-') ?></span></div>
-                            <div class="meta-item"><label>กลุ่ม/ทีม</label><span><?= htmlspecialchars($asset['asset_group']??'-') ?></span></div>
+                    <!-- Compact meta info - 2-column grid -->
+                    <div class="compact-meta" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1.5rem; font-size: 0.9rem;">
+                        <div>
+                            <div style="font-size: 0.7em; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;"><i class="fas fa-laptop"></i> ข้อมูลอุปกรณ์</div>
+                            <div style="margin-bottom: 0.75rem;"><strong>Location:</strong> <?= htmlspecialchars($asset['location']??'-') ?></div>
+                            <div><strong>แผนก:</strong> <?= htmlspecialchars($asset['department']??'-') ?></div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7em; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;"><i class="fas fa-users"></i> ผู้รับผิดชอบ</div>
+                            <div style="margin-bottom: 0.75rem;"><strong>User:</strong> <?= htmlspecialchars($asset['assigned_name']??'ไม่ได้มอบหมาย') ?></div>
+                            <div><strong>สภาพ:</strong> <span class="badge badge-<?= $asset['condition_status']??'good' ?>"><?= ucfirst($asset['condition_status']??'Good') ?></span></div>
                         </div>
                     </div>
-
-                    <!-- Section: ผู้ดูแล -->
-                    <div style="margin-top:15px;padding-top:15px;border-top:1px solid #e2e8f0;">
-                        <div style="font-size:0.75em;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;"><i class="fas fa-users"></i> ผู้รับผิดชอบ</div>
-                        <div class="meta-grid">
-                            <div class="meta-item"><label>User (ผู้ใช้)</label><span><?= htmlspecialchars($asset['assigned_name']??'ไม่ได้มอบหมาย') ?></span></div>
-                            <div class="meta-item"><label>Technician in Charge</label>
-                                <?php
-                                $techName = '-';
-                                if (!empty($asset['tech_in_charge'])) {
-                                    // ✅ ใช้ Prepared Statements เพื่อป้องกัน SQL Injection
-                                    $techId = (int)$asset['tech_in_charge'];
-                                    $techStmt = $db->prepare("SELECT full_name FROM users WHERE user_id = ? LIMIT 1");
-                                    $techStmt->bind_param('i', $techId);
-                                    $techStmt->execute();
-                                    $techResult = $techStmt->get_result();
-                                    if ($techResult && $techResult->num_rows) {
-                                        $techName = $techResult->fetch_assoc()['full_name'];
-                                    }
-                                }
-                                ?><span><?= htmlspecialchars($techName) ?></span>
-                            </div>
-                            <div class="meta-item"><label>Alternate Username</label><span><?= htmlspecialchars($asset['alternate_user']??'-') ?></span></div>
-                            <div class="meta-item"><label>Last Inventory</label><span><?= !empty($asset['last_inventory_date']) ? date('d/m/Y', strtotime($asset['last_inventory_date'])) : '-' ?></span></div>
-                            <div class="meta-item"><label>สภาพอุปกรณ์</label>
-                                <span class="badge badge-<?= $asset['condition_status']??'good' ?>"><?= ucfirst($asset['condition_status']??'good') ?></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Section: OS & Hardware -->
-                    <?php if (!empty($asset['os_name']) || !empty($asset['cpu']) || !empty($asset['ip_address'])): ?>
-                    <div style="margin-top:15px;padding-top:15px;border-top:1px solid #e2e8f0;">
-                        <div style="font-size:0.75em;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;"><i class="fas fa-microchip"></i> OS & Hardware & Network</div>
-                        <div class="meta-grid" style="grid-template-columns:repeat(4,1fr);">
-                            <?php if (!empty($asset['os_name'])): ?>
-                            <div class="meta-item"><label>OS</label><span style="color:#2b6cb0;font-weight:600;"><?= htmlspecialchars($asset['os_name']) ?><?= !empty($asset['os_version']) ? ' '.$asset['os_version'] : '' ?><?= !empty($asset['os_architecture']) ? ' ('.$asset['os_architecture'].')' : '' ?></span></div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['cpu'])): ?>
-                            <div class="meta-item"><label>CPU</label><span><?= htmlspecialchars($asset['cpu']) ?><?= !empty($asset['cpu_cores']) ? ' ('.$asset['cpu_cores'].' cores)' : '' ?></span></div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['ram_gb'])): ?>
-                            <div class="meta-item"><label>RAM</label><span><?= $asset['ram_gb'] ?> GB</span></div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['storage'])): ?>
-                            <div class="meta-item"><label>Storage</label><span><?= htmlspecialchars($asset['storage']) ?></span></div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['ip_address'])): ?>
-                            <div class="meta-item"><label>IP Address</label><span><code style="background:#edf2f7;padding:2px 6px;border-radius:4px;"><?= htmlspecialchars($asset['ip_address']) ?></code></span></div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['mac_address'])): ?>
-                            <div class="meta-item"><label>MAC Address</label><span style="font-family:monospace;font-size:0.9em;"><?= htmlspecialchars($asset['mac_address']) ?></span></div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['network_domain'])): ?>
-                            <div class="meta-item"><label>Domain</label><span><?= htmlspecialchars($asset['network_domain']) ?></span></div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['monitor'])): ?>
-                            <div class="meta-item"><label>Monitor</label><span><?= htmlspecialchars($asset['monitor']) ?></span></div>
+                    
+                    <!-- Quick financial info -->
+                    <?php if ($asset['purchase_price'] || $depData): ?>
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                        <div style="font-size: 0.7em; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;"><i class="fas fa-shopping-cart"></i> Financial</div>
+                        <div style="display: flex; gap: 1rem; font-size: 0.85em;">
+                            <div><strong>Price:</strong> <?= $asset['purchase_price'] ? '฿'.number_format($asset['purchase_price'],0) : '-' ?></div>
+                            <?php if ($depData): ?>
+                            <div style="color: #38a169;"><strong>Current:</strong> ฿<?= number_format($depData['currentValue'],0) ?> (<?= $depData['depPercent'] ?>% depreciated)</div>
                             <?php endif; ?>
                         </div>
                     </div>
                     <?php endif; ?>
-
-                    <!-- Section: Purchase -->
-                    <div style="margin-top:15px;padding-top:15px;border-top:1px solid #e2e8f0;">
-                        <div style="font-size:0.75em;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;"><i class="fas fa-shopping-cart"></i> ข้อมูลการจัดซื้อ</div>
-                        <div class="meta-grid">
-                            <div class="meta-item"><label>วันที่ซื้อ</label><span><?= $asset['purchase_date'] ? date('d/m/Y', strtotime($asset['purchase_date'])) : '-' ?></span></div>
-                            <div class="meta-item"><label>Warranty</label>
-                                <span>
-                                <?php if ($asset['warranty_expiry']): 
-                                    $d = (strtotime($asset['warranty_expiry'])-time())/86400;
-                                    if ($d < 0) echo '<span style="color:#e53e3e;font-weight:600;">หมดอายุแล้ว</span>';
-                                    elseif ($d <= 30) echo '<span style="color:#d69e2e;font-weight:600;">เหลือ '.ceil($d).' วัน</span>';
-                                    else echo date('d/m/Y', strtotime($asset['warranty_expiry']));
-                                else: echo '-'; endif; ?>
-                                </span>
-                            </div>
-                            <div class="meta-item"><label>ราคาซื้อ</label><span><?= $asset['purchase_price'] ? '฿'.number_format($asset['purchase_price'],2) : '-' ?></span></div>
-                            <div class="meta-item"><label>Supplier</label><span><?= htmlspecialchars($asset['supplier']??'-') ?></span></div>
-                        </div>
-                    </div>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:10px;min-width:160px;">
-                    <?php if ($isAdmin): ?>
-                    <button class="btn btn-primary btn-sm" onclick="showTab('repair');document.getElementById('addRepairModal').classList.add('show')">
-                        <i class="fas fa-tools"></i> บันทึกการซ่อม
-                    </button>
-                    <button class="btn btn-warning btn-sm" onclick="document.getElementById('addBorrowModal').classList.add('show')">
-                        <i class="fas fa-hand-holding"></i> บันทึกการยืม
-                    </button>
-                    <button class="btn btn-sm" style="background:linear-gradient(135deg,#4299e1,#3182ce);color:white;" onclick="document.getElementById('addTransferModal').classList.add('show')">
-                        <i class="fas fa-exchange-alt"></i> โอนย้าย
-                    </button>
-                    <?php endif; ?>
                 </div>
             </div>
         </div>
 
         <!-- GLPI-style layout: sub-nav + main detail -->
-        <div style="display:flex;gap:20px;align-items:flex-start;margin-top:20px;">
+        <div style="margin-top:20px;">
 
-        <!-- Left Sub-Navigation Panel (GLPI style) -->
-        <div style="width:200px;flex-shrink:0;">
-            <div style="background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.1);overflow:hidden;">
-                <!-- Panel Title -->
-                <div style="background:linear-gradient(135deg,#2d3748,#1a202c);color:white;padding:12px 16px;font-weight:700;font-size:0.9em;display:flex;align-items:center;gap:8px;">
-                    <i class="fas <?= $ASSET_CATEGORIES[$thisCat??'all']['icon'] ?? 'fa-box' ?>"></i>
-                    <?= $ASSET_CATEGORIES[$thisCat??'all']['label'] ?? 'Asset' ?>
-                </div>
-                <ul style="list-style:none;padding:0;margin:0;">
-                    <?php
-                    $subMenuItems = [
-                        ['tab'=>'info',        'icon'=>'fa-info-circle',   'label'=>'ข้อมูลทั่วไป',       'count'=>null],
-                        ['tab'=>'os',          'icon'=>'fa-windows',       'label'=>'Operating System',    'count'=> !empty($asset['os_name']) ? 1 : 0],
-                        ['tab'=>'hardware',    'icon'=>'fa-microchip',     'label'=>'Components',          'count'=> (!empty($asset['cpu']) || !empty($asset['ram_gb'])) ? 1 : 0],
-                        ['tab'=>'network',     'icon'=>'fa-network-wired', 'label'=>'Network',             'count'=> !empty($asset['ip_address']) ? 1 : 0],
-                        ['tab'=>'software_tab','icon'=>'fa-compact-disc',  'label'=>'Software',            'count'=>null],
-                        ['tab'=>'repair',      'icon'=>'fa-tools',         'label'=>'การซ่อม',             'count'=>count($repairs)],
-                        ['tab'=>'borrow',      'icon'=>'fa-hand-holding',  'label'=>'การยืม-คืน',          'count'=>count($borrows)],
-                        ['tab'=>'transfer',    'icon'=>'fa-exchange-alt',  'label'=>'โอนย้าย',             'count'=>count($transfers)],
-                        ['tab'=>'depreciation','icon'=>'fa-chart-line',    'label'=>'เสื่อมราคา',          'count'=>null],
-                        ['tab'=>'tickets',     'icon'=>'fa-ticket-alt',    'label'=>'Tickets',             'count'=>null],
-                    ];
-                    foreach ($subMenuItems as $item):
+        <!-- Full Width Detail System - No left sidebar -->
+        <?php if ($isAdmin): ?>
+        <div class="card" style="box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-left: 4px solid #4299e1; margin-bottom: 2rem;">
+            <div class="card-header" style="background: linear-gradient(135deg, #4299e1, #3182ce); color: white; padding: 1rem 1.25rem; font-weight: 700; font-size: 0.95rem;">
+                <i class="fas fa-chart-bar me-2"></i> Asset Details Summary
+            </div>
+            <div class="card-body p-3">
+                <div class="detail-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; font-size: 0.9rem;">
+                    
+                    <!-- Specifications -->
+                    <div class="detail-card" style="background: #f8fafc; border-radius: 8px; padding: 1rem; border-left: 3px solid #4299e1;">
+                        <div style="font-size: 0.8em; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">
+                            <i class="fas fa-microchip"></i> Specifications
+                        </div>
+                        <div style="font-weight: 600; color: #2d3748; margin-bottom: 0.25rem;">
+                            <?= htmlspecialchars($asset['brand'] ?? '-') ?> <?= htmlspecialchars($asset['model'] ?? '') ?>
+                        </div>
+                        <div style="color: #718096; font-size: 0.85em;">
+                            SN: <?= htmlspecialchars($asset['serial_number'] ?? '-') ?><br>
+                            <?= $asset['ram_gb'] ? $asset['ram_gb'].'GB RAM' : '' ?> 
+                            <?= $asset['cpu'] ? '| '.$asset['cpu'] : '' ?>
+                        </div>
+                    </div>
+
+                    <!-- Status & Location -->
+                    <div class="detail-card" style="background: #f0fff4; border-radius: 8px; padding: 1rem; border-left: 3px solid #38a169;">
+                        <div style="font-size: 0.8em; color: #276749; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">
+                            <i class="fas fa-map-marker-alt"></i> Status & Location
+                        </div>
+                        <div style="font-weight: 600; color: #2d3748; margin-bottom: 0.5rem;">
+                            <?= htmlspecialchars($asset['location'] ?? '-') ?>
+                        </div>
+                        <div style="font-size: 0.85em;">
+                            <span class="badge badge-<?= $asset['status'] ?>" style="font-size: 0.75em; padding: 0.25rem 0.5rem;">
+                                <?= strtoupper($asset['status']) ?>
+                            </span>
+                            <?= $asset['assigned_name'] ? '<br>👤 '.htmlspecialchars($asset['assigned_name']) : '' ?>
+                        </div>
+                    </div>
+
+                    <!-- Warranty & Compliance -->
+                    <?php 
+                    $warrantyDays = $asset['warranty_expiry'] ? (strtotime($asset['warranty_expiry']) - time()) / 86400 : null;
+                    $warrantyStatus = $warrantyDays === null ? 'N/A' : ($warrantyDays < 0 ? 'หมดอายุ' : ($warrantyDays <= 30 ? 'ใกล้หมด' : 'ปกติ'));
+                    $warrantyColor = $warrantyDays === null ? '#718096' : ($warrantyDays < 0 ? '#e53e3e' : ($warrantyDays <= 30 ? '#d69e2e' : '#38a169'));
                     ?>
-                    <li>
-                        <a href="#" onclick="showTab('<?= $item['tab'] ?>');return false;"
-                           class="glpi-sub-link"
-                           id="subnav_<?= $item['tab'] ?>"
-                           style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;text-decoration:none;color:#4a5568;font-size:0.87em;border-bottom:1px solid #f7fafc;transition:all 0.15s;">
-                            <span><i class="fas <?= $item['icon'] ?>" style="width:16px;opacity:0.7;"></i> <?= $item['label'] ?></span>
-                            <?php if ($item['count'] !== null && $item['count'] > 0): ?>
-                            <span style="background:#e2e8f0;color:#4a5568;padding:1px 7px;border-radius:10px;font-size:0.8em;font-weight:700;"><?= $item['count'] ?></span>
-                            <?php endif; ?>
-                        </a>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
+                    <div class="detail-card" style="background: #fef5e7; border-radius: 8px; padding: 1rem; border-left: 3px solid #ed8936;">
+                        <div style="font-size: 0.8em; color: #c05621; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">
+                            <i class="fas fa-shield-alt"></i> Warranty & Value
+                        </div>
+                        <div style="font-weight: 600; color: #2d3748; margin-bottom: 0.25rem;">
+                            ฿<?= $asset['purchase_price'] ? number_format($asset['purchase_price'], 0) : '-' ?>
+                        </div>
+                        <div style="font-size: 0.85em; color: <?= $warrantyColor ?>;">
+                            🛡️ <?= $warrantyStatus ?>
+                            <?= $depData ? '<br>📉 '.round($depData['depPercent']).'% เสื่อม' : '' ?>
+                        </div>
+                    </div>
 
-            <!-- Quick Actions (admin only) -->
-            <?php if ($isAdmin): ?>
-            <div style="background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.1);margin-top:12px;overflow:hidden;">
-                <div style="background:linear-gradient(135deg,#10ce30,#276749);color:white;padding:10px 16px;font-weight:700;font-size:0.85em;">
-                    <i class="fas fa-bolt"></i> Actions
+                    <!-- Recent Activity -->
+                    <?php 
+                    $recentRepair = $repairs ? $repairs[0] : null;
+                    $recentActivity = [];
+                    if ($recentRepair) $recentActivity[] = '🛠️ ซ่อม '.date('d/m', strtotime($recentRepair['repair_date']));
+                    if ($activeBorrow) $recentActivity[] = '📦 ถูกยืม '.date('d/m', strtotime($activeBorrow['borrow_date']));
+                    $recentCount = count($transfers) ?: 0;
+                    if ($recentCount) $recentActivity[] = '🔄 โอน '.$recentCount.' ครั้ง';
+                    ?>
+                    <div class="detail-card" style="background: #ebf8ff; border-radius: 8px; padding: 1rem; border-left: 3px solid #3182ce;">
+                        <div style="font-size: 0.8em; color: #2b6cb0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">
+                            <i class="fas fa-history"></i> Recent Activity
+                        </div>
+                        <div style="font-size: 0.85em; line-height: 1.4;">
+                            <?php if ($recentActivity): ?>
+                                <?= implode('<br>', array_slice($recentActivity, 0, 3)) ?>
+                                <?php if (count($recentActivity) > 3): ?>
+                                    <br><span style="color: #718096;">... +<?= count($recentActivity)-3 ?> more</span>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                ยังไม่มีกิจกรรม
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
                 </div>
-                <ul style="list-style:none;padding:6px 0;margin:0;">
-                    <li><a href="#" onclick="document.getElementById('addRepairModal').classList.add('show');return false;" style="display:block;padding:8px 16px;color:#4a5568;text-decoration:none;font-size:0.85em;"><i class="fas fa-tools" style="width:16px;color:#dd6b20;"></i> บันทึกการซ่อม</a></li>
-                    <li><a href="#" onclick="document.getElementById('addBorrowModal').classList.add('show');return false;" style="display:block;padding:8px 16px;color:#4a5568;text-decoration:none;font-size:0.85em;"><i class="fas fa-hand-holding" style="width:16px;color:#3182ce;"></i> บันทึกการยืม</a></li>
-                    <li><a href="#" onclick="document.getElementById('addTransferModal').classList.add('show');return false;" style="display:block;padding:8px 16px;color:#4a5568;text-decoration:none;font-size:0.85em;"><i class="fas fa-exchange-alt" style="width:16px;color:#10ce30;"></i> โอนย้าย</a></li>
-                    <li style="border-top:1px solid #f7fafc;margin-top:4px;">
-                        <a href="assets.php?cat=<?= $thisCat ?? 'all' ?>" style="display:block;padding:8px 16px;color:#e53e3e;text-decoration:none;font-size:0.85em;"><i class="fas fa-trash" style="width:16px;"></i> ลบสินทรัพย์</a>
-                    </li>
-                </ul>
             </div>
-            <?php endif; ?>
         </div>
+        <?php endif; ?>
+
+        <!-- Main content continues here -->
 
         <!-- Right Main Content -->
         <div style="flex:1;min-width:0;">
 
-        <!-- Stats Row -->
-        <div class="stats-row">
-            <div class="mini-stat">
-                <h3><?= count($repairs) ?></h3>
-                <p><i class="fas fa-tools" style="color:#dd6b20;"></i> ครั้งที่ซ่อม</p>
-            </div>
-            <div class="mini-stat">
-                <h3>฿<?= number_format($repairTotal, 0) ?></h3>
-                <p><i class="fas fa-baht-sign" style="color:#e53e3e;"></i> ค่าซ่อมรวม</p>
-            </div>
-            <div class="mini-stat">
-                <h3><?= count($borrows) ?></h3>
-                <p><i class="fas fa-hand-holding" style="color:#3182ce;"></i> ครั้งที่ยืม</p>
-            </div>
-            <div class="mini-stat">
-                <h3><?= count($transfers) ?></h3>
-                <p><i class="fas fa-exchange-alt" style="color:#10ce30;"></i> ครั้งที่โอนย้าย</p>
-            </div>
-            <?php if ($depData): ?>
-            <div class="mini-stat">
-                <h3>฿<?= number_format($depData['currentValue'], 0) ?></h3>
-                <p><i class="fas fa-chart-line" style="color:#553c9a;"></i> มูลค่าปัจจุบัน</p>
-            </div>
-            <?php endif; ?>
+
+
+<!-- Enhanced Stats Row - Match assets.php style -->
+<div class="stats-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    <div class="stat-card stat-card-compact gradient-orange">
+        <div class="stat-icon"><i class="fas fa-tools"></i></div>
+        <div class="stat-content">
+            <h4><?= count($repairs) ?></h4>
+            <p>ครั้งที่ซ่อม</p>
         </div>
+    </div>
+    <div class="stat-card stat-card-compact gradient-red">
+        <div class="stat-icon"><i class="fas fa-baht-sign"></i></div>
+        <div class="stat-content">
+            <h4>฿<?= number_format($repairTotal, 0) ?></h4>
+            <p>ค่าซ่อมรวม</p>
+        </div>
+    </div>
+    <div class="stat-card stat-card-compact gradient-blue">
+        <div class="stat-icon"><i class="fas fa-hand-holding"></i></div>
+        <div class="stat-content">
+            <h4><?= count($borrows) ?></h4>
+            <p>ครั้งที่ยืม</p>
+        </div>
+    </div>
+    <div class="stat-card stat-card-compact gradient-green">
+        <div class="stat-icon"><i class="fas fa-exchange-alt"></i></div>
+        <div class="stat-content">
+            <h4><?= count($transfers) ?></h4>
+            <p>ครั้งที่โอนย้าย</p>
+        </div>
+    </div>
+    <?php if ($depData): ?>
+    <div class="stat-card stat-card-compact" style="background: linear-gradient(135deg, #a855f7, #9333ea);">
+        <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+        <div class="stat-content">
+            <h4>฿<?= number_format($depData['currentValue'], 0) ?></h4>
+            <p>มูลค่าปัจจุบัน</p>
+        </div>
+    </div>
+    <?php endif; ?>
+</div>
 
         <!-- Tabs (hidden, controlled by sub-nav) -->
-        <div class="tabs" style="display:none;">
-            <button class="tab-btn <?= $activeTab==='repair'?'active':'' ?>" onclick="showTab('repair')">repair</button>
-            <button class="tab-btn <?= $activeTab==='borrow'?'active':'' ?>" onclick="showTab('borrow')">borrow</button>
-            <button class="tab-btn <?= $activeTab==='transfer'?'active':'' ?>" onclick="showTab('transfer')">transfer</button>
-            <button class="tab-btn <?= $activeTab==='depreciation'?'active':'' ?>" onclick="showTab('depreciation')">dep</button>
+        <!-- Navigation Tabs -->
+        <div class="detail-tabs" style="display:flex;background:#f7fafc;border-radius:12px;padding:8px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.08);gap:8px;flex-wrap:wrap;">
+            <button class="tab-btn <?= $activeTab==='info'?'active':'' ?>" onclick="showTab('info')"><i class="fas fa-info-circle"></i> ข้อมูลทั่วไป</button>
+            <button class="tab-btn <?= $activeTab==='os'?'active':'' ?>" onclick="showTab('os')"><i class="fas fa-windows"></i> Windows/OS</button>
+            <button class="tab-btn <?= $activeTab==='hardware'?'active':'' ?>" onclick="showTab('hardware')"><i class="fas fa-microchip"></i> Hardware</button>
+            <button class="tab-btn <?= $activeTab==='software'?'active':'' ?>" onclick="showTab('software')"><i class="fas fa-compact-disc"></i> Software</button>
+            <button class="tab-btn <?= $activeTab==='network'?'active':'' ?>" onclick="showTab('network')"><i class="fas fa-network-wired"></i> Network</button>
+            <button class="tab-btn <?= $activeTab==='repair'?'active':'' ?>" onclick="showTab('repair')"><i class="fas fa-tools"></i> ซ่อมบำรุง</button>
+            <button class="tab-btn <?= $activeTab==='borrow'?'active':'' ?>" onclick="showTab('borrow')"><i class="fas fa-hand-holding"></i> ยืม-คืน</button>
+            <button class="tab-btn <?= $activeTab==='transfer'?'active':'' ?>" onclick="showTab('transfer')"><i class="fas fa-exchange-alt"></i> โอนย้าย</button>
+            <?php if ($depData): ?>
+            <button class="tab-btn <?= $activeTab==='depreciation'?'active':'' ?>" onclick="showTab('depreciation')"><i class="fas fa-chart-line"></i> เสื่อมราคา</button>
+            <?php endif; ?>
         </div>
 
         <!-- Tab: Repair -->
@@ -904,12 +829,41 @@ $activeTab = $_GET['tab'] ?? 'repair';
             </div>
         </div>
 
-        <!-- Tab: Software placeholder -->
-        <div id="tab-software_tab" class="tab-content" style="display:none;">
+        <!-- Tab: Software -->
+        <div id="tab-software" class="tab-content" style="display:none;">
             <div class="card">
-                <div class="card-header"><div class="card-title"><i class="fas fa-compact-disc"></i> Software</div></div>
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-compact-disc"></i> Software Inventory</div>
+                </div>
                 <div class="card-body">
-                    <div class="no-data"><i class="fas fa-compact-disc" style="font-size:3em;opacity:0.3;"></i><br>ฟีเจอร์นี้อยู่ระหว่างพัฒนา</div>
+                    <?php if (empty($asset['installed_software']) && empty($asset['os_name'])): ?>
+                    <div class="no-data">
+                        <i class="fas fa-compact-disc" style="font-size:3em;opacity:0.3;"></i><br>
+                        ยังไม่มีข้อมูล Software - กรุณาเพิ่มข้อมูลโปรแกรมที่ติดตั้ง
+                    </div>
+                    <?php else: ?>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                        <?php 
+                        $softwareFields = [
+                            ['OS & Version', $asset['os_name'].' '.$asset['os_version']],
+                            ['Architecture', $asset['os_architecture']],
+                            ['Service Pack', $asset['os_service_pack']],
+                            ['Product Key',  $asset['os_product_key']],
+                            ['Installed Apps', $asset['installed_software']],
+                            ['Office Version', $asset['office_version']],
+                            ['Antivirus', $asset['antivirus']],
+                            ['Browser(s)', $asset['browsers']],
+                        ];
+                        foreach ($softwareFields as $sf): 
+                            if (empty(trim($sf[1] ?? ''))) continue; 
+                        ?>
+                        <div style="border-bottom:1px solid #f7fafc;padding:10px 0;">
+                            <div style="font-size:0.78em;color:#718096;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;"><?= $sf[0] ?></div>
+                            <div style="font-weight:600;color:#2b6cb0;"><?= nl2br(htmlspecialchars($sf[1])) ?></div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -1101,7 +1055,7 @@ function toggleAssets(el) {
     submenu.classList.toggle('open');
 }
 
-const ALL_TABS = ['info','os','hardware','network','software_tab','repair','borrow','transfer','depreciation','tickets'];
+const ALL_TABS = ['info','os','hardware','network','software','repair','borrow','transfer','depreciation','tickets'];
 
 function showTab(name) {
     // Hide all tabs

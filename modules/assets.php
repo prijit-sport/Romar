@@ -462,7 +462,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'excel') {
 // Get Users for Assignment
 $users = $db->query("SELECT user_id, full_name FROM users WHERE status = 'active' ORDER BY full_name")->fetch_all(MYSQLI_ASSOC);
 
-$pageTitle = ui_text('page.title.assets') ?: 'ทรัพย์สิน';
+$pageTitle = ui_text('page.title.assets') ?: 'ทรัพย์สิน IT';
 $activePage = 'assets';
 include_once __DIR__ . '/../includes/header.php';
 include_once __DIR__ . '/../includes/sidebar.php';
@@ -483,20 +483,15 @@ include_once __DIR__ . '/../includes/sidebar.php';
     <!-- Page Header -->
     <div class="page-header">
         <div class="page-title">
-<h1><i class="fas fa-boxes-stacked" style="color:#4299e1;"></i> <?= ui_text('page.title.assets') ?: 'ทรัพย์สิน' ?>
+<h1><i class="fas fa-boxes-stacked" style="color:#4299e1;"></i> <?= ui_text('page.title.assets') ?: 'ทรัพย์สิน IT' ?>
                 <span class="badge badge-blue"><?= count($assets) ?> <?= ui_text('nav.assets') ?: 'ทรัพย์สิน' ?></span>
             </h1>
-<p class="page-subtitle"><?= ui_text('page.title.assets') ?: 'ระบบจัดการทรัพย์สินไอทีครบวงจร' ?></p>
+<p class="page-subtitle"><?= ui_text('page.subtitle.assets') ?: 'ระบบจัดการทรัพย์สินไอทีครบวงจร' ?></p>
         </div>
         <div class="page-actions">
-            <button class="btn btn-primary" onclick="openCreateModal()">
-                <i class="fas fa-plus"></i> <?= ui_text('nav.assets') ?: 'เพิ่มทรัพย์สินใหม่' ?>
+            <button id="openAssetOverlayBtn" type="button" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-plus me-1"></i> <?= ui_text('button.add_asset') ?: 'Add new assets' ?>
             </button>
-            <?php if ($isAdmin): ?>
-            <a href="?export=excel&cat=<?= urlencode($cat) ?>" class="btn btn-success">
-                <i class="fas fa-file-excel"></i> <?= ui_text('button.export_excel') ?: 'ส่งออก Excel' ?>
-            </a>
-            <?php endif; ?>
         </div>
     </div>
 
@@ -539,7 +534,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 </div>
                 <div class="stat-content">
                     <h4><?= number_format($stats['maintenance_count'] ?? 0) ?></h4>
-                    <p>บำรุงรักษา</p>
+                    <p>กำลังบำรุงรักษา</p>
                 </div>
             </div>
         </div>
@@ -614,31 +609,31 @@ include_once __DIR__ . '/../includes/sidebar.php';
     </div>
     <?php endif; ?>
 
-    <!-- Category Filter Sidebar -->
-    <div class="row">
-        <div class="col-md-3">
+    <!-- Category Filter + Table Layout -->
+    <div class="row g-4 align-items-stretch">
+        <div class="col-12 col-lg-3 order-lg-1">
             <div class="card h-100 category-panel sticky-top" style="top: 20px;">
                 <div class="card-header d-flex justify-content-between align-items-center">
-<h6 class="mb-0"><i class="fas fa-list me-1"></i>เมนูทรัพย์สิน</h6>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleCategoryPanel()">×</button>
+                    <h6 class="mb-0"><i class="fas fa-list me-1"></i> <?= htmlspecialchars($ASSET_CATEGORIES["all"]["label"] ?? "Asset Categories") ?></h6>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleCategoryPanel()">?</button>
                 </div>
                 <div class="card-body p-2" style="max-height: 70vh; overflow-y: auto;">
                     <?php foreach ($ASSET_CATEGORIES as $key => $catDef): ?>
-                            <a href="?cat=<?= $key ?>" class="btn btn-sm d-block mb-1 w-100 text-start cat-btn <?= $cat===$key ? 'btn-primary active' : '' ?>" style="<?= $cat===$key ? 'background-color: ' . ($catDef['color'] ?? '#4299e1') . '; color: white !important; border-color: ' . ($catDef['color'] ?? '#4299e1') . ';' : '' ?>">
-                            <i class="fas <?= $catDef['icon'] ?? 'fa-layer-group' ?> me-1"></i>
-                            <?= htmlspecialchars($catDef['label']) ?> 
+                        <a href="?cat=<?= $key ?>" class="btn btn-sm d-block mb-1 w-100 text-start cat-btn <?= $cat === $key ? "btn-primary active" : "" ?>" style="<?= $cat === $key ? "background-color: " . ($catDef["color"] ?? "#4299e1") . "; color: white !important; border-color: " . ($catDef["color"] ?? "#4299e1") . ";" : "" ?>">
+                            <i class="fas <?= $catDef["icon"] ?? "fa-layer-group" ?> me-1"></i>
+                            <?= htmlspecialchars($catDef["label"]) ?>
                             <span class="badge badge-light ms-1"><?= $catCounts[$key] ?? 0 ?></span>
                         </a>
                     <?php endforeach; ?>
                 </div>
             </div>
         </div>
-        <div class="col-md-9">
-            <div class="card">
+        <div class="col-12 col-lg-9 order-lg-2">
+            <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-list text-primary"></i> <?= htmlspecialchars($currentCat['label']) ?> (<?= count($assets) ?>)</h5>
-                    <div class="d-flex gap-2">
-    <button class="btn btn-sm btn-outline-primary d-md-none" onclick="toggleCategoryPanel()">
+                    <h5 class="mb-0"><i class="fas fa-list text-primary"></i> <?= htmlspecialchars($currentCat["label"]) ?> (<?= count($assets) ?>)</h5>
+                    <div class="d-flex gap-2 align-items-center">
+                        <button class="btn btn-sm btn-outline-primary d-md-none" onclick="toggleCategoryPanel()">
                             <i class="fas fa-list"></i> เมนู
                         </button>
                         <div class="input-group input-group-sm" style="width: 280px;">
@@ -663,324 +658,265 @@ include_once __DIR__ . '/../includes/sidebar.php';
                                 </tr>
                             </thead>
                             <tbody>
-                        <?php foreach ($assets as $asset): ?>
-                        <tr>
-                            <td>
-                                <strong><?= htmlspecialchars($asset['asset_tag']) ?></strong>
-                                <?php if ($asset['inventory_number']): ?>
-                                <br><small class="text-muted"><?= htmlspecialchars($asset['inventory_number']) ?></small>
+                                <?php foreach ($assets as $asset): ?>
+                                <tr>
+                                    <td>
+                                        <strong><?= htmlspecialchars($asset["asset_tag"]) ?></strong>
+                                        <?php if ($asset["inventory_number"]): ?>
+                                        <br><small class="text-muted"><?= htmlspecialchars($asset["inventory_number"]) ?></small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?= htmlspecialchars($asset["asset_name"]) ?></td>
+                                    <td><span class="badge bg-info"><?= strtoupper($asset["asset_type"]) ?></span></td>
+                                    <td>
+                                        <strong><?= htmlspecialchars($asset["brand"] ?? "") ?></strong>
+                                        <?php if ($asset["model"]): ?><br><small><?= htmlspecialchars($asset["model"]) ?></small><?php endif; ?>
+                                    </td>
+                                    <td><span class="badge bg-<?= ["active" => "success", "maintenance" => "warning", "inactive" => "secondary", "retired" => "dark"][ $asset["status"] ] ?>"><?= ucfirst($asset["status"]) ?></span></td>
+                                    <td><?= htmlspecialchars($asset["location"] ?? "N/A") ?></td>
+                                    <td><?= htmlspecialchars($asset["assigned_user_name"] ?? "Unassigned") ?></td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="assetsdetail.php?id=<?= $asset["asset_id"] ?>" class="btn btn-outline-primary" title="View details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <?php if ($isAdmin): ?>
+                                            <button class="btn btn-outline-success" onclick="editAsset(<?= htmlspecialchars(json_encode($asset), ENT_QUOTES, 'UTF-8') ?>)" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" onclick="confirmDelete(<?= $asset["asset_id"] ?>, &quot;<?= addslashes($asset["asset_name"]) ?>&quot;)" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                                <?php if (empty($assets)): ?>
+                                <tr>
+                                    <td colspan="8" class="text-center py-5">
+                                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted"><?= ui_text("tickets.empty.body") ?: "ไม่มีทรัพย์สินในหมวดนี้" ?></p>
+                                    </td>
+                                </tr>
                                 <?php endif; ?>
-                            </td>
-                            <td><?= htmlspecialchars($asset['asset_name']) ?></td>
-                            <td><span class="badge bg-info"><?= strtoupper($asset['asset_type']) ?></span></td>
-                            <td>
-                                <strong><?= htmlspecialchars($asset['brand'] ?? '') ?></strong>
-                                <?php if ($asset['model']): ?><br><small><?= htmlspecialchars($asset['model']) ?></small><?php endif; ?>
-                            </td>
-                            <td><span class="badge bg-<?= ['active'=>'success','maintenance'=>'warning','inactive'=>'secondary','retired'=>'dark'][$asset['status']] ?>">
-                                <?= ucfirst($asset['status']) ?>
-                            </span></td>
-                            <td><?= htmlspecialchars($asset['location'] ?? 'N/A') ?></td>
-                            <td><?= htmlspecialchars($asset['assigned_user_name'] ?? 'Unassigned') ?></td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="assetsdetail.php?id=<?= $asset['asset_id'] ?>" class="btn btn-outline-primary" title="View details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <?php if ($isAdmin): ?>
-                                    <button class="btn btn-outline-success" onclick="editAsset(<?= json_encode($asset) ?>)" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-outline-danger" onclick="confirmDelete(<?= $asset['asset_id'] ?>, '<?= addslashes($asset['asset_name']) ?>')" title="Delete">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <?php if (empty($assets)): ?>
-                        <tr>
-                            <td colspan="8" class="text-center py-5">
-                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                                <p class="text-muted"><?= ui_text('tickets.empty.body') ?: 'ไม่พบข้อมูลทรัพย์สินตามเงื่อนไข' ?></p>
-                            </td>
-                        </tr>
-                        <?php endif; ?>
-            </tbody>
+                            </tbody>
                         </table>
                     </div>
                 </div>
             </div>
-        </div> <!-- col-md-9 -->
-    </div> <!-- row -->
-
+        </div>
+    </div>
 </main>
 
-<!-- Create/Edit Modal -->
-<div class="modal fade" id="assetModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle"><i class="fas fa-plus"></i> Add New Asset</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="asset-overlay" id="assetOverlay">
+    <div class="asset-overlay-backdrop" onclick="closeAssetOverlay()"></div>
+    <div class="asset-overlay-content card">
+        <div class="card-header d-flex justify-content-between align-items-start">
+            <div>
+                <h5 id="assetFormTitle" class="mb-1"><i class="fas fa-plus"></i> Add New Asset</h5>
+                <p class="text-muted small mb-0">ใช้พื้นที่นี้เพื่อจัดเก็บข้อมูลรายละเอียดของทรัพย์สิน</p>
             </div>
-            <form id="assetForm" method="POST">
+            <button type="button" class="btn-close" aria-label="Close" onclick="closeAssetOverlay()"></button>
+        </div>
+        <div class="card-body p-0">
+            <form id="assetForm" method="POST" class="asset-form px-3 pt-3 pb-2">
                 <?= csrf_input() ?>
-                <input type="hidden" name="action" id="modalAction" value="create">
-                <input type="hidden" name="asset_id" id="modalAssetId">
-                <div class="modal-body">
-                    <ul class="nav nav-tabs" id="assetTabs">
-                        <li class="nav-item">
-                            <a class="nav-link active" href="#basic" data-bs-toggle="tab">Basic</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#hardware" data-bs-toggle="tab">Hardware</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#network" data-bs-toggle="tab">Network</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#purchase" data-bs-toggle="tab">Purchase</a>
-                        </li>
-                    </ul>
-                    <div class="tab-content mt-3">
-                        <div class="tab-pane fade show active" id="basic">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Asset Tag <span class="text-danger">*</span></label>
-                                        <input type="text" name="asset_tag" class="form-control" required maxlength="50">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Inventory #</label>
-                                        <input type="text" name="inventory_number" class="form-control">
-                                    </div>
-                                </div>
+                <input type="hidden" name="action" id="assetFormAction" value="create">
+                <input type="hidden" name="asset_id" id="assetFormId">
+                <ul class="nav nav-tabs nav-justified" id="assetTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#basic" data-bs-toggle="tab">Basic</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#hardware" data-bs-toggle="tab">Hardware</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#network" data-bs-toggle="tab">Network</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#purchase" data-bs-toggle="tab">Purchase</a>
+                    </li>
+                </ul>
+                <div class="tab-content mt-3">
+                    <div class="tab-pane fade show active" id="basic">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="asset_tag">Asset Tag <span class="text-danger">*</span></label>
+                                <input id="asset_tag" type="text" name="asset_tag" class="form-control" required maxlength="50">
                             </div>
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <div class="mb-3">
-                                        <label class="form-label">Asset Name <span class="text-danger">*</span></label>
-                                        <input type="text" name="asset_name" class="form-control" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Type <span class="text-danger">*</span></label>
-                                        <select name="asset_type" class="form-select" required>
-                                            <option value="">Select type...</option>
-                                            <?php foreach ($ASSET_CATEGORIES as $catKey => $cat): ?>
-                                                <?php if (!empty($cat['types'])): ?>
-                                                    <optgroup label="<?= htmlspecialchars($cat['label']) ?>">
-                                                        <?php foreach ($cat['types'] as $t): ?>
-                                                            <option value="<?= htmlspecialchars($t) ?>"><?= ucwords(str_replace('_', ' ', $t)) ?></option>
-                                                        <?php endforeach; ?>
-                                                    </optgroup>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Brand</label>
-                                        <input type="text" name="brand" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Model</label>
-                                        <input type="text" name="model" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Status <span class="text-danger">*</span></label>
-                                        <select name="status" class="form-select" required>
-                                            <option value="active">Active</option>
-                                            <option value="maintenance">Maintenance</option>
-                                            <option value="inactive">Inactive</option>
-                                            <option value="retired">Retired</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Location <span class="text-danger">*</span></label>
-                                        <input type="text" name="location" class="form-control" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">Department</label>
-                                        <input type="text" name="department" class="form-control">
-                                    </div>
-                                </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="inventory_number">Inventory #</label>
+                                <input id="inventory_number" type="text" name="inventory_number" class="form-control">
                             </div>
                         </div>
-                        <div class="tab-pane fade" id="hardware">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">OS Name</label>
-                                        <input type="text" name="os_name" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">OS Version</label>
-                                        <input type="text" name="os_version" class="form-control">
-                                    </div>
-                                </div>
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label" for="asset_name">Asset Name <span class="text-danger">*</span></label>
+                                <input id="asset_name" type="text" name="asset_name" class="form-control" required>
                             </div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">CPU</label>
-                                        <input type="text" name="cpu" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">CPU Cores</label>
-                                        <input type="number" name="cpu_cores" class="form-control" min="1">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="form-label">RAM (GB)</label>
-                                        <input type="number" name="ram_gb" class="form-control" min="1">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Storage</label>
-                                        <input type="text" name="storage" class="form-control" placeholder="e.g., 512GB SSD">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">GPU</label>
-                                        <input type="text" name="gpu" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="tab-pane fade" id="network">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">IP Address</label>
-                                        <input type="text" name="ip_address" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">MAC Address</label>
-                                        <input type="text" name="mac_address" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Gateway</label>
-                                        <input type="text" name="gateway" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">DNS Server</label>
-                                        <input type="text" name="dns_server" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="tab-pane fade" id="purchase">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <div class="mb-3">
-                                        <label class="form-label">Purchase Date</label>
-                                        <input type="date" name="purchase_date" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="mb-3">
-                                        <label class="form-label">Warranty Expiry</label>
-                                        <input type="date" name="warranty_expiry" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="mb-3">
-                                        <label class="form-label">Price (THB)</label>
-                                        <input type="number" name="purchase_price" step="0.01" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="mb-3">
-                                        <label class="form-label">Useful Life (Years)</label>
-                                        <input type="number" name="useful_life_years" value="5" min="1" max="20" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Supplier</label>
-                                        <input type="text" name="supplier" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Last Inventory</label>
-                                        <input type="date" name="last_inventory_date" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Notes</label>
-                        <textarea name="notes" class="form-control" rows="3" placeholder="Additional information..."></textarea>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Assigned To</label>
-                                <select name="assigned_to" class="form-select">
-                                    <option value="">Unassigned</option>
-                                    <?php foreach ($users as $user): ?>
-                                    <option value="<?= $user['user_id'] ?>"><?= htmlspecialchars($user['full_name']) ?></option>
+                            <div class="col-md-4">
+                                <label class="form-label" for="asset_type">Type <span class="text-danger">*</span></label>
+                                <select id="asset_type" name="asset_type" class="form-select" required>
+                                    <option value="">Select type...</option>
+                                    <?php foreach ($ASSET_CATEGORIES as $catKey => $cat): ?>
+                                        <?php if (!empty($cat["types"])): ?>
+                                            <optgroup label="<?= htmlspecialchars($cat["label"]) ?>">
+                                                <?php foreach ($cat["types"] as $t): ?>
+                                                    <option value="<?= htmlspecialchars($t) ?>"><?= ucwords(str_replace('_', ' ', $t)) ?></option>
+                                                <?php endforeach; ?>
+                                            </optgroup>
+                                        <?php endif; ?>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Tech Support</label>
-                                <select name="tech_in_charge" class="form-select">
-                                    <option value="">None</option>
-                                    <?php foreach ($users as $user): ?>
-                                    <option value="<?= $user['user_id'] ?>"><?= htmlspecialchars($user['full_name']) ?></option>
-                                    <?php endforeach; ?>
+                        <div class="row g-3 mt-0">
+                            <div class="col-md-6">
+                                <label class="form-label" for="brand">Brand</label>
+                                <input id="brand" type="text" name="brand" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="model">Model</label>
+                                <input id="model" type="text" name="model" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row g-3 mt-0">
+                            <div class="col-md-4">
+                                <label class="form-label" for="status">Status <span class="text-danger">*</span></label>
+                                <select id="status" name="status" class="form-select" required>
+                                    <option value="active">Active</option>
+                                    <option value="maintenance">Maintenance</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="retired">Retired</option>
                                 </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="location">Location <span class="text-danger">*</span></label>
+                                <input id="location" type="text" name="location" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="department">Department</label>
+                                <input id="department" type="text" name="department" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="hardware">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="os_name">OS Name</label>
+                                <input id="os_name" type="text" name="os_name" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="os_version">OS Version</label>
+                                <input id="os_version" type="text" name="os_version" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="cpu">CPU</label>
+                                <input id="cpu" type="text" name="cpu" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="cpu_cores">CPU Cores</label>
+                                <input id="cpu_cores" type="number" name="cpu_cores" class="form-control" min="1">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="ram_gb">RAM (GB)</label>
+                                <input id="ram_gb" type="number" name="ram_gb" class="form-control" min="1">
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="storage">Storage</label>
+                                <input id="storage" type="text" name="storage" class="form-control" placeholder="e.g., 512GB SSD">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="gpu">GPU</label>
+                                <input id="gpu" type="text" name="gpu" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="network">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="ip_address">IP Address</label>
+                                <input id="ip_address" type="text" name="ip_address" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="mac_address">MAC Address</label>
+                                <input id="mac_address" type="text" name="mac_address" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="gateway">Gateway</label>
+                                <input id="gateway" type="text" name="gateway" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="dns_server">DNS Server</label>
+                                <input id="dns_server" type="text" name="dns_server" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="purchase">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label" for="purchase_date">Purchase Date</label>
+                                <input id="purchase_date" type="date" name="purchase_date" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="warranty_expiry">Warranty Expiry</label>
+                                <input id="warranty_expiry" type="date" name="warranty_expiry" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="purchase_price">Price (THB)</label>
+                                <input id="purchase_price" type="number" name="purchase_price" step="0.01" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="useful_life_years">Useful Life (Years)</label>
+                                <input id="useful_life_years" type="number" name="useful_life_years" value="5" min="1" max="20" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="supplier">Supplier</label>
+                                <input id="supplier" type="text" name="supplier" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="last_inventory_date">Last Inventory</label>
+                                <input id="last_inventory_date" type="date" name="last_inventory_date" class="form-control">
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> <?= $isEdit ? 'Update' : 'Create' ?> Asset
+                <div class="mb-3">
+                    <label class="form-label" for="notes">Notes</label>
+                    <textarea id="notes" name="notes" class="form-control notes-area" rows="3" placeholder="Additional information..."></textarea>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="assigned_to">Assigned To</label>
+                        <select id="assigned_to" name="assigned_to" class="form-select">
+                            <option value="">Unassigned</option>
+                            <?php foreach ($users as $user): ?>
+                            <option value="<?= $user["user_id"] ?>"><?= htmlspecialchars($user["full_name"]) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="tech_in_charge">Tech Support</label>
+                        <select id="tech_in_charge" name="tech_in_charge" class="form-select">
+                            <option value="">None</option>
+                            <?php foreach ($users as $user): ?>
+                            <option value="<?= $user["user_id"] ?>"><?= htmlspecialchars($user["full_name"]) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="text-center mt-3 mb-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-save"></i> Save Asset
                     </button>
                 </div>
             </form>
@@ -988,21 +924,85 @@ include_once __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
+<style>
+.asset-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    z-index: 1050;
+}
+.asset-overlay.active {
+    display: flex;
+}
+.asset-overlay-content {
+    width: min(420px, 100%);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    border-radius: 1rem;
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.35);
+}
+.asset-overlay-content .card-body {
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+}
+.asset-overlay .nav-tabs {
+    border-bottom: 1px solid #e2e8f0;
+}
+.notes-area {
+    min-height: 110px;
+}
+.asset-overlay .nav-tabs .nav-link {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.75rem;
+}
+@media (max-width: 576px) {
+    .asset-overlay {
+        padding: 1rem;
+    }
+}
+</style>
+
 <script>
-function openCreateModal() {
-    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus"></i> Add New Asset';
-    document.getElementById('modalAction').value = 'create';
-    document.getElementById('assetForm').reset();
-    new bootstrap.Modal(document.getElementById('assetModal')).show();
+const assetOverlay = document.getElementById('assetOverlay');
+const assetForm = document.getElementById('assetForm');
+const assetFormTitle = document.getElementById('assetFormTitle');
+const assetFormAction = document.getElementById('assetFormAction');
+const assetFormId = document.getElementById('assetFormId');
+const resetAssetFormBtn = document.getElementById('resetAssetFormBtn');
+const quickSearch = document.getElementById('quickSearch');
+const openAssetOverlayBtn = document.getElementById('openAssetOverlayBtn');
+
+function showAssetOverlay() {
+    if (assetOverlay) {
+        assetOverlay.classList.add('active');
+    }
 }
 
-function editAsset(asset) {
-    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Edit Asset';
-    document.getElementById('modalAction').value = 'update';
-    document.getElementById('modalAssetId').value = asset.asset_id;
-    
-    // Populate form
-    const formData = {
+function closeAssetOverlay() {
+    if (assetOverlay) {
+        assetOverlay.classList.remove('active');
+    }
+}
+
+window.resetAssetForm = function resetAssetForm() {
+    if (!assetForm) return;
+    assetForm.reset();
+    assetFormAction.value = 'create';
+    assetFormId.value = '';
+    assetFormTitle.innerHTML = '<i class="fas fa-plus"></i> Add New Asset';
+};
+
+window.editAsset = function editAsset(asset) {
+    if (!assetForm) return;
+    assetFormTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Asset';
+    assetFormAction.value = 'update';
+    assetFormId.value = asset.asset_id;
+
+    const fields = {
         'asset_tag': asset.asset_tag,
         'asset_name': asset.asset_name,
         'asset_type': asset.asset_type,
@@ -1013,16 +1013,42 @@ function editAsset(asset) {
         'status': asset.status,
         'location': asset.location || '',
         'department': asset.department || '',
-        // Add other fields...
+        'notes': asset.notes || '',
+        'assigned_to': asset.assigned_to || '',
+        'tech_in_charge': asset.tech_in_charge || '',
+        'os_name': asset.os_name || '',
+        'os_version': asset.os_version || '',
+        'os_architecture': asset.os_architecture || '',
+        'os_service_pack': asset.os_service_pack || '',
+        'os_product_key': asset.os_product_key || '',
+        'ip_address': asset.ip_address || '',
+        'mac_address': asset.mac_address || '',
+        'gateway': asset.gateway || '',
+        'dns_server': asset.dns_server || '',
+        'cpu': asset.cpu || '',
+        'cpu_cores': asset.cpu_cores || '',
+        'ram_gb': asset.ram_gb || '',
+        'storage': asset.storage || '',
+        'gpu': asset.gpu || '',
+        'purchase_date': asset.purchase_date || '',
+        'warranty_expiry': asset.warranty_expiry || '',
+        'purchase_price': asset.purchase_price || '',
+        'useful_life_years': asset.useful_life_years || '',
+        'supplier': asset.supplier || '',
+        'last_inventory_date': asset.last_inventory_date || '',
+        'alternate_user': asset.alternate_user || '',
+        'monitor': asset.monitor || ''
     };
-    
-    Object.keys(formData).forEach(key => {
-        const el = document.querySelector(`[name="${key}"]`);
-        if (el) el.value = formData[key];
+
+    Object.keys(fields).forEach(key => {
+        const element = document.querySelector(`[name="${key}"]`);
+        if (element) {
+            element.value = fields[key];
+        }
     });
-    
-    new bootstrap.Modal(document.getElementById('assetModal')).show();
-}
+
+    showAssetOverlay();
+};
 
 function confirmDelete(id, name) {
     if (confirm(`Delete "${name}"? This cannot be undone.`)) {
@@ -1038,20 +1064,31 @@ function confirmDelete(id, name) {
     }
 }
 
-document.getElementById('quickSearch').addEventListener('input', function(e) {
-    const term = e.target.value.toLowerCase();
-    const rows = document.querySelectorAll('tbody tr');
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(term) ? '' : 'none';
-    });
-});
+;(function initAssetPage() {
+    resetAssetForm();
+    if (resetAssetFormBtn) {
+        resetAssetFormBtn.addEventListener('click', resetAssetForm);
+    }
+    if (openAssetOverlayBtn) {
+        openAssetOverlayBtn.addEventListener('click', () => {
+            resetAssetForm();
+            showAssetOverlay();
+        });
+    }
 
-// Auto-update category counts via AJAX if needed
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Assets page loaded with category: <?= $cat ?>');
-});
-
+    if (quickSearch) {
+        quickSearch.addEventListener('input', function (e) {
+            const term = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+            });
+        });
+    }
+})();
 </script>
 
 <?php include_once __DIR__ . '/../includes/footer.php'; ?>
+
+
+

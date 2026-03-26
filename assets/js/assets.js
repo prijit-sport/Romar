@@ -99,62 +99,7 @@ window.closeEditModal = function () {
     if (modal) modal.classList.remove('show');
 };
 
-window.editAsset = function (asset) {
-    if (!asset) return;
-    switchModalTab('e', 'basic');
-    const setValue = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.value = value ?? '';
-    };
 
-    setValue('edit_asset_id', asset.asset_id || '');
-    setValue('edit_asset_tag', asset.asset_tag);
-    setValue('edit_inventory_number', asset.inventory_number);
-    setValue('edit_asset_name', asset.asset_name);
-    setValue('edit_asset_type', asset.asset_type);
-    setValue('edit_brand', asset.brand);
-    setValue('edit_model', asset.model);
-    setValue('edit_serial_number', asset.serial_number);
-    setValue('edit_status', asset.status || 'active');
-    setValue('edit_location', asset.location);
-    setValue('edit_department', asset.department);
-    setValue('edit_assigned_to', asset.assigned_to);
-    setValue('edit_tech_in_charge', asset.tech_in_charge);
-    setValue('edit_alternate_user', asset.alternate_user);
-    setValue('edit_asset_group', asset.asset_group);
-    setValue('edit_condition', asset.condition_status || 'good');
-    setValue('edit_last_inventory_date', asset.last_inventory_date);
-    setValue('edit_notes', asset.notes);
-
-    setValue('edit_os_name', asset.os_name);
-    setValue('edit_os_version', asset.os_version);
-    setValue('edit_os_architecture', asset.os_architecture);
-    setValue('edit_os_service_pack', asset.os_service_pack);
-    setValue('edit_os_product_key', asset.os_product_key);
-
-    setValue('edit_cpu', asset.cpu);
-    setValue('edit_cpu_cores', asset.cpu_cores);
-    setValue('edit_ram_gb', asset.ram_gb);
-    setValue('edit_storage', asset.storage);
-    setValue('edit_gpu', asset.gpu);
-    setValue('edit_monitor', asset.monitor);
-
-    setValue('edit_ip_address', asset.ip_address);
-    setValue('edit_mac_address', asset.mac_address);
-    setValue('edit_network_domain', asset.network_domain);
-    setValue('edit_gateway', asset.gateway);
-    setValue('edit_dns_server', asset.dns_server);
-
-    setValue('edit_purchase_date', asset.purchase_date);
-    setValue('edit_warranty_expiry', asset.warranty_expiry);
-    setValue('edit_purchase_price', asset.purchase_price);
-    setValue('edit_salvage_value', asset.salvage_value ?? 0);
-    setValue('edit_useful_life', asset.useful_life_years ?? 5);
-    setValue('edit_supplier', asset.supplier);
-
-    const modal = document.getElementById('editModal');
-    if (modal) modal.classList.add('show');
-};
 
 window.deleteAsset = function (assetId, name) {
     if (!assetId) return;
@@ -212,8 +157,7 @@ window.toggleWarrantyAlert = function () {
 };
 
 document.addEventListener('click', function(event) {
-    if (event.target.classList?.contains('modal')) {
+    if (event.target.classList?.contains('modal') && !event.target.classList.contains('bootstrap-modal')) {
         event.target.classList.remove('show');
     }
 });
-

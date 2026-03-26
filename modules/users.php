@@ -167,7 +167,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
             <p class="section-subtitle">จัดการบทบาทและสถานะของทีมงาน</p>
         </div>
         <div class="page-actions">
-            <button class="btn btn-primary" onclick="openCreateModal()">
+            <button class="btn btn-primary" id="createUserBtn">
                 <i class="fas fa-plus"></i> สร้างผู้ใช้งาน
             </button>
         </div>

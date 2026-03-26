@@ -722,5 +722,4 @@ if (!function_exists('json_error')) {
         exit;
     }
 }
-?>
 

@@ -1,344 +1,172 @@
-// ========================================
-// ระบบการแจ้งเตือน (Notification System)
-// ========================================
+/**
+ * Romar IT Support - Notification System v1.0
+ * Global notification handling for all dashboard pages
+ */
 
-class NotificationManager {
-    constructor() {
-        this.updateInterval = 30000; // อัพเดททุก 30 วินาที
-        this.intervalId = null;
-    }
+(function() {
+    'use strict';
 
-    getApiBase() {
-        return window.location.pathname.toLowerCase().includes('/modules/') ? '../api/' : 'api/';
-    }
+    class NotificationSystem {
+        constructor() {
+            this.init();
+        }
 
-    getApiUrl(endpoint) {
-        return `${this.getApiBase()}${endpoint}`;
-    }
+        init() {
+            // Page-specific (dashboard/modules)
+            this.button = document.getElementById('notification-button');
+            this.dropdown = document.getElementById('notification-dropdown');
+            this.badge = document.getElementById('notification-badge');
+            this.markAllBtn = document.getElementById('mark-all-read');
+            this.list = document.getElementById('notification-list');
 
-    getTicketViewUrl(ticketId) {
-        return window.location.pathname.toLowerCase().includes('/modules/')
-            ? `ticket_view.php?id=${ticketId}`
-            : `modules/ticket_view.php?id=${ticketId}`;
-    }
+            if (this.button) this.bindEvents();
+            this.startPolling();
+        }
 
-    escapeHtml(value) {
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    // เริ่มต้นการทำงาน
-    init() {
-        this.updateNotificationCount();
-        this.startAutoUpdate();
-        this.attachEventListeners();
-    }
-
-    // อัพเดทจำนวนการแจ้งเตือน
-    async updateNotificationCount() {
-        try {
-            const response = await fetch(this.getApiUrl('getnotificationcount.php'));
-            const data = await response.json();
+        bindEvents() {
+            if (!this.button) return;
             
-            const badge = document.getElementById('notification-badge');
-            if (badge) {
-                if (data.count > 0) {
-                    badge.textContent = data.count;
-                    badge.style.display = 'inline-block';
+            // Toggle dropdown
+            this.button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggle();
+            });
+
+            // Close on outside click
+            document.addEventListener('click', (e) => {
+                if (!this.button.contains(e.target)) {
+                    this.close();
+                }
+            });
+
+            // Mark all read
+            if (this.markAllBtn) {
+                this.markAllBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.markAllRead();
+                });
+            }
+
+            // Individual notification clicks
+            if (this.list) {
+                this.list.addEventListener('click', (e) => {
+                    const item = e.target.closest('.notification-item');
+                    if (item) {
+                        e.stopPropagation();
+                        const notifId = item.dataset.notifId;
+                        const ticketId = item.dataset.ticketId;
+                        if (notifId && ticketId) {
+                            this.markReadAndView(notifId, ticketId);
+                        }
+                    }
+                });
+            }
+        }
+
+        toggle() {
+            this.dropdown.classList.toggle('show');
+        }
+
+        close() {
+            this.dropdown.classList.remove('show');
+        }
+
+        async markReadAndView(notifId, ticketId) {
+            try {
+                await fetch('../api/marknotificationread.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ notif_id: parseInt(notifId) })
+                });
+                window.location.href = `ticket_view.php?id=${ticketId}`;
+            } catch (error) {
+                this.showToast('เกิดข้อผิดพลาดในการอ่านการแจ้งเตือน');
+            }
+        }
+
+        async markAllRead() {
+            const btn = this.markAllBtn;
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังอัปเดต...';
+
+            try {
+                const response = await fetch('../api/marknotificationread.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mark_all_read: true })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    // Update UI immediately
+                    this.updateBadge(0);
+                    this.markAllUIAsRead();
+                    btn.style.display = 'none';
+                    this.showCompactToast('✅ อ่านแล้ว');
                 } else {
-                    badge.style.display = 'none';
+                    throw new Error('API failed');
                 }
+            } catch (error) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+                this.showToast('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
             }
-        } catch (error) {
-            console.error('Error updating notification count:', error);
         }
-    }
 
-    // ดึงรายการการแจ้งเตือนทั้งหมด
-    async getNotifications() {
-        try {
-            const response = await fetch(this.getApiUrl('getnotifications.php'));
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
-            return { notifications: [], unread_count: 0 };
-        }
-    }
-
-    // ทำเครื่องหมายว่าอ่านแล้ว (ticket เดียว)
-    async markAsRead(notifId) {
-        try {
-            const response = await fetch(this.getApiUrl('marknotificationread.php'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ notif_id: notifId })
+        markAllUIAsRead() {
+            document.querySelectorAll('.notification-item.unread').forEach(item => {
+                item.classList.remove('unread');
             });
-            
-            const data = await response.json();
-            if (data.success) {
-                // อัพเดทจำนวนการแจ้งเตือน
-                await this.updateNotificationCount();
+        }
+
+        updateBadge(count) {
+            if (count > 0) {
+                if (!this.badge) {
+                    this.badge = document.createElement('span');
+                    this.badge.className = 'notification-badge';
+                    this.button.appendChild(this.badge);
+                }
+                this.badge.textContent = count;
+            } else if (this.badge) {
+                this.badge.remove();
+                this.badge = null;
             }
-            return data;
-        } catch (error) {
-            console.error('Error marking notification as read:', error);
-            return { success: false };
-        }
-    }
-
-    // ทำเครื่องหมายว่าอ่านทั้งหมด
-    async markAllAsRead() {
-        try {
-            const response = await fetch(this.getApiUrl('marknotificationread.php'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ mark_all_read: true })
-            });
-            
-            const data = await response.json();
-            if (data.success) {
-                // อัพเดทจำนวนการแจ้งเตือน
-                await this.updateNotificationCount();
-                // รีเฟรชรายการ
-                await this.displayNotifications();
-            }
-            return data;
-        } catch (error) {
-            console.error('Error marking all as read:', error);
-            return { success: false };
-        }
-    }
-
-    // แสดงรายการการแจ้งเตือน
-    async displayNotifications() {
-        const data = await this.getNotifications();
-        const container = document.getElementById('notification-list');
-        
-        if (!container) return;
-
-        if (data.notifications.length === 0) {
-            container.innerHTML = '<p class="no-notifications">ไม่มีการแจ้งเตือน</p>';
-            return;
         }
 
-        let html = '';
-        data.notifications.forEach(notif => {
-            const notifId = Number(notif.notif_id || 0);
-            const ticketId = Number(notif.ticket_id || 0);
-            const readClass = notif.is_read ? 'read' : 'unread';
-            const priorityClass = `priority-${(notif.ticket_priority || 'normal').toLowerCase()}`;
-            const priorityText = (notif.ticket_priority || 'normal').toLowerCase();
-            const ticketNumber = notif.ticket_number || `#${ticketId}`;
-            const actor = this.escapeHtml(notif.triggered_by_name || '-');
-            const safeMessage = this.escapeHtml(notif.message || '');
-            const safeTicketNumber = this.escapeHtml(ticketNumber);
-            const safeDate = this.escapeHtml(this.formatDate(notif.created_at));
-            
-            html += `
-                <div class="notification-item ${readClass}" data-ticket-id="${ticketId}" data-notif-id="${notifId}">
-                    <div class="notification-header">
-                        <span class="notification-title">${safeTicketNumber}</span>
-                        <span class="notification-badge ${priorityClass}">${priorityText}</span>
-                    </div>
-                    <div class="notification-message">${safeMessage}</div>
-                    <div class="notification-meta">
-                        <span>โดย: ${actor}</span>
-                        <span>${safeDate}</span>
-                    </div>
-                    ${!notif.is_read ? '<span class="unread-indicator">●</span>' : ''}
-                </div>
-            `;
-        });
-
-        container.innerHTML = html;
-
-        // เพิ่ม event listeners สำหรับการคลิก
-        container.querySelectorAll('.notification-item').forEach(item => {
-            item.addEventListener('click', async (e) => {
-                const ticketId = Number(e.currentTarget.dataset.ticketId || 0);
-                const notifId = Number(e.currentTarget.dataset.notifId || 0);
-                
-                // ทำเครื่องหมายว่าอ่านแล้ว
-                if (notifId > 0) {
-                    await this.markAsRead(notifId);
+        startPolling() {
+            setInterval(async () => {
+                try {
+                    const response = await fetch('../api/getnotificationcount.php');
+                    const data = await response.json();
+                    this.updateBadge(data.count);
+                } catch (error) {
+                    console.log('Polling failed:', error);
                 }
-                
-                // ไปที่หน้า ticket
-                if (ticketId > 0) {
-                    window.location.href = this.getTicketViewUrl(ticketId);
-                }
-            });
-        });
-    }
+            }, 30000); // 30 seconds
+        }
 
-    // จัดรูปแบบวันที่
-    formatDate(dateString) {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
+        showCompactToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-compact toast-success';
+            toast.textContent = message;
+            document.body.appendChild(toast);
 
-        if (diffMins < 1) return 'เมื่อสักครู่';
-        if (diffMins < 60) return `${diffMins} นาทีที่แล้ว`;
-        if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
-        if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
-        
-        return date.toLocaleDateString('th-TH', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-    }
-
-    // เริ่มการอัพเดทอัตโนมัติ
-    startAutoUpdate() {
-        this.intervalId = setInterval(() => {
-            this.updateNotificationCount();
-        }, this.updateInterval);
-    }
-
-    // หยุดการอัพเดทอัตโนมัติ
-    stopAutoUpdate() {
-        if (this.intervalId) {
-            clearInterval(this.intervalId);
-            this.intervalId = null;
+            setTimeout(() => {
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 200);
+                }, 2000);
+            }, 100);
         }
     }
 
-    // ผูก event listeners
-    attachEventListeners() {
-        // ปุ่มแสดงการแจ้งเตือน
-        const notifBtn = document.getElementById('notification-button');
-        if (notifBtn) {
-            notifBtn.addEventListener('click', async () => {
-                await this.displayNotifications();
-                // แสดง dropdown หรือ modal
-                const dropdown = document.getElementById('notification-dropdown');
-                if (dropdown) {
-                    dropdown.classList.toggle('show');
-                }
-            });
-        }
-
-        // ปุ่มทำเครื่องหมายว่าอ่านทั้งหมด
-        const markAllBtn = document.getElementById('mark-all-read');
-        if (markAllBtn) {
-            markAllBtn.addEventListener('click', async () => {
-                await this.markAllAsRead();
-            });
-        }
-
-        // ปิด dropdown เมื่อคลิกข้างนอก
-        document.addEventListener('click', (e) => {
-            const dropdown = document.getElementById('notification-dropdown');
-            const notifBtn = document.getElementById('notification-button');
-            
-            if (dropdown && notifBtn) {
-                if (!dropdown.contains(e.target) && !notifBtn.contains(e.target)) {
-                    dropdown.classList.remove('show');
-                }
-            }
-        });
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => new NotificationSystem());
+    } else {
+        new NotificationSystem();
     }
-}
-
-// เริ่มต้นเมื่อโหลดหน้าเว็บเสร็จ
-document.addEventListener('DOMContentLoaded', () => {
-    const notificationManager = new NotificationManager();
-    notificationManager.init();
-    
-    // เก็บ instance ไว้ใน window เพื่อใช้งานจากที่อื่น
-    window.notificationManager = notificationManager;
-});
-
-// ========================================
-// ตัวอย่างการใช้งาน
-// ========================================
-
-/*
-// HTML ตัวอย่าง:
-
-<div class="notification-container">
-    <button id="notification-button" class="notification-btn">
-        <i class="icon-bell"></i>
-        <span id="notification-badge" class="badge">0</span>
-    </button>
-    
-    <div id="notification-dropdown" class="notification-dropdown">
-        <div class="notification-header">
-            <h3>การแจ้งเตือน</h3>
-            <button id="mark-all-read">อ่านทั้งหมด</button>
-        </div>
-        <div id="notification-list" class="notification-list">
-            <!-- รายการจะถูกเพิ่มที่นี่ -->
-        </div>
-    </div>
-</div>
-
-// CSS ตัวอย่าง:
-
-.notification-btn {
-    position: relative;
-}
-
-.badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background: red;
-    color: white;
-    border-radius: 50%;
-    padding: 2px 6px;
-    font-size: 12px;
-    display: none;
-}
-
-.notification-dropdown {
-    display: none;
-    position: absolute;
-    background: white;
-    border: 1px solid #ddd;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    width: 350px;
-    max-height: 500px;
-    overflow-y: auto;
-}
-
-.notification-dropdown.show {
-    display: block;
-}
-
-.notification-item {
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-}
-
-.notification-item:hover {
-    background: #f5f5f5;
-}
-
-.notification-item.unread {
-    background: #e3f2fd;
-    font-weight: bold;
-}
-
-.unread-indicator {
-    color: #2196F3;
-    font-size: 20px;
-    margin-left: 5px;
-}
-
-*/
+})();
 

@@ -44,6 +44,7 @@ return [
     'page.title.dashboard' => 'แดชบอร์ด',
     'page.subtitle.dashboard' => 'ติดตาม KPI และภาพรวมสถานะ IT ทั้งหมด',
     'page.title.assets' => 'ทรัพย์สิน IT',
+    'page.subtitle.assets' => 'ระบบจัดการทรัพย์สินไอทีครบวงจร',
     'page.title.settings' => 'การตั้งค่าระบบ',
     'page.subtitle.settings' => 'จัดการอีเมล แจ้งเตือน และนโยบาย SLA',
 
@@ -104,6 +105,7 @@ return [
     'settings.csrf_error' => 'โทเค็น CSRF ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง',
     'settings.updated' => 'ปรับปรุงกฎ SLA สำเร็จ',
     'settings.failed' => 'ไม่สามารถบันทึกการตั้งค่าได้ กรุณาลองใหม่อีกครั้ง',
+    'button.add_asset' => 'Add new assets',
     'button.save_settings' => 'บันทึกการตั้งค่า',
     'system.section_title' => 'ข้อมูลระบบทั่วไป',
     'system.section_subtitle' => 'สถานะเซิร์ฟเวอร์และอินฟราสตรัคเจอร์ล่าสุด',

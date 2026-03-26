@@ -9,7 +9,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.body.classList.toggle('modal-open', open);
     }
 
-    window.openCreateModal = function () {
+window.openCreateModal = function () {
+        console.log('Open create modal clicked (modules/users.php)');
         toggleModal(createModal, true);
     };
 

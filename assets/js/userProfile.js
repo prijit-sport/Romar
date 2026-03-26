@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
     const tabButtons = Array.from(document.querySelectorAll('.tab-btn[data-tab]'));
-    const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+    const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
     const editButton = document.querySelector('[data-profile]');
     const editModal = document.getElementById('editModal');
     const closeTriggers = Array.from(document.querySelectorAll('[data-edit-action="close-edit-modal"]'));
@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function switchTab(name, activeBtn) {
         if (!name) return;
         tabPanels.forEach(panel => {
-            panel.classList.toggle('active', panel.id === `tab-${name}`);
+            panel.classList.toggle('active', panel.dataset.tabPanel === name);
         });
         tabButtons.forEach(btn => {
             btn.classList.toggle('active', btn === activeBtn);
@@ -21,11 +21,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    const initialActiveBtn = tabButtons.find(btn => btn.classList.contains('active'));
-    if (initialActiveBtn) {
-        switchTab(initialActiveBtn.dataset.tab, initialActiveBtn);
-    } else if (tabButtons.length) {
-        switchTab(tabButtons[0].dataset.tab, tabButtons[0]);
+    const defaultTabName = 'tickets';
+    const defaultTabBtn = tabButtons.find(btn => btn.dataset.tab === defaultTabName) || tabButtons[0];
+    if (defaultTabBtn) {
+        switchTab(defaultTabBtn.dataset.tab, defaultTabBtn);
     }
 
     function showEditModal(user) {

@@ -455,13 +455,13 @@ $currentUser = getCurrentUser();
         }
 
         /* Modal */
-        .modal {
+.modal {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
-            height: 100%;
+            height: 100vh;
             background: rgba(0,0,0,0.5);
             z-index: 9999;
             align-items: center;
@@ -698,7 +698,7 @@ $currentUser = getCurrentUser();
                             <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
                         </form>
                     </div>
-                    <button class="btn btn-primary" onclick="openAddModal()">
+<button class="btn btn-primary" id="addUserBtn">
                         ➕ เพิ่มผู้ใช้ใหม่
                     </button>
                 </div>
@@ -897,9 +897,29 @@ $currentUser = getCurrentUser();
         }, 5000);
 
         // Modal functions
-        function openAddModal() {
-            document.getElementById('addModal').classList.add('active');
-        }
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add event listener for button
+            const addBtn = document.getElementById('addUserBtn');
+            if (addBtn) {
+                addBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Add user button clicked');
+                    openAddModal();
+                });
+            }
+
+            function openAddModal() {
+                console.log('Open add modal clicked');
+                const modal = document.getElementById('addModal');
+                if (modal) {
+                    document.getElementById('addForm').reset();
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    console.error('Add modal not found');
+                }
+            }
+        });
 
         function openEditModal(user) {
             document.getElementById('edit_user_id').value = user.user_id;
@@ -912,7 +932,11 @@ $currentUser = getCurrentUser();
         }
 
         function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('active');
+                document.body.style.overflow = '';
+            }
         }
 
         function deleteUser(userId) {
