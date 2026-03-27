@@ -14,12 +14,7 @@ $isAdmin = isAdmin();
     </div>
     <nav class="sidebar-nav">
         <ul>
-            <li class="nav-back">
-                <a href="<?php echo BASE_URL; ?>admin/dashboard.php">
-                    <i class="fas fa-arrow-left"></i>
-                    <?php echo ui_text('nav.back_to_dashboard'); ?>
-                </a>
-            </li>
+
             <li class="menu-section"><?php echo ui_text('nav.section.primary'); ?></li>
             <li class="<?php echo $activePage === 'dashboard' ? 'active' : ''; ?>">
                 <a href="<?php echo BASE_URL; ?>modules/dashboard.php">
@@ -43,10 +38,10 @@ $isAdmin = isAdmin();
             </li>
             <?php if ($isAdmin): ?>
                 <li class="menu-section"><?php echo ui_text('nav.section.admin'); ?></li>
-                <li class="<?php echo $activePage === 'users' ? 'active' : ''; ?>">
-                    <a href="<?php echo BASE_URL; ?>modules/users.php">
-                        <i class="fas fa-users"></i> <?php echo ui_text('nav.users'); ?>
-                    </a>
+                <li class="<?php echo $activePage === 'users-management' ? 'active' : ''; ?>">
+                        <a href="<?php echo BASE_URL; ?>modules/users-management.php">
+                            <i class="fas fa-users"></i> ผู้ใช้งาน
+                        </a>
                 </li>
                 <li class="<?php echo $activePage === 'reports' ? 'active' : ''; ?>">
                     <a href="<?php echo BASE_URL; ?>modules/reports.php">
@@ -60,7 +55,7 @@ $isAdmin = isAdmin();
                 </li>
                 <li class="<?php echo $activePage === 'slaconfig' ? 'active' : ''; ?>">
                     <a href="<?php echo BASE_URL; ?>modules/slaconfig.php">
-                        <i class="fas fa-clock"></i> <?php echo ui_text('nav.sla'); ?>
+                        <i class="fas fa-stopwatch"></i> ศูนย์ SLA
                     </a>
                 </li>
                 <li class="<?php echo $activePage === 'settings' ? 'active' : ''; ?>">

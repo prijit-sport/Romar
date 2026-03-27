@@ -414,7 +414,6 @@ $currentUser = getCurrentUser();
                     <li><a href="dashboard.php">📊 Dashboard</a></li>
                     <?php if ($currentUser['role'] === 'admin'): ?>
                     <li class="menu-section">การจัดการ</li>
-                    <li><a href="users-management.php">👥 จัดการผู้ใช้</a></li>
                     <li><a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a></li>
                     <li><a href="documents.php">📄 จัดการเอกสาร</a></li>
                     <?php endif; ?>

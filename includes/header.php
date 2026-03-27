@@ -1,5 +1,5 @@
 <?php
-if (!isLoggedIn()) {
+if (!isset($_SESSION['user_id'])) {
     redirect('auth/login.php');
 }
 $contentTypeHeader = 'text/html; charset=UTF-8';
@@ -26,8 +26,18 @@ $pageTitle = $pageTitle ?? SITE_NAME;
     <?php if (isLoggedIn()): ?>
     <script nonce="<?php echo htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8'); ?>" src="<?php echo BASE_URL; ?>assets/js/notificationsystem.js"></script>
     <?php endif; ?>
+    <script nonce="<?php echo htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8'); ?>" src="<?php echo BASE_URL; ?>assets/js/nav-toggle.js?v=1"></script>
+    <script nonce="<?php echo htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8'); ?>">
+    function isLoggedIn() {
+        return <?php echo isset($_SESSION['user_id']) ? 'true' : 'false'; ?>;
+    }
+    </script>
 </head>
 <body>
 
     <div class="layout">
+        <button class="mobile-sidebar-toggle" aria-label="Toggle Navigation">
+            <i class="fas fa-bars"></i>
+        </button>
         <!-- Global Notification Bell ถูกย้ายไป dashboard/module pages เท่านั้น -->
+

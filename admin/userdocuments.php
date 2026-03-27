@@ -428,7 +428,6 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
                 <?php if ($user['role'] === 'admin'): ?>
                 <li class="menu-section">การจัดการ</li>
-                <li><a href="users-management.php">👥 จัดการผู้ใช้</a></li>
                 <li><a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a></li>
                 <li><a href="documents.php">📄 จัดการเอกสาร</a></li>
                 <?php endif; ?>

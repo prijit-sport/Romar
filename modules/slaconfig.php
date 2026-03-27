@@ -37,7 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-$slaRules = $db->query("SELECT * FROM sla_rules ORDER BY FIELD(priority, 'urgent', 'high', 'normal', 'low'), FIELD(impact, 'critical', 'high', 'medium', 'low')")->fetch_all(MYSQLI_ASSOC);
+$slaRulesResult = $db->query("SELECT * FROM sla_rules ORDER BY FIELD(priority, 'urgent', 'high', 'normal', 'low'), FIELD(impact, 'critical', 'high', 'medium', 'low')");
+$slaRules = $slaRulesResult ? $slaRulesResult->fetch_all(MYSQLI_ASSOC) : [];
 
 $priorityLabels = [
     'urgent' => 'ด่วนที่สุด',

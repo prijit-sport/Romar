@@ -866,7 +866,7 @@ body {
 .tabs-nav {
   display: flex;
   border-bottom: 1px solid var(--border-light);
-  overflow-x: auto;
+  overflow-x: hidden;
   padding: 0 0.5rem;
   gap: var(--space-sm);
 }
@@ -1727,7 +1727,30 @@ body {
   top: 0;
   left: 0;
   height: 100vh;
-  border-right: 1px solid var(--border-light);
+border-right: 1px solid var(--border-light);
+}
+
+/* Mobile Sidebar Backdrop - Fix */
+.sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 150;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.sidebar-backdrop.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+body.sidebar-open {
+    overflow: hidden;
 }
 
 .sidebar-brand {
@@ -2727,6 +2750,11 @@ body.category-panel-open {
   
   .sidebar.open {
     transform: translateX(0);
+  }
+  
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
   }
   
   .main-content {

@@ -411,9 +411,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
                     <?php if ($user['role'] === 'admin'): ?>
                     <li class="menu-section">การจัดการ</li>
-                    <li class="<?php echo $current_page == 'users-management.php' ? 'active' : ''; ?>">
-                        <a href="users-management.php">👥 จัดการผู้ใช้</a>
-                    </li>
                     <li class="<?php echo $current_page == 'meeting-rooms.php' ? 'active' : ''; ?>">
                         <a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a>
                     </li>
@@ -578,12 +575,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
                         <span class="quick-action-icon">📄</span>
                         <span class="quick-action-text">เอกสาร</span>
                     </a>
-                    <?php if ($user['role'] === 'admin'): ?>
-                    <a href="users-management.php" class="quick-action-btn">
-                        <span class="quick-action-icon">👥</span>
-                        <span class="quick-action-text">จัดการผู้ใช้</span>
-                    </a>
-                    <?php endif; ?>
+                    <a href="announcements.php" class="quick-action-btn">
+                        <span class="quick-action-icon">📢</span>
+                        <span class="quick-action-text">ข่าวสาร</span>
                 </div>
             </div>
         </div>

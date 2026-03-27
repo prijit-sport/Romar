@@ -411,7 +411,6 @@ $currentUser = getCurrentUser();
                     <li class="<?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>"><a href="dashboard.php">📊 Dashboard</a></li>
                     <?php if ($currentUser['role'] === 'admin'): ?>
                     <li class="menu-section">การจัดการ</li>
-                    <li class="<?php echo $current_page == 'users-management.php' ? 'active' : ''; ?>"><a href="users-management.php">👥 จัดการผู้ใช้</a></li>
                     <li class="<?php echo $current_page == 'meeting-rooms.php' ? 'active' : ''; ?>"><a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a></li>
                     <li class="<?php echo $current_page == 'documents.php' ? 'active' : ''; ?>"><a href="documents.php">📄 จัดการเอกสาร</a></li>
                     <?php endif; ?>
