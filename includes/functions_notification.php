@@ -8,7 +8,7 @@
  * สร้าง notification เมื่อมี ticket ใหม่ → แจ้ง admin/IT
  */
 if (!function_exists('notifyNewTicket')) {
-function notifyNewTicket($db, int $ticketId, string $ticketNumber, string $ticketTitle, int $createdBy) {
+function notifyNewTicket(mysqli $db, int $ticketId, string $ticketNumber, string $ticketTitle, int $createdBy) {
     $message = "🎫 Ticket ใหม่: [{$ticketNumber}] {$ticketTitle}";
     
     // Insert notification
@@ -38,7 +38,7 @@ function notifyNewTicket($db, int $ticketId, string $ticketNumber, string $ticke
  * สร้าง notification เมื่อมี comment ใหม่
  */
 if (!function_exists('notifyNewComment')) {
-function notifyNewComment($db, int $ticketId, int $commentId, string $ticketNumber, string $ticketTitle, string $commentText, int $commentedBy, string $commentedByRole, int $ticketCreatedBy) {
+function notifyNewComment(mysqli $db, int $ticketId, int $commentId, string $ticketNumber, string $ticketTitle, string $commentText, int $commentedBy, string $commentedByRole, int $ticketCreatedBy) {
     $shortComment = mb_strlen($commentText) > 60 ? mb_substr($commentText, 0, 60) . '...' : $commentText;
     $message = "💬 [{$ticketNumber}] มีความคิดเห็นใหม่: \"{$shortComment}\"";
 
@@ -71,7 +71,7 @@ function notifyNewComment($db, int $ticketId, int $commentId, string $ticketNumb
  * Helper: Insert recipients
  */
 if (!function_exists('_insertRecipients')) {
-function _insertRecipients($db, int $notifId, array $recipients) {
+function _insertRecipients(mysqli $db, int $notifId, array $recipients) {
     if (empty($recipients)) return;
     
     $stmt = $db->prepare("

@@ -1,6 +1,6 @@
 <?php
 $pageTitle = 'จัดการผู้ใช้ - Romar';
-$activePage = 'users-management';
+$activePage = 'users';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -250,12 +250,12 @@ $currentUser = getCurrentUser();
                             <span class="badge badge-<?php echo $user['role'] === 'admin' ? 'admin' : ($user['role'] === 'staff' ? 'staff' : 'user'); ?>">
                                 <?php
                                     if ($user['role'] === 'admin') {
-                                        echo '<span style="display: inline-block; width: 8px; height: 8px; background: #92400e; border-radius: 50%; margin-right: 6px;"></span>Admin';
-                                    } elseif ($user['role'] === 'staff') {
-                                        echo '<span style="display: inline-block; width: 8px; height: 8px; background: #065f46; border-radius: 50%; margin-right: 6px;"></span>Staff';
-                                    } else {
-                                        echo '<span style="display: inline-block; width: 8px; height: 8px; background: #1e40af; border-radius: 50%; margin-right: 6px;"></span>User';
-                                    }
+                                        echo '<span class="badge-dot badge-dot-admin"></span>Admin';
+                                            } elseif ($user['role'] === 'staff') {
+                                                echo '<span class="badge-dot badge-dot-staff"></span>Staff';
+                                            } else {
+                                                echo '<span class="badge-dot badge-dot-user"></span>User';
+                                            }
                                 ?>
                             </span>
                         </td>

@@ -102,18 +102,20 @@ if ($action === 'add_borrow') {
     if (!verify_csrf($_POST['csrf_token'] ?? '')) {
         $message = 'Invalid CSRF token'; $messageType = 'error';
     } else {
-        $stmt = $db->prepare("INSERT INTO asset_borrows (asset_id,borrower_id,approved_by,borrow_date,expected_return,purpose,condition_out,created_by,status) VALUES (?,?,?,?,?,?,?,?,'borrowed')");
+        $stmt = $db->prepare("INSERT INTO asset_borrows (asset_id,borrower_id,approved_by,borrow_date,expected_return,purpose,borrow_location,condition_out,created_by,status) VALUES (?,?,?,?,?,?,?,?,?,'borrowed')");
         $borrowerId = (int)$_POST['borrower_id'];
         $approvedBy = $isAdmin ? $_SESSION['user_id'] : null;
         $borrowDate     = $_POST['borrow_date'];
         $expectedReturn = !empty($_POST['expected_return']) ? $_POST['expected_return'] : null;
         $purpose        = sanitize($_POST['purpose']);
+        $borrowLocation = sanitize($_POST['borrow_location'] ?? '');
         $conditionOut   = sanitize($_POST['condition_out']);
         $userId         = $_SESSION['user_id'];
-        if (!$stmt || !assetdetail_bind_params($stmt, 'iiissssi', [
+        if (!$stmt || !assetdetail_bind_params($stmt, 'iiisssssi', [
             $assetId, $borrowerId, $approvedBy,
             $borrowDate, $expectedReturn,
-            $purpose, $conditionOut,
+            $purpose, $borrowLocation,
+            $conditionOut,
             $userId,
         ])) {
             $message = 'Binding parameters failed';
@@ -123,7 +125,7 @@ if ($action === 'add_borrow') {
             if ($upd && assetdetail_bind_params($upd, 'i', [$assetId])) {
                 $upd->execute();
             }
-            logActivity($_SESSION['user_id'], 'บันทึกการยืม', 'Assets', "Asset ID: $assetId ผู้ยืม: $borrowerId");
+            logActivity($_SESSION['user_id'], 'บันทึกการยืม', 'Assets', "Asset ID: $assetId ผู้ยืม: $borrowerId สถานที่: $borrowLocation");
             $message = 'บันทึกการยืมเรียบร้อย'; $messageType = 'success';
         } else { $message = 'เกิดข้อผิดพลาด: '.$stmt->error; $messageType = 'error'; }
     }
@@ -560,9 +562,6 @@ $activeTab = $_GET['tab'] ?? 'repair';
             <div class="card">
                 <div class="card-header">
                     <div class="card-title"><i class="fas fa-tools"></i> ประวัติการซ่อม</div>
-                    <?php if ($isAdmin): ?>
-                    <button class="btn btn-primary btn-sm" onclick="document.getElementById('addRepairModal').classList.add('show')"><i class="fas fa-plus"></i> บันทึกการซ่อม</button>
-                    <?php endif; ?>
                 </div>
                 <table>
                     <thead><tr><th>วันที่</th><th>ปัญหา</th><th>รายละเอียด</th><th>ช่าง/ผู้ดำเนินการ</th><th>บริษัท</th><th>ค่าใช้จ่าย</th><th>ประกัน</th><th>สถานะ</th></tr></thead>
@@ -595,24 +594,28 @@ $activeTab = $_GET['tab'] ?? 'repair';
 
         <!-- Tab: Borrow -->
         <div id="tab-borrow" class="tab-content" style="display:<?= $activeTab==='borrow'?'block':'none' ?>;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="margin:0;"><i class="fas fa-hand-holding"></i> ประวัติการยืม-คืน</h3>
+                <?php if ($isAdmin): ?>
+                <button type="button" class="btn btn-primary" onclick="openAddBorrowModal()">
+                    <i class="fas fa-plus-circle"></i> บันทึกการยืม
+                </button>
+                <?php endif; ?>
+            </div>
             <div class="card">
-                <div class="card-header">
-                    <div class="card-title"><i class="fas fa-hand-holding"></i> ประวัติการยืม-คืน</div>
-                    <?php if ($isAdmin): ?>
-                    <button class="btn btn-warning btn-sm" onclick="document.getElementById('addBorrowModal').classList.add('show')"><i class="fas fa-plus"></i> บันทึกการยืม</button>
-                    <?php endif; ?>
-                </div>
+                <div class="card-header" style="display:none;"></div>
                 <table>
-                    <thead><tr><th>ผู้ยืม</th><th>วันที่ยืม</th><th>กำหนดคืน</th><th>วันที่คืน</th><th>วัตถุประสงค์</th><th>สภาพตอนยืม</th><th>สภาพตอนคืน</th><th>สถานะ</th><th></th></tr></thead>
+                    <thead><tr><th>ผู้ยืม</th><th>วันที่ยืม</th><th>กำหนดคืน</th><th>สถานที่ยืมไป</th><th>วันที่คืน</th><th>วัตถุประสงค์</th><th>สภาพตอนยืม</th><th>สภาพตอนคืน</th><th>สถานะ</th><th></th></tr></thead>
                     <tbody>
                     <?php if (empty($borrows)): ?>
-                        <tr><td colspan="9" class="no-data"><i class="fas fa-hand-holding" style="font-size:2em;opacity:0.3;"></i><br>ยังไม่มีประวัติการยืม</td></tr>
+                        <tr><td colspan="10" class="no-data"><i class="fas fa-hand-holding" style="font-size:2em;opacity:0.3;"></i><br>ยังไม่มีประวัติการยืม</td></tr>
                     <?php else: ?>
                         <?php foreach ($borrows as $bw): ?>
                         <tr>
                             <td><strong><?= htmlspecialchars($bw['borrower_name']??'-') ?></strong></td>
                             <td><?= date('d/m/Y', strtotime($bw['borrow_date'])) ?></td>
                             <td><?= $bw['expected_return'] ? date('d/m/Y', strtotime($bw['expected_return'])) : '-' ?></td>
+                            <td><span style="background:#f0fff4;padding:4px 8px;border-radius:4px;color:#276749;"><i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($bw['borrow_location']??'-') ?></span></td>
                             <td><?= $bw['actual_return'] ? date('d/m/Y', strtotime($bw['actual_return'])) : '<span style="color:#e53e3e;">ยังไม่คืน</span>' ?></td>
                             <td><?= htmlspecialchars($bw['purpose']??'-') ?></td>
                             <td><span class="badge badge-<?= $bw['condition_out']??'good' ?>"><?= ucfirst($bw['condition_out']??'good') ?></span></td>
@@ -633,13 +636,16 @@ $activeTab = $_GET['tab'] ?? 'repair';
 
         <!-- Tab: Transfer -->
         <div id="tab-transfer" class="tab-content" style="display:<?= $activeTab==='transfer'?'block':'none' ?>;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="margin:0;"><i class="fas fa-exchange-alt"></i> ประวัติการโอนย้าย</h3>
+                <?php if ($isAdmin): ?>
+                <button type="button" class="btn btn-primary" onclick="openTransferModal()">
+                    <i class="fas fa-plus-circle"></i> บันทึกการโอนย้าย
+                </button>
+                <?php endif; ?>
+            </div>
             <div class="card">
-                <div class="card-header">
-                    <div class="card-title"><i class="fas fa-exchange-alt"></i> ประวัติการโอนย้าย</div>
-                    <?php if ($isAdmin): ?>
-                    <button class="btn btn-sm" style="background:linear-gradient(135deg,#4299e1,#3182ce);color:white;" onclick="document.getElementById('addTransferModal').classList.add('show')"><i class="fas fa-plus"></i> บันทึกโอนย้าย</button>
-                    <?php endif; ?>
-                </div>
+                <div class="card-header" style="display:none;"></div>
                 <table>
                     <thead><tr><th>วันที่</th><th>จาก</th><th>ไป</th><th>เหตุผล</th><th>ดำเนินการโดย</th></tr></thead>
                     <tbody>
@@ -887,34 +893,34 @@ $activeTab = $_GET['tab'] ?? 'repair';
 <!-- Modal: เพิ่มการซ่อม -->
 <div id="addRepairModal" class="modal">
     <div class="modal-content">
-        <div class="modal-header"><h2><i class="fas fa-tools"></i> บันทึกการซ่อม</h2><button class="close-btn" onclick="this.closest('.modal').classList.remove('show')">&times;</button></div>
+        <div class="modal-header"><h2><i class="fas fa-tools"></i> บันทึกการซ่อม</h2><button class="close-btn" onclick="this.closest('.modal').classList.remove('active')">&times;</button></div>
         <form method="POST">
             <?php echo csrf_input(); ?>
             <input type="hidden" name="action" value="add_repair">
             <div class="form-row">
-                <div class="form-group"><label>วันที่ซ่อม *</label><input type="date" name="repair_date" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
-                <div class="form-group"><label>สถานะการซ่อม</label>
-                    <select name="repair_status" class="form-control">
+                <div class="form-group"><label for="repair_date">วันที่ซ่อม *</label><input id="repair_date" type="date" name="repair_date" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
+                <div class="form-group"><label for="repair_status">สถานะการซ่อม</label>
+                    <select id="repair_status" name="repair_status" class="form-control">
                         <option value="completed">เสร็จแล้ว</option>
                         <option value="in_progress">กำลังซ่อม</option>
                         <option value="pending">รอดำเนินการ</option>
                     </select>
                 </div>
             </div>
-            <div class="form-group"><label>ปัญหาที่พบ *</label><input type="text" name="problem_desc" class="form-control" required placeholder="เช่น จอไม่ติด, พัดลมเสีย"></div>
-            <div class="form-group"><label>รายละเอียดการซ่อม</label><textarea name="repair_detail" class="form-control" rows="3" placeholder="บรรยายรายละเอียดการซ่อม..."></textarea></div>
+            <div class="form-group"><label for="problem_desc">ปัญหาที่พบ *</label><input id="problem_desc" type="text" name="problem_desc" class="form-control" required placeholder="เช่น จอไม่ติด, พัดลมเสีย"></div>
+            <div class="form-group"><label for="repair_detail">รายละเอียดการซ่อม</label><textarea id="repair_detail" name="repair_detail" class="form-control" rows="3" placeholder="บรรยายรายละเอียดการซ่อม..."></textarea></div>
             <div class="form-row">
-                <div class="form-group"><label>ค่าใช้จ่าย (บาท)</label><input type="number" name="repair_cost" class="form-control" value="0" step="0.01" min="0"></div>
-                <div class="form-group"><label>บริษัท/ร้านซ่อม</label><input type="text" name="vendor" class="form-control" placeholder="ชื่อบริษัทหรือร้านซ่อม"></div>
+                <div class="form-group"><label for="repair_cost">ค่าใช้จ่าย (บาท)</label><input id="repair_cost" type="number" name="repair_cost" class="form-control" value="0" step="0.01" min="0"></div>
+                <div class="form-group"><label for="vendor">บริษัท/ร้านซ่อม</label><input id="vendor" type="text" name="vendor" class="form-control" placeholder="ชื่อบริษัทหรือร้านซ่อม"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>ช่างเทคนิค</label><input type="text" name="technician" class="form-control" placeholder="ชื่อช่าง"></div>
+                <div class="form-group"><label for="technician">ช่างเทคนิค</label><input id="technician" type="text" name="technician" class="form-control" placeholder="ชื่อช่าง"></div>
                 <div class="form-group" style="display:flex;align-items:center;padding-top:25px;">
                     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" name="warranty_claim" style="width:18px;height:18px;"> เบิกซ่อมภายใต้ประกัน</label>
                 </div>
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:15px;">
-                <button type="button" class="btn" style="background:#e2e8f0;" onclick="this.closest('.modal').classList.remove('show')">ยกเลิก</button>
+                <button type="button" class="btn" style="background:#e2e8f0;" onclick="this.closest('.modal').classList.remove('active')">ยกเลิก</button>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> บันทึก</button>
             </div>
         </form>
@@ -924,7 +930,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
 <!-- Modal: บันทึกการยืม -->
 <div id="addBorrowModal" class="modal">
     <div class="modal-content">
-        <div class="modal-header"><h2><i class="fas fa-hand-holding"></i> บันทึกการยืมอุปกรณ์</h2><button class="close-btn" onclick="this.closest('.modal').classList.remove('show')">&times;</button></div>
+        <div class="modal-header"><h2><i class="fas fa-hand-holding"></i> บันทึกการยืมอุปกรณ์</h2><button class="close-btn" onclick="this.closest('.modal').classList.remove('active')">&times;</button></div>
         <!-- Asset Info Banner -->
         <div style="background:#f0fff4;border:1px solid #9ae6b4;border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:12px;">
             <i class="fas fa-laptop" style="color:#38a169;font-size:1.4em;"></i>
@@ -936,8 +942,8 @@ $activeTab = $_GET['tab'] ?? 'repair';
         <form method="POST">
             <?php echo csrf_input(); ?>
             <input type="hidden" name="action" value="add_borrow">
-            <div class="form-group"><label>ผู้ยืม *</label>
-                <select name="borrower_id" class="form-control" required>
+            <div class="form-group"><label for="borrower_id">ผู้ยืม *</label>
+                <select id="borrower_id" name="borrower_id" class="form-control" required>
                     <option value="">-- เลือกผู้ยืม --</option>
                     <?php foreach ($users as $u): ?>
                     <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
@@ -945,19 +951,20 @@ $activeTab = $_GET['tab'] ?? 'repair';
                 </select>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>วันที่ยืม *</label><input type="date" name="borrow_date" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
-                <div class="form-group"><label>กำหนดคืน</label><input type="date" name="expected_return" class="form-control"></div>
+                <div class="form-group"><label for="borrow_date">วันที่ยืม *</label><input id="borrow_date" type="date" name="borrow_date" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
+                <div class="form-group"><label for="expected_return">กำหนดคืน</label><input id="expected_return" type="date" name="expected_return" class="form-control"></div>
             </div>
-            <div class="form-group"><label>วัตถุประสงค์</label><textarea name="purpose" class="form-control" rows="2" placeholder="เช่น ไปอบรม, ซ่อมบำรุง"></textarea></div>
-            <div class="form-group"><label>สภาพอุปกรณ์ตอนยืม</label>
-                <select name="condition_out" class="form-control">
+            <div class="form-group"><label for="borrow_location">สถานที่ยืมไป (Location) *</label><input id="borrow_location" type="text" name="borrow_location" class="form-control" required placeholder="เช่น บ้านที่ 25, Lab Room 301, ห้องประชุม 5"></div>
+            <div class="form-group"><label for="borrow_purpose">วัตถุประสงค์</label><textarea id="borrow_purpose" name="purpose" class="form-control" rows="2" placeholder="เช่น ไปอบรม, ซ่อมบำรุง, ฝึกอบรม"></textarea></div>
+            <div class="form-group"><label for="condition_out">สภาพอุปกรณ์ตอนยืม</label>
+                <select id="condition_out" name="condition_out" class="form-control">
                     <option value="good">Good - ดี</option>
                     <option value="fair">Fair - พอใช้</option>
                     <option value="poor">Poor - แย่</option>
                 </select>
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:15px;">
-                <button type="button" class="btn" style="background:#e2e8f0;" onclick="this.closest('.modal').classList.remove('show')">ยกเลิก</button>
+                <button type="button" class="btn" style="background:#e2e8f0;" onclick="this.closest('.modal').classList.remove('active')">ยกเลิก</button>
                 <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> บันทึกการยืม</button>
             </div>
         </form>
@@ -967,7 +974,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
 <!-- Modal: คืนอุปกรณ์ -->
 <div id="returnModal" class="modal">
     <div class="modal-content">
-        <div class="modal-header"><h2><i class="fas fa-undo"></i> บันทึกการคืนอุปกรณ์</h2><button class="close-btn" onclick="this.closest('.modal').classList.remove('show')">&times;</button></div>
+        <div class="modal-header"><h2><i class="fas fa-undo"></i> บันทึกการคืนอุปกรณ์</h2><button class="close-btn" onclick="this.closest('.modal').classList.remove('active')">&times;</button></div>
         <!-- Asset Info Banner -->
         <div style="background:#fffbeb;border:1px solid #f6e05e;border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:12px;">
             <i class="fas fa-undo" style="color:#d69e2e;font-size:1.4em;"></i>
@@ -980,9 +987,9 @@ $activeTab = $_GET['tab'] ?? 'repair';
             <?php echo csrf_input(); ?>
             <input type="hidden" name="action" value="return_asset">
             <input type="hidden" name="borrow_id" id="return_borrow_id">
-            <div class="form-group"><label>วันที่คืน *</label><input type="date" name="actual_return" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
-            <div class="form-group"><label>สภาพอุปกรณ์ตอนคืน</label>
-                <select name="condition_in" class="form-control">
+            <div class="form-group"><label for="actual_return">วันที่คืน *</label><input id="actual_return" type="date" name="actual_return" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
+            <div class="form-group"><label for="condition_in">สภาพอุปกรณ์ตอนคืน</label>
+                <select id="condition_in" name="condition_in" class="form-control">
                     <option value="good">Good - ดี</option>
                     <option value="fair">Fair - พอใช้</option>
                     <option value="poor">Poor - แย่</option>
@@ -990,7 +997,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
                 </select>
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:15px;">
-                <button type="button" class="btn" style="background:#e2e8f0;" onclick="this.closest('.modal').classList.remove('show')">ยกเลิก</button>
+                <button type="button" class="btn" style="background:#e2e8f0;" onclick="this.closest('.modal').classList.remove('active')">ยกเลิก</button>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> บันทึกการคืน</button>
             </div>
         </form>
@@ -1000,7 +1007,7 @@ $activeTab = $_GET['tab'] ?? 'repair';
 <!-- Modal: โอนย้าย -->
 <div id="addTransferModal" class="modal">
     <div class="modal-content">
-        <div class="modal-header"><h2><i class="fas fa-exchange-alt"></i> บันทึกการโอนย้าย</h2><button class="close-btn" onclick="this.closest('.modal').classList.remove('show')">&times;</button></div>
+        <div class="modal-header"><h2><i class="fas fa-exchange-alt"></i> บันทึกการโอนย้าย</h2><button class="close-btn" onclick="this.closest('.modal').classList.remove('active')">&times;</button></div>
         <!-- Asset Info Banner -->
         <div style="background:#ebf8ff;border:1px solid #90cdf4;border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:12px;">
             <i class="fas fa-exchange-alt" style="color:#3182ce;font-size:1.4em;"></i>
@@ -1012,18 +1019,18 @@ $activeTab = $_GET['tab'] ?? 'repair';
         <form method="POST">
             <?php echo csrf_input(); ?>
             <input type="hidden" name="action" value="add_transfer">
-            <div class="form-group"><label>วันที่โอนย้าย *</label><input type="date" name="transfer_date" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
+            <div class="form-group"><label for="transfer_date">วันที่โอนย้าย *</label><input id="transfer_date" type="date" name="transfer_date" class="form-control" value="<?= date('Y-m-d') ?>" required></div>
             <div class="form-row">
-                <div class="form-group"><label>จากผู้ใช้</label>
-                    <select name="from_user_id" class="form-control">
+                <div class="form-group"><label for="from_user_id">จากผู้ใช้</label>
+                    <select id="from_user_id" name="from_user_id" class="form-control">
                         <option value="">-- เลือก --</option>
                         <?php foreach ($users as $u): ?>
                         <option value="<?= $u['user_id'] ?>" <?= $asset['assigned_to']==$u['user_id']?'selected':'' ?>><?= htmlspecialchars($u['full_name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="form-group"><label>ไปยังผู้ใช้</label>
-                    <select name="to_user_id" class="form-control">
+                <div class="form-group"><label for="to_user_id">ไปยังผู้ใช้</label>
+                    <select id="to_user_id" name="to_user_id" class="form-control">
                         <option value="">-- เลือก --</option>
                         <?php foreach ($users as $u): ?>
                         <option value="<?= $u['user_id'] ?>"><?= htmlspecialchars($u['full_name']) ?></option>
@@ -1032,16 +1039,16 @@ $activeTab = $_GET['tab'] ?? 'repair';
                 </div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>จาก Location</label><input type="text" name="from_location" class="form-control" value="<?= htmlspecialchars($asset['location']??'') ?>"></div>
-                <div class="form-group"><label>ไปยัง Location</label><input type="text" name="to_location" class="form-control" placeholder="ห้อง/แผนก ปลายทาง"></div>
+                <div class="form-group"><label for="from_location">จาก Location</label><input id="from_location" type="text" name="from_location" class="form-control" value="<?= htmlspecialchars($asset['location']??'') ?>"></div>
+                <div class="form-group"><label for="to_location">ไปยัง Location</label><input id="to_location" type="text" name="to_location" class="form-control" placeholder="ห้อง/แผนก ปลายทาง"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>จากแผนก</label><input type="text" name="from_dept" class="form-control"></div>
-                <div class="form-group"><label>ไปยังแผนก</label><input type="text" name="to_dept" class="form-control"></div>
+                <div class="form-group"><label for="from_dept">จากแผนก</label><input id="from_dept" type="text" name="from_dept" class="form-control"></div>
+                <div class="form-group"><label for="to_dept">ไปยังแผนก</label><input id="to_dept" type="text" name="to_dept" class="form-control"></div>
             </div>
-            <div class="form-group"><label>เหตุผล</label><textarea name="reason" class="form-control" rows="2" placeholder="เหตุผลในการโอนย้าย..."></textarea></div>
+            <div class="form-group"><label for="transfer_reason">เหตุผล</label><textarea id="transfer_reason" name="reason" class="form-control" rows="2" placeholder="เหตุผลในการโอนย้าย..."></textarea></div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:15px;">
-                <button type="button" class="btn" style="background:#e2e8f0;" onclick="this.closest('.modal').classList.remove('show')">ยกเลิก</button>
+                <button type="button" class="btn" style="background:#e2e8f0;" onclick="this.closest('.modal').classList.remove('active')">ยกเลิก</button>
                 <button type="submit" class="btn" style="background:linear-gradient(135deg,#4299e1,#3182ce);color:white;"><i class="fas fa-save"></i> บันทึกการโอนย้าย</button>
             </div>
         </form>
@@ -1084,7 +1091,44 @@ function showTab(name) {
 
 function returnAsset(borrowId) {
     document.getElementById('return_borrow_id').value = borrowId;
-    document.getElementById('returnModal').classList.add('show');
+    openReturnModal();
+}
+
+// New modal opening functions
+function openAddRepairModal() {
+    const modal = document.getElementById('addRepairModal');
+    if (modal) {
+        modal.classList.add('active');
+    } else {
+        console.error('Modal addRepairModal not found');
+    }
+}
+
+function openAddBorrowModal() {
+    const modal = document.getElementById('addBorrowModal');
+    if (modal) {
+        modal.classList.add('active');
+    } else {
+        console.error('Modal addBorrowModal not found');
+    }
+}
+
+function openReturnModal() {
+    const modal = document.getElementById('returnModal');
+    if (modal) {
+        modal.classList.add('active');
+    } else {
+        console.error('Modal returnModal not found');
+    }
+}
+
+function openTransferModal() {
+    const modal = document.getElementById('addTransferModal');
+    if (modal) {
+        modal.classList.add('active');
+    } else {
+        console.error('Modal addTransferModal not found');
+    }
 }
 
 // Auto-select first populated tab on load
@@ -1093,7 +1137,7 @@ window.addEventListener('load', function() {
     showTab(initTab);
 });
 
-window.onclick = e => { if (e.target.classList.contains('modal')) e.target.classList.remove('show'); }
+window.onclick = e => { if (e.target.classList.contains('modal')) e.target.classList.remove('active'); }
 </script>
 </body>
 </html>

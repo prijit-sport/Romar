@@ -227,7 +227,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 </a>
             </li>
             <li class="breadcrumb-separator">›</li>
-<a href="users-management.php?profile_id=<?php echo $profileUserId; ?>">จัดการผู้ใช้งาน</a>
+<a href="users.php?profile_id=<?php echo $profileUserId; ?>">จัดการผู้ใช้งาน</a>
             <li class="breadcrumb-separator">›</li>
             <li class="breadcrumb-item active">
                 <?php echo htmlspecialchars($profileUser['full_name'] ?? $profileUser['username']); ?>

@@ -311,7 +311,7 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(15, 23, 42, 0);
     z-index: 999;
     align-items: center;
     justify-content: center;
@@ -328,7 +328,7 @@
 }
 
 .modal.show {
-    display: flex;
+    display: flex !important;
 }
 
 .modal-header {
@@ -338,12 +338,14 @@
     margin-bottom: 1rem;
 }
 
-.modal-close {
+.close-btn {
     background: none;
     border: none;
     font-size: 1.5rem;
     line-height: 1;
     cursor: pointer;
+    color: #718096;
+    padding: 0;
 }
 
 .modal-body {

@@ -26,7 +26,7 @@ $pageTitle = $pageTitle ?? SITE_NAME;
     <?php if (isLoggedIn()): ?>
     <script nonce="<?php echo htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8'); ?>" src="<?php echo BASE_URL; ?>assets/js/notificationsystem.js"></script>
     <?php endif; ?>
-    <script nonce="<?php echo htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8'); ?>" src="<?php echo BASE_URL; ?>assets/js/nav-toggle.js?v=1"></script>
+    <!-- nav-toggle.js removed (404 error) -->
     <script nonce="<?php echo htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8'); ?>">
     function isLoggedIn() {
         return <?php echo isset($_SESSION['user_id']) ? 'true' : 'false'; ?>;

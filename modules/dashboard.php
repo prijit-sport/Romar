@@ -504,17 +504,22 @@ include_once __DIR__ . '/../includes/sidebar.php';
             <?php endif; ?>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <?php ob_start(); ?>
-    <script>
+    <script nonce="<?php echo htmlspecialchars(csp_nonce()); ?>">
         // ===== PRG Guard =====
         if (window.history.replaceState) {
             window.history.replaceState(null, null, window.location.href);
         }
 
-// Toggle dropdown
-        function toggleNotifications() {
-            const dropdown = document.getElementById('notificationDropdown');
-            dropdown.classList.toggle('show');
-        }
+        // Toggle dropdown
+        document.getElementById('notification-button')?.addEventListener('click', e => {
+            e.stopPropagation();
+            document.getElementById('notification-dropdown')?.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => {
+            document.getElementById('notification-dropdown')?.classList.remove('show');
+        });
+
 
 // Close dropdown when clicking outside (prevents notification dropdown from closing prematurely)
         document.addEventListener('click', function(event) {

@@ -1,4 +1,4 @@
- <?php
+<?php
 return [
     // Navigation
     'nav.back_to_dashboard' => 'กลับไปที่หน้าแรกของ Romar',
@@ -16,6 +16,37 @@ return [
     'nav.sla' => 'ศูนย์ SLA',
     'nav.settings' => 'การตั้งค่า',
     'nav.logout' => 'ออกจากระบบ',
+
+    // Maintenance
+    'maintenance.page_title' => 'ซ่อมบำรุง',
+    'maintenance.subtitle' => 'ระบบจัดการการซ่อมบำรุงทรัพย์สิน',
+    'maintenance.stats.total_cost' => 'ค่าใช้จ่ายซ่อมทั้งหมด',
+    'maintenance.stats.total_repairs' => 'รายการซ่อมทั้งหมด',
+    'maintenance.stats.monthly_cost' => 'ค่าใช้จ่ายรายเดือน',
+    'maintenance.stats.open_repairs' => 'ซ่อมค้าง',
+    'maintenance.form.new_title' => 'บันทึกการซ่อมใหม่',
+    'maintenance.form.asset' => 'ทรัพย์สิน',
+    'maintenance.form.select_asset' => 'เลือกทรัพย์สิน',
+    'maintenance.form.repair_date' => 'วันที่ซ่อม',
+    'maintenance.form.problem' => 'ปัญหา',
+    'maintenance.form.problem_placeholder' => 'อธิบายปัญหาที่พบ',
+    'maintenance.form.status' => 'สถานะ',
+    'maintenance.form.technician' => 'ช่างเทคนิค',
+    'maintenance.form.vendor' => 'ผู้ขาย/ร้านค้า',
+    'maintenance.form.cost' => 'ค่าใช้จ่าย',
+    'maintenance.form.warranty_claim' => 'เคลมการรับประกัน',
+    'maintenance.form.submit' => 'บันทึกการซ่อม',
+    'maintenance.search.placeholder' => 'ค้นหา...',
+    'maintenance.search.status' => 'สถานะ',
+    'maintenance.search.date_from' => 'วันที่เริ่ม',
+    'maintenance.search.date_to' => 'วันที่สิ้นสุด',
+    'maintenance.search.filter_clear' => 'ล้างตัวกรอง',
+    'maintenance.no_results' => 'ไม่พบข้อมูลการซ่อม',
+    'maintenance.status.in_progress' => 'กำลังดำเนินการ',
+    'maintenance.status.completed' => 'เสร็จสิ้น',
+    'maintenance.status.pending' => 'รออะไหล่',
+    'maintenance.confirm.delete' => 'ยืนยันการลบข้อมูลการซ่อมนี้',
+    'maintenance.pagination.page' => 'หน้า %1$d จาก %2$d',
 
     // Page headings
     'page.title.dashboard' => 'แดชบอร์ดฝ่ายสนับสนุนไอที',

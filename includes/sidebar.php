@@ -31,6 +31,11 @@ $isAdmin = isAdmin();
                     <i class="fas fa-box"></i> <?php echo ui_text('nav.assets'); ?>
                 </a>
             </li>
+            <li class="<?php echo $activePage === 'maintenance' ? 'active' : ''; ?>">
+                <a href="<?php echo BASE_URL; ?>modules/maintenance.php">
+                    <i class="fas fa-tools"></i> ซ่อมบำรุง
+                </a>
+            </li>
             <li class="<?php echo $activePage === 'knowledgebase' ? 'active' : ''; ?>"> 
                 <a href="<?php echo BASE_URL; ?>modules/Knowledgebase.php">
                     <i class="fas fa-book"></i> <?php echo ui_text('nav.knowledgebase'); ?>
@@ -38,8 +43,8 @@ $isAdmin = isAdmin();
             </li>
             <?php if ($isAdmin): ?>
                 <li class="menu-section"><?php echo ui_text('nav.section.admin'); ?></li>
-                <li class="<?php echo $activePage === 'users-management' ? 'active' : ''; ?>">
-                        <a href="<?php echo BASE_URL; ?>modules/users-management.php">
+                <li class="<?php echo $activePage === 'users' ? 'active' : ''; ?>">
+                        <a href="<?php echo BASE_URL; ?>modules/users.php">
                             <i class="fas fa-users"></i> ผู้ใช้งาน
                         </a>
                 </li>

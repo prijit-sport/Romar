@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get IT team members
 $itTeam = $db->query("SELECT user_id, full_name FROM users WHERE role IN ('admin', 'it_support') AND status = 'active' ORDER BY full_name")->fetch_all(MYSQLI_ASSOC);
 
-function calculateSLA($priority, $impact) {
+function calculateSLA(string $priority, string $impact) {
     $slaMatrix = [
         'urgent' => ['critical' => 2, 'high' => 4, 'medium' => 8, 'low' => 16],
         'high' => ['critical' => 4, 'high' => 8, 'medium' => 16, 'low' => 24],
@@ -127,7 +127,7 @@ function calculateSLA($priority, $impact) {
 
 // ✅ แก้ไขให้ตรงกับ structure จริงของตาราง ticket_timeline
 // Structure: id, ticket_id, event_type, description, user_id, created_at
-function addTimeline($db, $ticketId, $eventType, $description) {
+function addTimeline(mysqli $db, int $ticketId, string $eventType, string $description) {
     $stmt = $db->prepare("INSERT INTO ticket_timeline (ticket_id, event_type, description, user_id, created_at) VALUES (?, ?, ?, ?, NOW())");
     $stmt->bind_param('issi', $ticketId, $eventType, $description, $_SESSION['user_id']);
     return $stmt->execute();

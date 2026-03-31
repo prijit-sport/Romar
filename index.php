@@ -1,17 +1,32 @@
-﻿<?php
-require_once __DIR__ . '/config/config.php';
+﻿ำ?php
+// Emergency Recovery: Robust index.php - bypasses broken require chain
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-// Strict headers for entry page.
+// Inline security headers (safe)
 header("X-Frame-Options: SAMEORIGIN");
 header("X-Content-Type-Options: nosniff");
 header("Referrer-Policy: strict-origin-when-cross-origin");
-header("Content-Security-Policy: default-src 'self'; frame-ancestors 'self'");
 
-// ถ้า Login แล้ว ไป Dashboard
-if (isLoggedIn()) {
-    redirect(getCurrentUserRole() === 'admin' ? 'admin/dashboard.php' : 'modules/dashboard.php');
+// Inline critical functions (bypass functions.php dependency)
+$isLoggedIn = isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+$userRole = $_SESSION['role'] ?? 'user';
+
+// Graceful redirect logic
+$target = '';
+if ($isLoggedIn) {
+    $target = ($userRole === 'admin') ? 'admin/dashboard.php' : 'modules/dashboard.php';
 } else {
-    // ถ้ายังไม่ Login ไปหน้า Login
-    redirect('auth/login.php');
+    $target = 'auth/login.php';
 }
+
+// Use BASE_URL if defined, fallback to relative
+if (defined('BASE_URL')) {
+    header("Location: " . BASE_URL . ltrim($target, '/'));
+} else {
+    header("Location: " . $target);
+}
+exit;
 ?>
+

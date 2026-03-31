@@ -1,0 +1,28 @@
+# Claude AI Rules for this project
+# This file customizes how Claude behaves in this workspace
+# Similar to Cursor's .cursorrules
+
+## Code Style
+- Use TypeScript strict mode
+- Prefer functional components in React
+- Use async/await instead of promises.then()
+- Add JSDoc comments to all exported functions
+
+## Framework-Specific
+- This is a Next.js project, use App Router conventions
+- Use Server Components by default, Client Components only when needed
+- Use Tailwind CSS for styling
+
+## Best Practices
+- Write tests for all new features
+- Follow the existing folder structure in src/
+- Use meaningful variable names
+- Keep functions small and focused
+
+## Restrictions
+- Never use 'any' type in TypeScript
+- Don't install new packages without asking
+- Always show diff preview before applying changes
+
+## Custom Instructions
+# Add your own rules here...
