@@ -13,6 +13,26 @@ if (file_exists(__DIR__ . '/../config/config.php')) {
 
 require_once __DIR__ . '/i18n.php';
 
+// Load validation helper functions
+if (file_exists(__DIR__ . '/validation.php')) {
+    require_once __DIR__ . '/validation.php';
+}
+
+// Load backup helper functions
+if (file_exists(__DIR__ . '/backup_helpers.php')) {
+    require_once __DIR__ . '/backup_helpers.php';
+}
+
+// Load safe variable access helpers
+if (file_exists(__DIR__ . '/safe_access.php')) {
+    require_once __DIR__ . '/safe_access.php';
+}
+
+// Load logging & monitoring system
+if (file_exists(__DIR__ . '/logger.php')) {
+    require_once __DIR__ . '/logger.php';
+}
+
 /**
  * Verify user login
  */

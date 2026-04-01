@@ -32,11 +32,6 @@ $messageType = '';
 
 // Handle Add/Edit/Delete User
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    if (isset($_GET['debug'])) {
-        $message_debug = 'POST OK. Action: ' . $_POST['action'] . ' CSRF match: ' . (($_POST['csrf_token'] ?? 'NO') === $_SESSION['csrf_token'] ? 'YES' : 'NO') . ' DB errno: ' . $db->errno;
-        $messageType = 'info';
-        $message .= $message_debug;
-    }
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         $message = 'Invalid CSRF token';
         $messageType = 'error';

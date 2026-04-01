@@ -86,6 +86,7 @@ return [
     'notification.header' => 'การแจ้งเตือนล่าสุด',
     'notification.mark_all' => 'ทำเครื่องหมายอ่านทั้งหมด',
     'notification.empty' => 'ไม่มีแจ้งเตือนใหม่ใน 7 วัน',
+    'notification.loading' => 'กำลังโหลดการแจ้งเตือน...',
     'toast.notifications_marked' => 'ทำเครื่องหมายแจ้งเตือนทั้งหมดแล้ว',
     'toast.notifications_mark_error' => 'เกิดข้อผิดพลาด กรุณาลองใหม่',
     'toast.server_unreachable' => 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
