@@ -23,6 +23,9 @@ jobs:
           php-version: '8.2'
           extensions: mbstring, mysqli
 
+      - name: Deploy Preflight
+        run: php scripts/ops/deploy_preflight.php
+
       - name: PHP Lint
         run: |
           set -e
@@ -50,3 +53,4 @@ jobs:
       - name: E2E DB Flow (optional)
         continue-on-error: true
         run: php tests/e2e_db_flow.php
+

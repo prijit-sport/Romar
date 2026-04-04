@@ -163,9 +163,14 @@ function runSecurityChecks(string $root): array
             && !empty(readFileSafe($root . '/tests/security_alert_check.php')),
     ];
 
-    $checks[] = [
+$checks[] = [
         'name' => 'Deploy preflight script exists',
         'pass' => !empty(readFileSafe($root . '/scripts/ops/deploy_preflight.php')),
+    ];
+
+$checks[] = [
+        'name' => 'Deploy workflow exists',
+        'pass' => !empty(readFileSafe($root . '/.github/workflows/deploy.yml')),
     ];
 
     $checks[] = [
