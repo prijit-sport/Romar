@@ -1151,9 +1151,15 @@ a {
   height: 0 !important;
 }
 
+.modal-body::-webkit-scrollbar-track {
+  background: var(--border-light);
+  border-radius: 3px;
+}
 
-
-
+.modal-body::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+}
 
 .modal-body::-webkit-scrollbar-thumb:hover {
   background: var(--text-dark);
