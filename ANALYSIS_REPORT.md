@@ -34,7 +34,7 @@ Romar/
 | Feature | Status | Description |
 |---------|--------|-------------|
 | User Management | ✅ Complete | Admin/Staff/User roles |
-| IT Tickets | ✅ Complete | Full ticket lifecycle with SLA |
+| แจ้งปัญหาการใช้งาน IT | ✅ Complete | Full ticket lifecycle with SLA |
 | Assets Management | ✅ Complete | Asset tracking, repairs, borrows |
 | Meeting Rooms | ✅ Complete | Room booking system |
 | Announcements | ✅ Complete | Priority-based announcements |

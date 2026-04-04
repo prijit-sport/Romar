@@ -168,86 +168,432 @@ $documents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>เอกสาร - Romar</title>
+    <title>เอกสารของฉัน - Romar</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../includes/admin-theme.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --sidebar-width: 260px;
+            --card-radius: 1.25rem;
+            --card-shadow: 0 25px 45px rgba(15, 23, 42, 0.15);
+        }
+        body { margin: 0; font-family: 'Sarabun', sans-serif; background: linear-gradient(180deg, #f5f7ff 0%, #e2e8fb 60%, #dbeafe 100%); color: #0f172a; min-height: 100vh; }
+        .main-content { margin-left: var(--sidebar-width); padding: clamp(1.25rem, 3vw, 2.75rem); display: flex; justify-content: center; }
+        .content-wrapper { width: 100%; max-width: 1260px; }
+        .page-header { background: #ffffff; border-radius: var(--card-radius); padding: 1.35rem 1.75rem; box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12); display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .page-title-block { display: flex; align-items: flex-start; gap: 1rem; }
+        .page-icon { width: 60px; height: 60px; border-radius: 1rem; background: linear-gradient(135deg, #1a3edc, #0b2c73); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 2rem; }
+        .page-title-block h1 { margin: 0; font-size: 2rem; font-weight: 700; }
+        .page-title-block .page-description { margin: 0.25rem 0 0; color: #475569; font-weight: 500; }
+        .btn-primary { background: linear-gradient(135deg, #1a3edc, #0b2c73) !important; }
+        @media (max-width: 768px) { .sidebar { position: relative; width: 100%; } .main-content { margin-left: 0; } }
+    </style>
+    <style>
+        .page-title-block {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
 
-        body {
+        .page-icon {
+            font-size: 2rem;
+        }
+
+        .doc-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            transition: all 0.25s ease;
+            border: 1px solid var(--border-faint);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .doc-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 30px 60px rgba(15, 23, 42, 0.18);
+        }
+
+        .doc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 1rem;
+        }
+
+        .doc-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            word-break: break-word;
+        }
+
+        .doc-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .doc-description {
+            color: var(--text-muted);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .doc-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .doc-actions .btn {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .empty-state {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            border: 1px dashed var(--border-light);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-category {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--blue);
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .filter-btn {
+            display: inline-block;
+            padding: 0.6rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border-faint);
+            border-radius: var(--radius-md);
+            color: var(--text-dark);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .filter-btn:hover {
+            background: rgba(29, 78, 216, 0.1);
+            border-color: var(--blue);
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, var(--blue), var(--navy));
+            color: white;
+            border-color: var(--blue);
+        }
+
+        .search-section {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-faint);
+            margin-bottom: 1.5rem;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
             font-family: 'Sarabun', sans-serif;
-            background: #065f159c;
-            color: #ffffff;
+            background: var(--card-bg);
+            color: var(--text-dark);
+            font-size: 0.95rem;
         }
 
-        .container { display: flex; min-height: 100vh; }
+        .search-input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+        }
 
-        /* Sidebar */
-        .sidebar {
-            width: 260px;
-            background: linear-gradient(180deg, #10ce30 0%, #000000 100%);
+        .clear-search {
+            position: absolute;
+            right: 1rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            display: none;
+            font-size: 1.2rem;
+        }
+
+        .clear-search.show {
+            display: block;
+        }
+
+        .clear-search:hover {
+            color: var(--text-dark);
+        }
+
+        .modal {
+            display: none;
             position: fixed;
-            left: 0; top: 0;
-            height: 100vh;
-            overflow-y: auto;
-            box-shadow: 2px 0 10px rgb(0,0,0);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
             z-index: 1000;
-        }
-        .sidebar-brand {
-            padding: 25px 20px;
-            border-bottom: 1px solid rgb(255,255,255);
-            display: flex; align-items: center; gap: 15px; color: white;
-        }
-        .brand-icon  { font-size: 2em; }
-        .brand-name  { font-size: 1.5em; font-weight: 700; }
-        .brand-subtitle {
-            color: #000000;
-            font-size: 1em;
-            opacity: 0.8;
-        }
-        .sidebar-nav ul { list-style: none; padding: 0; margin: 0; }
-        .sidebar-nav a {
-            display: flex; align-items: center; gap: 12px;
-            padding: 14px 20px;
-            color: rgb(255,255,255); text-decoration: none;
-            transition: all 0.3s;
-        }
-        .sidebar-nav a:hover { background: rgba(255,255,255,0.1); color: white; }
-        .sidebar-nav li.active a {
-            background: rgba(255,255,255,0.15); color: white;
-            border-left: 4px solid #000000;
-        }
-        .menu-section {
-            padding: 20px 20px 10px;
-            color: rgb(255,255,255);
-            font-size: 0.75em; text-transform: uppercase;
-            letter-spacing: 1px; font-weight: 600;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* Main */
-        .main-content { flex: 1; margin-left: 260px; padding: 30px; }
-
-        /* Page Header */
-        .page-header {
-            background: white;
-            padding: 25px 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgb(0,0,0);
-            margin-bottom: 25px;
-            display: flex; justify-content: space-between; align-items: center;
+        .modal.active {
+            display: flex;
         }
-        .page-header h1 { font-size: 1.8em; color: #000000; font-weight: 600; }
-        .user-info { display: flex; align-items: center; gap: 15px; }
-        .user-avatar {
-            width: 45px; height: 45px; border-radius: 50%;
-            background: linear-gradient(135deg, #10ce30 0%, #000000 100%);
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: 600; font-size: 1.2em;
-        }
-        .user-details { text-align: right; }
-        .user-name { font-weight: 600; color: #e2d51a; }
-        .user-role  { font-size: 0.85em; color: #000000; }
 
-        /* Category Filters */
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-faint);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: color 0.2s ease;
+        }
+
+        .modal-close:hover {
+            color: #ef4444;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            font-size: 0.95rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            font-family: 'Sarabun', sans-serif;
+            background: var(--card-bg);
+            color: var(--text-dark);
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+        }
+
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .form-check input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .form-check label {
+            cursor: pointer;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .docs-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .search-row {
+                flex-direction: column;
+            }
+
+            .search-box {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">🏢</div>
+                <div>
+                    <div class="brand-name">Romar</div>
+                    <div class="brand-subtitle">Dormitory</div>
+                </div>
+            </div>
+
+            <div class="nav-wrapper">
+                <nav class="sidebar-nav">
+                    <ul>
+                        <li class="<?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>">
+                            <a href="dashboard.php">📊 Dashboard</a>
+                        </li>
+
+                        <?php if ($user['role'] === 'admin'): ?>
+                        <li class="menu-section">การจัดการ</li>
+                        <li class="<?php echo $current_page == 'meeting-rooms.php' ? 'active' : ''; ?>">
+                            <a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a>
+                        </li>
+                        <li class="<?php echo $current_page == 'documents.php' ? 'active' : ''; ?>">
+                            <a href="documents.php">📄 จัดการเอกสาร</a>
+                        </li>
+                        <?php endif; ?>
+
+                        <li class="menu-section">ฟีเจอร์</li>
+                        <li class="<?php echo $current_page == 'room-booking.php' ? 'active' : ''; ?>">
+                            <a href="room-booking.php">📅 จองห้องประชุม</a>
+                        </li>
+                        <li class="<?php echo $current_page == 'announcements.php' ? 'active' : ''; ?>">
+                            <a href="announcements.php">📢 ข่าวสาร</a>
+                        </li>
+                        <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                            <a href="../modules/tickets.php">🎫 IT Tickets</a>
+                        </li>
+                        <?php if ($user['role'] !== 'admin'): ?>
+                        <li class="active">
+                            <a href="userdocuments.php">📄 เอกสาร</a>
+                        </li>
+                        <?php endif; ?>
+
+                        <li class="menu-section">ระบบ</li>
+                        <li class="<?php echo $current_page == 'settings.php' ? 'active' : ''; ?>">
+                            <a href="settings.php">⚙️ ตั้งค่า</a>
+                        </li>
+                        <li>
+                            <a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">🚪 ออกจากระบบ</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="content-wrapper">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="page-title-block">
+                        <div class="page-icon">📄</div>
+                        <div>
+                            <h1>เอกสารของฉัน</h1>
+                            <p class="page-subtitle"><?php echo number_format(count($documents)); ?> เอกสารทั้งหมด</p>
+                        </div>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-details">
+                            <div class="user-name"><?php echo htmlspecialchars($user['full_name']); ?></div>
+                            <div class="user-role"><?php echo $user['role'] === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'; ?></div>
+                        </div>
+                        <div class="user-avatar">
+                            <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
+                        </div>
+                    </div>
+                </div>
         .filters {
             background: linear-gradient(135deg, #10ce30 0%, #000000 100%);
             padding: 20px 25px;

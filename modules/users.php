@@ -44,43 +44,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $phone = sanitize($_POST['phone'] ?? '');
             $department = sanitize($_POST['department'] ?? '');
             $position = sanitize($_POST['position'] ?? '');
-            $role = sanitize($_POST['role']); 
+            $role = sanitize($_POST['role']);
 
-            if ($username === '' || $passwordRaw === '' || $fullName === '' || $email === '' || $role === '') {
-                $message = 'กรุณากรอกข้อมูลให้ครบถ้วน';
-                $messageType = 'error';
-            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $message = 'รูปแบบ Email ไม่ถูกต้อง';
-                $messageType = 'error';
-            } elseif (!in_array($role, ['user', 'staff', 'admin', 'it_support'], true)) {
-                $message = 'บทบาทไม่ถูกต้อง';
+            $validation = validate_batch([
+                'username' => ['value' => $username, 'type' => 'username'],
+                'full_name' => ['value' => $fullName, 'type' => 'string', 'minLen' => 2, 'maxLen' => 100],
+                'email' => ['value' => $email, 'type' => 'email'],
+                'role' => ['value' => $role, 'type' => 'role'],
+                'phone' => ['value' => $phone, 'type' => 'phone', 'required' => false],
+                'department' => ['value' => $department, 'type' => 'string', 'required' => false, 'maxLen' => 100],
+                'position' => ['value' => $position, 'type' => 'string', 'required' => false, 'maxLen' => 100],
+            ]);
+
+            if (!$validation['valid']) {
+                $message = implode(' | ', array_unique($validation['errors']));
                 $messageType = 'error';
             } else {
-                $checkStmt = $db->prepare("SELECT user_id FROM users WHERE username = ? OR email = ? LIMIT 1");
-                $checkStmt->bind_param('ss', $username, $email);
-                $checkStmt->execute();
-                $exists = $checkStmt->get_result()->fetch_assoc();
-                $checkStmt->close();
-
-                if ($exists) {
-                    $message = 'Username หรือ Email นี้ถูกใช้งานแล้ว';
+                $passwordResult = validate_password($passwordRaw);
+                if (!$passwordResult['valid']) {
+                    $message = $passwordResult['error'];
                     $messageType = 'error';
                 } else {
-                    $password = password_hash($passwordRaw, PASSWORD_DEFAULT);
-                    $stmt = $db->prepare("INSERT INTO users (username, password, full_name, email, phone, department, position, role, status, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, NOW())");
-                    if (!$stmt || !$stmt->bind_param('ssssssss', $username, $password, $fullName, $email, $phone, $department, $position, $role)) {
-                        $message = 'SQL Prepare/Bind failed: ' . $db->error;
+                    $checkStmt = $db->prepare("SELECT user_id FROM users WHERE username = ? OR email = ? LIMIT 1");
+                    $checkStmt->bind_param('ss', $username, $email);
+                    $checkStmt->execute();
+                    $exists = $checkStmt->get_result()->fetch_assoc();
+                    $checkStmt->close();
+
+                    if ($exists) {
+                        $message = 'Username หรือ Email นี้ถูกใช้งานแล้ว';
                         $messageType = 'error';
-                        error_log("Users add prepare/bind error: " . $db->error);
-                    } elseif ($stmt->execute()) {
-                        $message = 'เพิ่มผู้ใช้สำเร็จ!';
-                        $messageType = 'success';
-                        logActivity($_SESSION['user_id'], 'เพิ่มผู้ใช้ใหม่', 'Users', "เพิ่มผู้ใช้: $username");
                     } else {
-                        $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
-                        $messageType = 'error';
+                        $password = password_hash($passwordRaw, PASSWORD_DEFAULT);
+                        $stmt = $db->prepare("INSERT INTO users (username, password, full_name, email, phone, department, position, role, status, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, NOW())");
+                        if (!$stmt || !$stmt->bind_param('ssssssss', $username, $password, $fullName, $email, $phone, $department, $position, $role)) {
+                            $message = 'SQL Prepare/Bind failed: ' . $db->error;
+                            $messageType = 'error';
+                            error_log("Users add prepare/bind error: " . $db->error);
+                        } elseif ($stmt->execute()) {
+                            $message = 'เพิ่มผู้ใช้สำเร็จ!';
+                            $messageType = 'success';
+                            logActivity($_SESSION['user_id'], 'เพิ่มผู้ใช้ใหม่', 'Users', "เพิ่มผู้ใช้: $username");
+                        } else {
+                            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+                            $messageType = 'error';
+                        }
+                        $stmt->close();
                     }
-                    $stmt->close();
                 }
             }
         } elseif ($_POST['action'] === 'edit') {
@@ -95,56 +105,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $isActive = isset($_POST['is_active']) ? 1 : 0;
             $newPassword = $_POST['password'] ?? '';
 
-            if ($userId <= 0 || $username === '' || $fullName === '' || $email === '' || $role === '') {
-                $message = 'กรุณากรอกข้อมูลให้ครบถ้วน';
-                $messageType = 'error';
-            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $message = 'รูปแบบ Email ไม่ถูกต้อง';
-                $messageType = 'error';
-            } elseif (!in_array($role, ['user', 'staff', 'admin', 'it_support'], true)) {
-                $message = 'บทบาทไม่ถูกต้อง';
+            if ($userId <= 0) {
+                $message = 'ข้อมูลผู้ใช้ไม่ถูกต้อง';
                 $messageType = 'error';
             } else {
-                $checkStmt = $db->prepare("SELECT user_id FROM users WHERE (username = ? OR email = ?) AND user_id != ? LIMIT 1");
-                $checkStmt->bind_param('ssi', $username, $email, $userId);
-                $checkStmt->execute();
-                $exists = $checkStmt->get_result()->fetch_assoc();
-                $checkStmt->close();
+                $validation = validate_batch([
+                    'username' => ['value' => $username, 'type' => 'username'],
+                    'full_name' => ['value' => $fullName, 'type' => 'string', 'minLen' => 2, 'maxLen' => 100],
+                    'email' => ['value' => $email, 'type' => 'email'],
+                    'role' => ['value' => $role, 'type' => 'role'],
+                    'phone' => ['value' => $phone, 'type' => 'phone', 'required' => false],
+                    'department' => ['value' => $department, 'type' => 'string', 'required' => false, 'maxLen' => 100],
+                    'position' => ['value' => $position, 'type' => 'string', 'required' => false, 'maxLen' => 100],
+                ]);
 
-                if ($exists) {
-                    $message = 'Username หรือ Email นี้ถูกใช้งานแล้ว';
+                if (!$validation['valid']) {
+                    $message = implode(' | ', array_unique($validation['errors']));
                     $messageType = 'error';
                 } else {
-                    $updateFields = "username = ?, full_name = ?, email = ?, phone = ?, department = ?, position = ?, role = ?, status = 'active', is_active = ?";
-                    $types = 'ssssssssi';
-                    $params = [$username, $fullName, $email, $phone, $department, $position, $role, $isActive];
-                    
+                    $passwordToHash = null;
                     if ($newPassword !== '') {
-                        $password = password_hash($newPassword, PASSWORD_DEFAULT);
-                        $updateFields .= ", password = ?";
-                        $types .= 's';
-                        $params[] = $password;
+                        $passwordResult = validate_password($newPassword);
+                        if (!$passwordResult['valid']) {
+                            $message = $passwordResult['error'];
+                            $messageType = 'error';
+                        } else {
+                            $passwordToHash = password_hash($newPassword, PASSWORD_DEFAULT);
+                        }
                     }
-                    $params[] = $userId;
-                    
-                    $stmt = $db->prepare("UPDATE users SET $updateFields WHERE user_id = ?");
-                    if (!$stmt || !$stmt->bind_param($types, ...$params)) {
-                        $message = 'SQL Prepare/Bind failed: ' . $db->error;
-                        $messageType = 'error';
-                        error_log("Users edit prepare/bind error: " . $db->error);
-                    } elseif ($stmt->execute()) {
-                        $message = 'แก้ไขผู้ใช้สำเร็จ!';
-                        $messageType = 'success';
-logActivity($_SESSION['user_id'], 'แก้ไขข้อมูลผู้ใช้', 'Users', "แก้ไขผู้ใช้: $username (ID: $userId)");
-if (isset($_GET['profile_id']) && (int)$_GET['profile_id'] === $userId) {
-    header('Location: userProfile.php?id=' . $userId);
-    exit;
-}
-                    } else {
-                        $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
-                        $messageType = 'error';
+
+                    if ($messageType !== 'error') {
+                        $checkStmt = $db->prepare("SELECT user_id FROM users WHERE (username = ? OR email = ?) AND user_id != ? LIMIT 1");
+                        $checkStmt->bind_param('ssi', $username, $email, $userId);
+                        $checkStmt->execute();
+                        $exists = $checkStmt->get_result()->fetch_assoc();
+                        $checkStmt->close();
+
+                        if ($exists) {
+                            $message = 'Username หรือ Email นี้ถูกใช้งานแล้ว';
+                            $messageType = 'error';
+                        } else {
+                            $updateFields = "username = ?, full_name = ?, email = ?, phone = ?, department = ?, position = ?, role = ?, status = 'active', is_active = ?";
+                            $types = 'ssssssssi';
+                            $params = [$username, $fullName, $email, $phone, $department, $position, $role, $isActive];
+
+                            if ($passwordToHash !== null) {
+                                $updateFields .= ", password = ?";
+                                $types .= 's';
+                                $params[] = $passwordToHash;
+                            }
+                            $params[] = $userId;
+
+                            $stmt = $db->prepare("UPDATE users SET $updateFields WHERE user_id = ?");
+                            if (!$stmt || !$stmt->bind_param($types, ...$params)) {
+                                $message = 'SQL Prepare/Bind failed: ' . $db->error;
+                                $messageType = 'error';
+                                error_log("Users edit prepare/bind error: " . $db->error);
+                            } elseif ($stmt->execute()) {
+                                $message = 'แก้ไขผู้ใช้สำเร็จ!';
+                                $messageType = 'success';
+                                logActivity($_SESSION['user_id'], 'แก้ไขข้อมูลผู้ใช้', 'Users', "แก้ไขผู้ใช้: $username (ID: $userId)");
+                                if (isset($_GET['profile_id']) && (int)$_GET['profile_id'] === $userId) {
+                                    header('Location: userProfile.php?id=' . $userId);
+                                    exit;
+                                }
+                            } else {
+                                $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+                                $messageType = 'error';
+                            }
+                            $stmt->close();
+                        }
                     }
-                    $stmt->close();
                 }
             }
         } elseif ($_POST['action'] === 'delete') {

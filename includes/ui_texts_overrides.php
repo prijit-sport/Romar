@@ -51,10 +51,10 @@ return [
     // Dashboard - Full coverage for ALL sections
     'dashboard.assets.section.title' => 'IT Assets ภาพรวม',
     'dashboard.assets.section.subtitle' => 'สรุปประเภท สถานะ และการใช้งานทรัพย์สิน IT ขององค์กร',
-    'dashboard.tickets.section.title' => 'IT Tickets แยกตามหมวดหมู่',
+    'dashboard.tickets.section.title' => 'แจ้งปัญหาการใช้งาน IT แยกตามหมวดหมู่',
     'dashboard.tickets.section.subtitle' => 'สรุปตั๋วตามประเภทปัญหาและสถานะ SLA',
     'dashboard.assets.empty' => 'ยังไม่มีข้อมูลทรัพย์สินในระบบ',
-    'dashboard.tickets.empty' => 'ยังไม่มีตั๋วในระบบ',
+    'dashboard.tickets.empty' => 'ยังไม่มีการแจ้งปัญหาการใช้งานในระบบ',
     'dashboard.assets_status' => 'สถานะทรัพย์สิน',
     'dashboard.tickets_status' => 'สถานะ Tickets',
     'dashboard.tickets_priority' => 'ตั๋วตามระดับความสำคัญ',

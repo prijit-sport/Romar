@@ -88,7 +88,7 @@ return [
     'dashboard.view_tickets_btn' => 'ดูตั๋วทั้งหมด',
 
     // Buttons
-    'button.create_ticket' => 'สร้างตั๋วใหม่',
+    'button.create_ticket' => 'แจ้งปัญหา',
     'button.create_article' => 'บทความใหม่',
     'button.export_excel' => 'ส่งออก Excel',
     'button.save_settings' => 'บันทึกการตั้งค่า',
@@ -203,8 +203,8 @@ return [
     'tickets.category.other' => 'อื่น ๆ',
     'tickets.category.printer' => 'เครื่องพิมพ์',
     'tickets.category.email' => 'อีเมล',
-    'tickets.empty.title' => 'ยังไม่มีตั๋ว',
-    'tickets.empty.body' => 'สร้างตั๋วเพื่อเติมข้อมูลในมุมมองนี้',
+    'tickets.empty.title' => 'ยังไม่มีการแจ้งปัญหาการใช้งาน IT',
+    'tickets.empty.body' => '',
     'tickets.read_more' => 'อ่านเพิ่มเติม',
     'tickets.table.comments' => 'ความคิดเห็น',
     'tickets.table.hours' => 'ชม.',
@@ -213,7 +213,7 @@ return [
     'tickets.sla.warning' => 'ใกล้ครบกำหนด (%s ชม. ที่เหลือ)',
     'tickets.sla.remaining' => '%s ชั่วโมงที่เหลือ',
     'tickets.sla.closed' => 'ปิดแล้ว',
-    'tickets.form.create_title' => 'สร้างตั๋วใหม่',
+    'tickets.form.create_title' => 'แจ้งปัญหา',
     'tickets.form.title' => 'หัวข้อ',
     'tickets.form.title_placeholder' => 'กรอกหัวข้อสั้น ๆ',
     'tickets.form.category' => 'หมวดหมู่ปัญหา',
@@ -238,7 +238,7 @@ return [
     'tickets.form.attachments' => 'ไฟล์แนบ (ไม่บังคับ)',
     'tickets.form.attachments_help' => 'คลิกหรือวางไฟล์เพื่ออัปโหลด',
     'tickets.form.attachments_note' => 'รองรับ JPG, PNG, PDF, DOC, XLS (สูงสุด 10MB)',
-    'tickets.form.submit' => 'สร้างตั๋วใหม่',
+    'tickets.form.submit' => 'แจ้งปัญหา',
     'tickets.form.cancel' => 'ยกเลิก',
 
     'assetsreports.section.filters' => 'ตัวกรอง',

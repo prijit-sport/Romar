@@ -282,3 +282,12 @@ foreach ($tests as $test) {
 2. Replace manual validation with these functions
 3. Convert POST handlers to use `validate_batch()`
 4. Add validation logging for security audit
+
+## Session & Form Audit
+
+The new `tests/session_form_audit.php` script is a CLI helper that checks:
+
+- Every admin/module/api/`index.php` entry point guards `session_start()` by inspecting `session_status()` before sending output.
+- Each POST `<form>` rendered in these files includes either `csrf_input()`, a hidden `csrf_token`, or an explicit `csrf_token()` call.
+
+Run it from the repo root with `php tests/session_form_audit.php`. The script exits with `0` when both checks pass and lists offending files when the guard or CSRF coverage is missing, helping developers keep sessions and CSRF handling consistent without manual inspection.

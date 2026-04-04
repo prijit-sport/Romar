@@ -617,11 +617,14 @@ include_once __DIR__ . '/../includes/sidebar.php';
             <!-- Tickets Grid -->
             <div class="tickets-grid">
                 <?php if (empty($tickets)): ?>
-                <div class="empty-state">
-                    <i class="fas fa-inbox"></i>
-                    <h3><?php echo ui_text('tickets.empty.title'); ?></h3>
-                    <p><?php echo ui_text('tickets.empty.body'); ?></p>
-                </div>
+                    <?php $emptyBody = ui_text('tickets.empty.body'); ?>
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3><?php echo ui_text('tickets.empty.title'); ?></h3>
+                        <?php if ($emptyBody): ?>
+                            <p><?php echo $emptyBody; ?></p>
+                        <?php endif; ?>
+                    </div>
                         <?php else: ?>
                             <?php
                                 $priorityDisplay = [

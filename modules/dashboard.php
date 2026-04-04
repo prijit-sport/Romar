@@ -238,7 +238,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 </div>
             </section>
 
-            <!-- IT Tickets by Category -->
+            <!-- แจ้งปัญหาการใช้งาน IT แยกตามหมวดหมู่ -->
             <section class="section">
                 <div class="section-header">
                     <div>

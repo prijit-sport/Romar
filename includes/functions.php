@@ -33,6 +33,16 @@ if (file_exists(__DIR__ . '/logger.php')) {
     require_once __DIR__ . '/logger.php';
 }
 
+// Load PHPMailer replacement for Gmail SMTP
+if (file_exists(__DIR__ . '/PHPMailerLite.php')) {
+    require_once __DIR__ . '/PHPMailerLite.php';
+}
+
+// Load ticket helper utilities
+if (file_exists(__DIR__ . '/ticket_helpers.php')) {
+    require_once __DIR__ . '/ticket_helpers.php';
+}
+
 /**
  * Verify user login
  */
