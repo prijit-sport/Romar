@@ -194,7 +194,7 @@ function sendNotificationSlack(array $payload): bool {
         curl_setopt($ch, CURLOPT_TIMEOUT, 5);
         $response = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        curl_handle_close($ch);
         return $response !== false && $status >= 200 && $status < 300;
     }
 

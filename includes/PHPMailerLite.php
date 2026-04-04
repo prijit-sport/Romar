@@ -6,23 +6,23 @@ namespace PHPMailer\PHPMailer;
  */
 class PHPMailer
 {
-    public $Host = 'smtp.gmail.com';
-    public $Port = 587;
-    public $Username;
-    public $Password;
-    public $SMTPSecure = 'tls';
-    public $SMTPAuth = true;
-    public $From;
-    public $FromName = '';
-    public $Subject = '';
-    public $Body = '';
-    public $AltBody = '';
-    public $CharSet = 'UTF-8';
-    public $SMTPDebug = 0;
+    public string $Host = 'smtp.gmail.com';
+    public int $Port = 587;
+    public ?string $Username = null;
+    public ?string $Password = null;
+    public string $SMTPSecure = 'tls';
+    public bool $SMTPAuth = true;
+    public string $From = '';
+    public string $FromName = '';
+    public string $Subject = '';
+    public string $Body = '';
+    public string $AltBody = '';
+    public string $CharSet = 'UTF-8';
+    public int $SMTPDebug = 0;
 
-    protected $recipients = [];
-    protected $isHTML = false;
-    protected $errors = [];
+    protected array $recipients = [];
+    protected bool $isHTML = false;
+    protected array $errors = [];
 
     public function isSMTP()
     {
@@ -30,20 +30,20 @@ class PHPMailer
         return $this;
     }
 
-    public function setFrom(string $address, string $name = '')
+    public function setFrom(string $address, string $name = ''): void
     {
         $this->From = $address;
         $this->FromName = $name;
     }
 
-    public function addAddress(string $address, string $name = '')
+    public function addAddress(string $address, string $name = ''): void
     {
         $this->recipients[] = ['address' => $address, 'name' => $name];
     }
 
-    public function isHTML(bool $value = true)
+    public function isHTML(bool $isHTML = true): void
     {
-        $this->isHTML = $value;
+        $this->isHTML = $isHTML;
     }
 
     public function send(): bool
@@ -70,10 +70,12 @@ class PHPMailer
             $context
         );
 
-        if (!$socket) {
+        if (!$socket || !is_resource($socket)) {
             $this->errors[] = "Socket error {$errno}: {$errstr}";
             return false;
         }
+
+        /** @var resource $socket */
 
         try {
             $this->expectResponse($socket, 220);
@@ -95,7 +97,7 @@ class PHPMailer
 
             $this->sendCommand($socket, "MAIL FROM:<{$this->From}>", 250);
             foreach ($this->recipients as $recipient) {
-                $this->sendCommand($socket, "RCPT TO:<{$recipient['address']}>", [250, 251]);
+                $this->sendCommand($socket, "RCPT TO:<{$recipient['address']}>", 250);
             }
 
             $this->sendCommand($socket, 'DATA', 354);
@@ -147,15 +149,27 @@ class PHPMailer
         return '=?UTF-8?B?' . base64_encode($text) . '?=';
     }
 
-    protected function sendCommand($socket, string $command, $expected)
+    /**
+     * @param resource $socket
+     * @param int|array $expected
+     * @return string
+     * @throws \RuntimeException
+     */
+    protected function sendCommand($socket, string $command, int|array $expected): string
     {
         fwrite($socket, $command . "\r\n");
         return $this->expectResponse($socket, $expected);
     }
 
-    protected function expectResponse($socket, $expectedCode)
+    /**
+     * @param resource $socket
+     * @param int|array $expectedCode
+     * @return string
+     * @throws \RuntimeException
+     */
+    protected function expectResponse($socket, int|array $expectedCode): string
     {
-        $expected = (array)(is_array($expectedCode) ? $expectedCode : [$expectedCode]);
+        $expected = (array)($expectedCode);
         $response = '';
         while (true) {
             $line = fgets($socket, 515);
@@ -184,3 +198,4 @@ class PHPMailer
         return $hostname;
     }
 }
+

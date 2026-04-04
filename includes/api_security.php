@@ -12,9 +12,9 @@
  */
 
 class ApiSecurityMiddleware {
-    private static $instance = null;
-    private $rateLimitStore = [];
-    private $maxRequestsPerMinute = 60;
+    private static ?self $instance = null;
+    private array $rateLimitStore = [];
+    private int $maxRequestsPerMinute = 60;
     
     private function __construct() {}
     
@@ -28,8 +28,8 @@ class ApiSecurityMiddleware {
     /**
      * Setup CORS headers
      */
-    public function setupCors($allowedOrigins = ['*']) {
-        $origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
+    public function setupCors(array $allowedOrigins = ['*']) {
+        $origin = $_SERVER['HTTP_ORIGIN'] ?? '*'; 
         
         // Validate origin if not wildcard
         if (!in_array('*', $allowedOrigins, true)) {
@@ -80,7 +80,7 @@ class ApiSecurityMiddleware {
     /**
      * Check rate limit
      */
-    public function checkRateLimit($identifier = null, $maxRequests = null) {
+    public function checkRateLimit(?string $identifier = null, ?int $maxRequests = null) {
         $identifier = $identifier ?? get_remote_addr();
         $maxRequests = $maxRequests ?? $this->maxRequestsPerMinute;
         $now = time();
@@ -154,7 +154,7 @@ class ApiSecurityMiddleware {
     /**
      * Send API response
      */
-    public function sendJsonResponse($data, $statusCode = 200, $headers = []) {
+    public function sendJsonResponse(mixed $data, int $statusCode = 200, array $headers = []): void {
         http_response_code($statusCode);
         
         // Add default headers
@@ -176,7 +176,7 @@ class ApiSecurityMiddleware {
     /**
      * Send error response
      */
-    public function sendErrorResponse($message, $code, $statusCode = 400, $details = []) {
+    public function sendErrorResponse(string $message, string|int $code, int $statusCode = 400, array $details = []): void {
         $response = [
             'success' => false,
             'error' => [
@@ -196,7 +196,7 @@ class ApiSecurityMiddleware {
     /**
      * Send success response
      */
-    public function sendSuccessResponse($data = [], $message = 'Success', $meta = []) {
+    public function sendSuccessResponse(array $data = [], string $message = 'Success', array $meta = []): void {
         $response = [
             'success' => true,
             'message' => $message,
@@ -214,7 +214,7 @@ class ApiSecurityMiddleware {
     /**
      * Validate API version
      */
-    public function validateApiVersion($version, $supportedVersions = ['v1', 'v2']) {
+    public function validateApiVersion(string $version, array $supportedVersions = ['v1', 'v2']): array {
         if (!in_array($version, $supportedVersions, true)) {
             return [
                 'valid' => false,
@@ -229,7 +229,7 @@ class ApiSecurityMiddleware {
     /**
      * Get API version from request
      */
-    public function getRequestApiVersion($default = 'v1') {
+    public function getRequestApiVersion(string $default = 'v1'): string {
         // Check header
         $version = $_SERVER['HTTP_API_VERSION'] ?? null;
         
@@ -252,48 +252,86 @@ class ApiSecurityMiddleware {
  */
 
 if (!function_exists('api_setup_cors')) {
+    /**
+     * @param array $allowedOrigins
+     * @return void
+     */
     function api_setup_cors($allowedOrigins = ['*']) {
         ApiSecurityMiddleware::getInstance()->setupCors($allowedOrigins);
     }
 }
 
 if (!function_exists('api_setup_security_headers')) {
+    /**
+     * @return void
+     */
     function api_setup_security_headers() {
         ApiSecurityMiddleware::getInstance()->setupSecurityHeaders();
     }
 }
 
 if (!function_exists('api_check_rate_limit')) {
+    /**
+     * @param ?string $identifier
+     * @param ?int $maxRequests
+     * @return array
+     */
     function api_check_rate_limit($identifier = null, $maxRequests = null) {
         return ApiSecurityMiddleware::getInstance()->checkRateLimit($identifier, $maxRequests);
     }
 }
 
 if (!function_exists('api_validate_request')) {
+    /**
+     * @return array
+     */
     function api_validate_request() {
         return ApiSecurityMiddleware::getInstance()->validateRequest();
     }
 }
 
 if (!function_exists('api_json_response')) {
+    /**
+     * @param mixed $data
+     * @param int $statusCode
+     * @param array $headers
+     * @return void
+     */
     function api_json_response($data, $statusCode = 200, $headers = []) {
         ApiSecurityMiddleware::getInstance()->sendJsonResponse($data, $statusCode, $headers);
     }
 }
 
 if (!function_exists('api_error_response')) {
+    /**
+     * @param string $message
+     * @param string|int $code
+     * @param int $statusCode
+     * @param array $details
+     * @return void
+     */
     function api_error_response($message, $code, $statusCode = 400, $details = []) {
         ApiSecurityMiddleware::getInstance()->sendErrorResponse($message, $code, $statusCode, $details);
     }
 }
 
 if (!function_exists('api_success_response')) {
+    /**
+     * @param array $data
+     * @param string $message
+     * @param array $meta
+     * @return void
+     */
     function api_success_response($data = [], $message = 'Success', $meta = []) {
         ApiSecurityMiddleware::getInstance()->sendSuccessResponse($data, $message, $meta);
     }
 }
 
 if (!function_exists('api_get_version')) {
+    /**
+     * @param string $default
+     * @return string
+     */
     function api_get_version($default = 'v1') {
         return ApiSecurityMiddleware::getInstance()->getRequestApiVersion($default);
     }

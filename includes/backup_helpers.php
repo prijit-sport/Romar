@@ -65,7 +65,7 @@ if (!function_exists('format_bytes')) {
     /**
      * Format bytes to human readable size
      */
-    function format_bytes($bytes, $precision = 2) {
+    function format_bytes(int $bytes, int $precision = 2): string {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         $bytes = max($bytes, 0);
         $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
@@ -116,9 +116,7 @@ if (!function_exists('restore_from_backup')) {
             
             security_audit_log(
                 getCurrentUserId(),
-                'database_restore',
-                'Database',
-                'Restored from: ' . basename($backupFile)
+                ['action' => 'database_restore', 'database' => 'Database', 'details' => 'Restored from: ' . basename($backupFile)]
             );
             
             return true;

@@ -16,11 +16,11 @@ ini_set('display_errors', 0);
 require_once __DIR__ . '/../config/database.php';
 
 class BackupManager {
-    private $backupDir;
-    private $archiveDir;
-    private $logsDir;
-    private $maxActiveBackups = 3; // Keep this many active backups
-    private $archiveAfterDays = 7;
+    private string $backupDir;
+    private string $archiveDir;
+    private string $logsDir;
+    private int $maxActiveBackups = 3;
+    private int $archiveAfterDays = 7;
     
     public function __construct() {
         $this->backupDir = __DIR__ . '/backups';
@@ -41,7 +41,7 @@ class BackupManager {
     /**
      * List all backups (active + archived)
      */
-    public function listBackups($showArchived = true) {
+    public function listBackups(bool $showArchived = true) {
         $backups = [];
         
         // List active backups
@@ -170,7 +170,7 @@ class BackupManager {
     /**
      * Get mysqldump command (Windows/Linux compatible)
      */
-    private function getMysqldumpCommand($filepath) {
+    private function getMysqldumpCommand(string $filepath): ?string {
         $host = defined('DB_HOST') ? DB_HOST : 'localhost';
         $user = defined('DB_USER') ? DB_USER : 'root';
         $pass = defined('DB_PASS') ? DB_PASS : '';
@@ -202,7 +202,7 @@ class BackupManager {
     /**
      * Fallback: PHP-based backup (slow but reliable)
      */
-    private function createPhpBackup($filepath) {
+    private function createPhpBackup(string $filepath): bool {
         try {
             $db = getDB();
             $tables = [];
@@ -244,7 +244,7 @@ class BackupManager {
     /**
      * Dump single table
      */
-    private function dumpTable($db, $table) {
+    private function dumpTable(mysqli $db, string $table): string {
         $sql = "-- Table: $table\n";
         $sql .= "DROP TABLE IF EXISTS `$table`;\n";
         
@@ -315,7 +315,7 @@ class BackupManager {
     /**
      * Log action
      */
-    private function log($message, $level = 'info') {
+    private function log(string $message, string $level = 'info'): void {
         $logFile = $this->logsDir . '/backup_' . date('Y-m-d') . '.log';
         $timestamp = date('Y-m-d H:i:s');
         $logMessage = "[$timestamp] [$level] $message\n";
@@ -325,7 +325,7 @@ class BackupManager {
     /**
      * Format file size
      */
-    private function formatSize($bytes) {
+    private function formatSize(int $bytes): string {
         $units = ['B', 'KB', 'MB', 'GB'];
         $size = $bytes;
         $unitIndex = 0;

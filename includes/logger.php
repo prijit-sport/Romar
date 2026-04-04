@@ -13,10 +13,10 @@
  */
 
 class Logger {
-    private static $instance = null;
-    private $logDir;
-    private $maxFileSize = 5242880; // 5 MB
-    private $maxFiles = 10;
+    private static ?self $instance = null;
+    private string $logDir;
+    private int $maxFileSize = 5242880; // 5 MB
+    private int $maxFiles = 10;
     
     private function __construct() {
         $this->logDir = __DIR__ . '/../logs';
@@ -25,7 +25,7 @@ class Logger {
         }
     }
     
-    public static function getInstance() {
+    public static function getInstance(): self {
         if (self::$instance === null) {
             self::$instance = new self();
         }
@@ -35,7 +35,7 @@ class Logger {
     /**
      * Log error with stack trace
      */
-    public function logError($message, $severity = 'ERROR', $context = []) {
+    public function logError(string $message, string $severity = 'ERROR', array $context = []): bool {
         $data = [
             'timestamp' => date('Y-m-d H:i:s'),
             'severity' => $severity,
@@ -55,7 +55,7 @@ class Logger {
     /**
      * Log user event (login, logout, action)
      */
-    public function logEvent($eventType, $description, $userId = null, $details = []) {
+    public function logEvent(string $eventType, string $description, ?int $userId = null, array $details = []): bool {
         $userId = $userId ?? (isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null);
         
         $data = [
@@ -74,7 +74,7 @@ class Logger {
     /**
      * Log API call
      */
-    public function logApiCall($endpoint, $method, $statusCode, $responseTime, $userId = null) {
+    public function logApiCall(string $endpoint, string $method, int $statusCode, float $responseTime, ?int $userId = null): bool {
         $userId = $userId ?? (isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null);
         
         $data = [
@@ -95,7 +95,7 @@ class Logger {
     /**
      * Log failed login attempt
      */
-    public function logFailedLogin($username) {
+    public function logFailedLogin(string $username): bool {
         $data = [
             'timestamp' => date('Y-m-d H:i:s'),
             'username' => $username,
@@ -110,7 +110,7 @@ class Logger {
     /**
      * Log successful login
      */
-    public function logLogin($userId, $username) {
+    public function logLogin(int $userId, string $username): bool {
         $data = [
             'timestamp' => date('Y-m-d H:i:s'),
             'user_id' => $userId,
@@ -125,7 +125,7 @@ class Logger {
     /**
      * Log logout
      */
-    public function logLogout($userId) {
+    public function logLogout(int $userId): bool {
         $data = [
             'timestamp' => date('Y-m-d H:i:s'),
             'user_id' => $userId,
@@ -138,7 +138,7 @@ class Logger {
     /**
      * Log user action (create, update, delete)
      */
-    public function logAction($action, $table, $recordId, $userId = null, $details = []) {
+    public function logAction(string $action, string $table, int $recordId, ?int $userId = null, array $details = []): bool {
         $userId = $userId ?? (isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null);
         
         $data = [
@@ -157,7 +157,7 @@ class Logger {
     /**
      * Log security event (suspicious activity, access denied, etc)
      */
-    public function logSecurityEvent($eventType, $description, $severity = 'WARN', $details = []) {
+    public function logSecurityEvent(string $eventType, string $description, string $severity = 'WARN', array $details = []): bool {
         $data = [
             'timestamp' => date('Y-m-d H:i:s'),
             'event_type' => $eventType,
@@ -175,7 +175,7 @@ class Logger {
     /**
      * Log performance metric
      */
-    public function logPerformance($page, $renderTime, $dbQueries, $memory) {
+    public function logPerformance(string $page, float $renderTime, int $dbQueries, float $memory): bool {
         $data = [
             'timestamp' => date('Y-m-d H:i:s'),
             'page' => $page,
@@ -192,7 +192,7 @@ class Logger {
      * Write log to file
      * @private
      */
-    private function writeLog($logType, $data) {
+    private function writeLog(string $logType, array $data): bool {
         $date = date('Y-m-d');
         $filename = "{$logType}_{$date}.json";
         $filepath = $this->logDir . '/' . $filename;
@@ -212,7 +212,7 @@ class Logger {
      * Rotate log file when too large
      * @private
      */
-    private function rotateLog($filepath) {
+    private function rotateLog(string $filepath): void {
         $dirname = dirname($filepath);
         $filename = basename($filepath);
         
@@ -246,7 +246,7 @@ class Logger {
     /**
      * Get recent logs
      */
-    public function getRecentLogs($logType, $limit = 100) {
+    public function getRecentLogs(string $logType, int $limit = 100): array {
         $date = date('Y-m-d');
         $filepath = $this->logDir . "/{$logType}_{$date}.json";
         
@@ -270,7 +270,7 @@ class Logger {
     /**
      * Get log statistics
      */
-    public function getLogStats($logType, $days = 7) {
+    public function getLogStats(string $logType, int $days = 7): array {
         $stats = [
             'total' => 0,
             'by_day' => [],
@@ -297,57 +297,104 @@ class Logger {
  */
 
 if (!function_exists('log_error')) {
-    function log_error($message, $severity = 'ERROR', $context = []) {
+    /**
+     * @param string $message
+     * @param string $severity
+     * @param array $context
+     */
+    function log_error(string $message, string $severity = 'ERROR', array $context = []): bool {
         return Logger::getInstance()->logError($message, $severity, $context);
     }
 }
 
 if (!function_exists('log_event')) {
-    function log_event($eventType, $description, $userId = null, $details = []) {
+    /**
+     * @param string $eventType
+     * @param string $description
+     * @param ?int $userId
+     * @param array $details
+     */
+    function log_event(string $eventType, string $description, ?int $userId = null, array $details = []): bool {
         return Logger::getInstance()->logEvent($eventType, $description, $userId, $details);
     }
 }
 
 if (!function_exists('log_action')) {
-    function log_action($action, $table, $recordId, $userId = null, $details = []) {
+    /**
+     * @param string $action
+     * @param string $table
+     * @param int $recordId
+     * @param ?int $userId
+     * @param array $details
+     */
+    function log_action(string $action, string $table, int $recordId, ?int $userId = null, array $details = []): bool {
         return Logger::getInstance()->logAction($action, $table, $recordId, $userId, $details);
     }
 }
 
 if (!function_exists('log_api_call')) {
-    function log_api_call($endpoint, $method, $statusCode, $responseTime, $userId = null) {
+    /**
+     * @param string $endpoint
+     * @param string $method
+     * @param int $statusCode
+     * @param float $responseTime
+     * @param ?int $userId
+     */
+    function log_api_call(string $endpoint, string $method, int $statusCode, float $responseTime, ?int $userId = null): bool {
         return Logger::getInstance()->logApiCall($endpoint, $method, $statusCode, $responseTime, $userId);
     }
 }
 
 if (!function_exists('log_failed_login')) {
-    function log_failed_login($username) {
+    /**
+     * @param string $username
+     */
+    function log_failed_login(string $username): bool {
         return Logger::getInstance()->logFailedLogin($username);
     }
 }
 
 if (!function_exists('log_login')) {
-    function log_login($userId, $username) {
+    /**
+     * @param int $userId
+     * @param string $username
+     */
+    function log_login(int $userId, string $username): bool {
         return Logger::getInstance()->logLogin($userId, $username);
     }
 }
 
 if (!function_exists('log_logout')) {
-    function log_logout($userId) {
+    /**
+     * @param int $userId
+     */
+    function log_logout(int $userId): bool {
         return Logger::getInstance()->logLogout($userId);
     }
 }
 
 if (!function_exists('log_security_event')) {
-    function log_security_event($eventType, $description, $severity = 'WARN', $details = []) {
+    /**
+     * @param string $eventType
+     * @param string $description
+     * @param string $severity
+     * @param array $details
+     */
+    function log_security_event(string $eventType, string $description, string $severity = 'WARN', array $details = []): bool {
         return Logger::getInstance()->logSecurityEvent($eventType, $description, $severity, $details);
     }
 }
 
 if (!function_exists('log_performance')) {
-    function log_performance($page, $renderTime, $dbQueries, $memory) {
+    /**
+     * @param string $page
+     * @param float $renderTime
+     * @param int $dbQueries
+     * @param float $memory
+     */
+    function log_performance(string $page, float $renderTime, int $dbQueries, float $memory): bool {
         return Logger::getInstance()->logPerformance($page, $renderTime, $dbQueries, $memory);
     }
 }
-
 ?>
+

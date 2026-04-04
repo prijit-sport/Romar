@@ -71,3 +71,9 @@ Push to main auto-deploys release. Enable branch protection for quality-gates.
 - CI: `.github/workflows/security-monitor.yml`
 - Local: `php tests/security_alert_check.php`
 
+## 6) Final Verification
+- Run `php tests/project_health_check.php` - Must show Overall Score 95%+
+- Verify no linter errors: `find . -name "*.php" -exec php -l {} \\;`
+- Test login/admin flow locally
+- Check `logs/security.log` empty or only expected
+

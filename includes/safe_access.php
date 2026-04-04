@@ -48,7 +48,7 @@ if (!function_exists('get_safe_get')) {
      * @param string $type Type to cast to: 'string', 'int', 'integer', 'bool', 'boolean', 'float', 'array'
      * @return mixed Value or default
      */
-    function get_safe_get($key, $default = '', $type = 'string') {
+function get_safe_get(string $key, mixed $default = '', string $type = 'string'): mixed {
         $value = isset($_GET[$key]) ? $_GET[$key] : $default;
         return _cast_to_type($value, $type);
     }
@@ -62,7 +62,7 @@ if (!function_exists('get_safe_post')) {
      * @param string $type Type to cast to
      * @return mixed Value or default
      */
-    function get_safe_post($key, $default = '', $type = 'string') {
+function get_safe_post(string $key, mixed $default = '', string $type = 'string'): mixed {
         $value = isset($_POST[$key]) ? $_POST[$key] : $default;
         return _cast_to_type($value, $type);
     }
@@ -76,7 +76,7 @@ if (!function_exists('get_safe_request')) {
      * @param string $type Type to cast to
      * @return mixed Value or default
      */
-    function get_safe_request($key, $default = '', $type = 'string') {
+function get_safe_request(string $key, mixed $default = '', string $type = 'string'): mixed {
         $value = isset($_REQUEST[$key]) ? $_REQUEST[$key] : $default;
         return _cast_to_type($value, $type);
     }
@@ -89,7 +89,7 @@ if (!function_exists('get_safe_server')) {
      * @param mixed $default Default value if not set
      * @return mixed Value or default
      */
-    function get_safe_server($key, $default = '') {
+function get_safe_server(string $key, mixed $default = ''): mixed {
         return isset($_SERVER[$key]) ? $_SERVER[$key] : $default;
     }
 }
@@ -101,7 +101,7 @@ if (!function_exists('get_safe_cookie')) {
      * @param mixed $default Default value if not set
      * @return mixed Value or default
      */
-    function get_safe_cookie($key, $default = '') {
+function get_safe_cookie(string $key, mixed $default = ''): mixed {
         return isset($_COOKIE[$key]) ? $_COOKIE[$key] : $default;
     }
 }
@@ -113,7 +113,7 @@ if (!function_exists('get_safe_session')) {
      * @param mixed $default Default value if not set
      * @return mixed Value or default
      */
-    function get_safe_session($key, $default = '') {
+function get_safe_session(string $key, mixed $default = ''): mixed {
         // Support dot notation: 'user.id' -> $_SESSION['user']['id']
         if (strpos($key, '.') !== false) {
             $keys = explode('.', $key);
@@ -142,7 +142,7 @@ if (!function_exists('get_safe_array')) {
      * @param string $type Type to cast to
      * @return mixed Value or default
      */
-    function get_safe_array($array, $key, $default = '', $type = 'string') {
+function get_safe_array(array $array, string $key, mixed $default = '', string $type = 'string'): mixed {
         if (!is_array($array)) {
             return _cast_to_type($default, $type);
         }
@@ -172,7 +172,7 @@ if (!function_exists('_cast_to_type')) {
      * Cast value to specified type
      * @internal
      */
-    function _cast_to_type($value, $type) {
+function _cast_to_type(mixed $value, string $type): mixed {
         $type = strtolower($type);
         
         switch ($type) {
@@ -205,7 +205,7 @@ if (!function_exists('set_safe_session')) {
      * @param mixed $value Value to set
      * @return bool Success
      */
-    function set_safe_session($key, $value) {
+function set_safe_session(string $key, mixed $value): bool {
         // Support dot notation: 'user.id' -> $_SESSION['user']['id']
         if (strpos($key, '.') !== false) {
             $keys = explode('.', $key);
@@ -234,7 +234,7 @@ if (!function_exists('unset_safe_session')) {
      * @param string $key Key to unset (dot notation supported)
      * @return bool Success
      */
-    function unset_safe_session($key) {
+function unset_safe_session(string $key): bool {
         if (strpos($key, '.') !== false) {
             $keys = explode('.', $key);
             $lastKey = array_pop($keys);

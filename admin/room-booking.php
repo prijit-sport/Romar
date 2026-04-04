@@ -86,6 +86,9 @@ while ($room = $rooms_result->fetch_assoc()) {
     <title>จองห้องประชุม - Romar</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../includes/admin-theme.css">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="../assets/js/room-calendar.js"></script>
+
     <style>
         .room-card {
             background: var(--card-bg);
@@ -406,9 +409,18 @@ while ($room = $rooms_result->fetch_assoc()) {
                     </div>
                 <?php endif; ?>
 
+                <!-- Calendar View -->
+                <div class="card" style="height:500px;margin-bottom:2rem;">
+                    <div class="card-header"><h3><i class="fas fa-calendar"></i> ปฏิทินห้องประชุม</h3></div>
+                    <div class="card-body">
+                        <div id="roomCalendar"></div>
+                    </div>
+                </div>
+                
                 <!-- Rooms Grid -->
                 <div class="rooms-grid">
                     <?php foreach ($rooms as $room): ?>
+
                         <div class="room-card">
                             <div class="room-header">
                                 <div class="room-name"><?php echo htmlspecialchars($room['room_name']); ?></div>
