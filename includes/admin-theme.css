@@ -277,6 +277,25 @@ a {
   gap: 0.5rem;
 }
 
+.calendar-container {
+  height: 450px;
+  min-height: 400px;
+  max-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.calendar-container .card-body {
+  flex: 1;
+  overflow: auto;
+}
+
+.calendar-container #roomCalendar {
+  height: 100% !important;
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
 .card {
   margin-bottom: 1rem;
   background: var(--surface);
@@ -773,6 +792,23 @@ a {
   width: 100%;
 }
 
+@media (max-width: 768px) {
+  .rooms-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .room-card {
+    min-height: auto;
+  }
+  
+  .room-booking-btn {
+    padding: 0.8rem 1.25rem;
+    font-size: 0.95rem;
+    min-height: 44px;
+  }
+}
+
 .room-card,
 .doc-card,
 .booking-card {
@@ -852,20 +888,31 @@ a {
   line-height: 1.6;
 }
 
-.room-card .btn-primary {
-  width: calc(100% - 3rem);
-  border-radius: 0.85rem;
+.room-card .btn-primary.room-booking-btn {
+  width: 100%;
+  border-radius: var(--radius-lg);
   font-size: 1rem;
-  letter-spacing: 0.02em;
-  padding: 0.9rem;
-  background: linear-gradient(135deg, #1a3edc, #0a26a1);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.9rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, var(--blue), var(--navy));
   border: none;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  margin: 0 auto 1.2rem;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin: 1rem auto 0;
+  min-height: 48px;
 }
 
-.room-card .btn-primary:hover {
+.room-card .btn-primary.room-booking-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(29, 78, 216, 0.4);
+}
+
+.room-card .btn-primary:not(.room-booking-btn):hover {
   transform: translateY(-2px);
   box-shadow: 0 15px 35px rgba(15, 23, 42, 0.3);
 }

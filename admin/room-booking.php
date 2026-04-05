@@ -181,6 +181,9 @@ while ($room = $rooms_result->fetch_assoc()) {
             grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
             gap: 1.5rem;
             margin-top: 1rem;
+            align-items: stretch;
+            justify-items: stretch;
+            grid-auto-rows: 1fr;
         }
 
         .modal {
@@ -286,7 +289,7 @@ while ($room = $rooms_result->fetch_assoc()) {
             font-size: 0.85rem;
         }
 
-        .page-title-block {
+.page-title-block {
             display: flex;
             align-items: center;
             gap: 1rem;
@@ -294,6 +297,41 @@ while ($room = $rooms_result->fetch_assoc()) {
 
         .page-icon {
             font-size: 2rem;
+        }
+
+        /* Calendar Container Styles - Extra Enlarged */
+        .calendar-container {
+            height: min(80vh, 750px);
+            min-height: 600px;
+        }
+
+        .calendar-container .card-header {
+            padding: 1.25rem;
+        }
+
+        .calendar-container .card-body {
+            height: calc(100% - 65px);
+            padding: 1.25rem !important;
+            overflow: hidden;
+        }
+
+        #roomCalendar {
+            height: 100% !important;
+            width: 100% !important;
+            font-size: 0.8rem;
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .calendar-container {
+                height: min(75vh, 550px);
+                min-height: 450px;
+            }
+        }
+
+        .rooms-grid {
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)) !important;
+            gap: 2rem;
         }
 
         @media (max-width: 768px) {
@@ -409,11 +447,25 @@ while ($room = $rooms_result->fetch_assoc()) {
                     </div>
                 <?php endif; ?>
 
+                <?php if (empty($rooms)): ?>
+                    <div class="empty-state" style="text-align: center; padding: 3rem 2rem; color: var(--text-muted);">
+                        <div style="font-size: 4rem; margin-bottom: 1rem;">🏢</div>
+                        <h3 style="color: var(--text-dark); margin-bottom: 0.5rem;">ไม่มีห้องประชุมให้เลือก</h3>
+                        <p>กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มห้องประชุมใหม่</p>
+                        <?php if (isset($user['role']) && $user['role'] === 'admin'): ?>
+                            <a href="meeting-rooms.php" class="btn btn-primary" style="margin-top: 1rem; display: inline-block;">จัดการห้องประชุม</a>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+
                 <!-- Calendar View -->
-                <div class="card" style="height:500px;margin-bottom:2rem;">
-                    <div class="card-header"><h3><i class="fas fa-calendar"></i> ปฏิทินห้องประชุม</h3></div>
-                    <div class="card-body">
-                        <div id="roomCalendar"></div>
+<div class="calendar-container card" style="margin-bottom: 2.5rem; border-radius: var(--radius-lg); box-shadow: var(--card-shadow); overflow: hidden;">
+
+                    <div class="card-header" style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, var(--blue), var(--navy)); color: white;">
+                        <h3 style="margin: 0; font-size: 1.4rem;"><i class="fas fa-calendar" style="margin-right: 0.5rem;"></i>📅 ปฏิทินห้องประชุม</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="roomCalendar" style="height: 100%;"></div>
                     </div>
                 </div>
                 
@@ -441,7 +493,7 @@ while ($room = $rooms_result->fetch_assoc()) {
                                 </div>
                             <?php endif; ?>
 
-                            <button class="btn btn-primary" style="width: 100%; margin-top: auto;" 
+                            <button class="btn btn-primary room-booking-btn" 
                                     onclick="openBookingModal(<?php echo $room['room_id']; ?>, '<?php echo htmlspecialchars($room['room_name']); ?>', <?php echo $room['capacity']; ?>)">
                                 📅 จองห้องนี้
                             </button>
@@ -449,10 +501,12 @@ while ($room = $rooms_result->fetch_assoc()) {
                     <?php endforeach; ?>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 
     <!-- Booking Modal -->
+
     <div id="bookingModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">

@@ -27,9 +27,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('Booking: ' + info.event.title + '\nStatus: ' + info.event.extendedProps.status);
                 },
                 dateClick: function(info) {
-                    // Open booking modal with prefilled date
+                    // Prefill date but require room selection first
                     document.getElementById('booking_date').value = info.dateStr.split('T')[0];
-                    openBookingModal(0, 'Select Room', 0); // Trigger room select first
+                    alert('กรุณาเลือกห้องประชุมจากรายการด้านล่างก่อนจอง');
                 }
             });
             calendar.render();

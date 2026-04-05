@@ -6,7 +6,7 @@ return [
     'nav.section.admin' => 'เมนูผู้ดูแลระบบ',
     'nav.section.support' => 'เมนูฝ่ายสนับสนุน',
     'nav.dashboard' => 'แดชบอร์ด',
-    'nav.tickets' => 'IT Tickets',
+'nav.tickets' => 'แจ้งปัญหา',
     'nav.assets' => 'ทรัพย์สิน',
     'nav.assets_categories' => 'หมวดหมู่ทรัพย์สิน',
     'nav.knowledgebase' => 'ฐานความรู้',
@@ -51,7 +51,7 @@ return [
     // Page headings
     'page.title.dashboard' => 'แดชบอร์ดฝ่ายสนับสนุนไอที',
     'page.subtitle.dashboard' => 'ภาพรวม KPI การแจ้งเตือน และสุขภาพแพลตฟอร์ม',
-    'page.title.tickets' => 'IT Tickets',
+'page.title.tickets' => 'แจ้งปัญหา',
     'page.title.assets' => 'ทรัพย์สิน',
     'page.title.knowledgebase' => 'ฐานความรู้',
     'page.subtitle.knowledgebase' => 'คู่มือและบทความที่ฝ่ายสนับสนุนไอทีดูแล',

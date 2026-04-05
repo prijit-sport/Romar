@@ -267,7 +267,7 @@ $currentUser = getCurrentUser();
                                 <?php if ($isAdmin): ?>
         <div class="announcement-actions">
             <button class="btn btn-sm btn-primary" onclick='openEditModal(<?php echo json_encode($announcement, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)'>✏️ แก้ไข</button>
-            <button class="btn btn-sm btn-secondary" onclick="viewAnnouncement(<?php echo json_encode($announcement, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)">👁️ ดูบทความ</button>
+
             <button class="btn btn-sm" onclick="deleteAnnouncement(<?php echo $announcement['announcement_id']; ?>)" style="background: #ef4444; color: white;">🗑️ ลบ</button>
         </div>
                                 <?php endif; ?>
