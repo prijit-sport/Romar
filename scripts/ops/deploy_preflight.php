@@ -90,6 +90,11 @@ if (!file_exists($workflow)) {
     $warnings[] = 'CI workflow missing: .github/workflows/quality-gates.yml';
 }
 
+$deployWorkflow = $root . '/.github/workflows/deploy.yml';
+if (!file_exists($deployWorkflow)) {
+    $warnings[] = 'Deploy workflow missing: .github/workflows/deploy.yml';
+}
+
 echo "=== Deploy Preflight ===\n";
 echo "Root: {$root}\n";
 echo "PHP: " . PHP_VERSION . "\n";

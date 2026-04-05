@@ -1,273 +1,256 @@
 <?php
-session_start();
+$pageTitle = 'จัดการผู้ใช้ - Romar';
+$activePage = 'users';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
-// Check login
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ../auth/login.php');
-    exit;
-}
+require_once '../includes/header.php';
+require_once '../includes/sidebar.php';
+?>
 
-// Check Admin
-if ($_SESSION['role'] !== 'admin') {
-    header('Location: dashboard.php');
+<main class="main-content">
+<?php
+// Generate CSRF token
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrfToken = $_SESSION['csrf_token'];
+
+// Check login and admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+    header('Location: ../auth/login.php');
     exit;
 }
 
 $db = getDB();
 $message = '';
 $messageType = '';
-csrf_token();
-$isValidCsrf = true;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf_token'] ?? '')) {
-    $isValidCsrf = false;
-    $message = 'Invalid CSRF token.';
-    $messageType = 'error';
-}
-
-// Handle Create User
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create' && $isValidCsrf) {
-    $username = sanitize($_POST['username']);
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $full_name = sanitize($_POST['full_name']);
-    $email = sanitize($_POST['email']);
-    $phone = sanitize($_POST['phone']);
-    $department = sanitize($_POST['department']);
-    $position = sanitize($_POST['position']);
-    $role = sanitize($_POST['role']);
-    $status = sanitize($_POST['status']);
-    
-    $stmt = $db->prepare("INSERT INTO users (username, password, full_name, email, phone, department, position, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param('sssssssss', $username, $password, $full_name, $email, $phone, $department, $position, $role, $status);
-    
-    if ($stmt->execute()) {
-        $message = 'เพิ่มผู้ใช้งานสำเร็จ!';
-        $messageType = 'success';
-        logActivity($_SESSION['user_id'], 'เพิ่มผู้ใช้งาน', 'Users', "เพิ่ม: $full_name ($username)");
-    } else {
-        $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+// Handle Add/Edit/Delete User
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $message = 'Invalid CSRF token';
         $messageType = 'error';
+    } else {
+        if ($_POST['action'] === 'add') {
+            $username = sanitize($_POST['username']);
+            $passwordRaw = $_POST['password'] ?? '';
+            $fullName = sanitize($_POST['full_name']);
+            $email = sanitize($_POST['email']);
+            $phone = sanitize($_POST['phone'] ?? '');
+            $department = sanitize($_POST['department'] ?? '');
+            $position = sanitize($_POST['position'] ?? '');
+            $role = sanitize($_POST['role']);
+
+            $validation = validate_batch([
+                'username' => ['value' => $username, 'type' => 'username'],
+                'full_name' => ['value' => $fullName, 'type' => 'string', 'minLen' => 2, 'maxLen' => 100],
+                'email' => ['value' => $email, 'type' => 'email'],
+                'role' => ['value' => $role, 'type' => 'role'],
+                'phone' => ['value' => $phone, 'type' => 'phone', 'required' => false],
+                'department' => ['value' => $department, 'type' => 'string', 'required' => false, 'maxLen' => 100],
+                'position' => ['value' => $position, 'type' => 'string', 'required' => false, 'maxLen' => 100],
+            ]);
+
+            if (!$validation['valid']) {
+                $message = implode(' | ', array_unique($validation['errors']));
+                $messageType = 'error';
+            } else {
+                $passwordResult = validate_password($passwordRaw);
+                if (!$passwordResult['valid']) {
+                    $message = $passwordResult['error'];
+                    $messageType = 'error';
+                } else {
+                    $checkStmt = $db->prepare("SELECT user_id FROM users WHERE username = ? OR email = ? LIMIT 1");
+                    $checkStmt->bind_param('ss', $username, $email);
+                    $checkStmt->execute();
+                    $exists = $checkStmt->get_result()->fetch_assoc();
+                    $checkStmt->close();
+
+                    if ($exists) {
+                        $message = 'Username หรือ Email นี้ถูกใช้งานแล้ว';
+                        $messageType = 'error';
+                    } else {
+                        $password = password_hash($passwordRaw, PASSWORD_DEFAULT);
+                        $stmt = $db->prepare("INSERT INTO users (username, password, full_name, email, phone, department, position, role, status, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, NOW())");
+                        if (!$stmt || !$stmt->bind_param('ssssssss', $username, $password, $fullName, $email, $phone, $department, $position, $role)) {
+                            $message = 'SQL Prepare/Bind failed: ' . $db->error;
+                            $messageType = 'error';
+                            error_log("Users add prepare/bind error: " . $db->error);
+                        } elseif ($stmt->execute()) {
+                            $message = 'เพิ่มผู้ใช้สำเร็จ!';
+                            $messageType = 'success';
+                            logActivity($_SESSION['user_id'], 'เพิ่มผู้ใช้ใหม่', 'Users', "เพิ่มผู้ใช้: $username");
+                        } else {
+                            $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+                            $messageType = 'error';
+                        }
+                        $stmt->close();
+                    }
+                }
+            }
+        } elseif ($_POST['action'] === 'edit') {
+            $userId = (int)($_POST['user_id'] ?? 0);
+            $username = sanitize($_POST['username']);
+            $fullName = sanitize($_POST['full_name']);
+            $email = sanitize($_POST['email']);
+            $phone = sanitize($_POST['phone'] ?? '');
+            $department = sanitize($_POST['department'] ?? '');
+            $position = sanitize($_POST['position'] ?? '');
+            $role = sanitize($_POST['role']);
+            $isActive = isset($_POST['is_active']) ? 1 : 0;
+            $newPassword = $_POST['password'] ?? '';
+
+            if ($userId <= 0) {
+                $message = 'ข้อมูลผู้ใช้ไม่ถูกต้อง';
+                $messageType = 'error';
+            } else {
+                $validation = validate_batch([
+                    'username' => ['value' => $username, 'type' => 'username'],
+                    'full_name' => ['value' => $fullName, 'type' => 'string', 'minLen' => 2, 'maxLen' => 100],
+                    'email' => ['value' => $email, 'type' => 'email'],
+                    'role' => ['value' => $role, 'type' => 'role'],
+                    'phone' => ['value' => $phone, 'type' => 'phone', 'required' => false],
+                    'department' => ['value' => $department, 'type' => 'string', 'required' => false, 'maxLen' => 100],
+                    'position' => ['value' => $position, 'type' => 'string', 'required' => false, 'maxLen' => 100],
+                ]);
+
+                if (!$validation['valid']) {
+                    $message = implode(' | ', array_unique($validation['errors']));
+                    $messageType = 'error';
+                } else {
+                    $passwordToHash = null;
+                    if ($newPassword !== '') {
+                        $passwordResult = validate_password($newPassword);
+                        if (!$passwordResult['valid']) {
+                            $message = $passwordResult['error'];
+                            $messageType = 'error';
+                        } else {
+                            $passwordToHash = password_hash($newPassword, PASSWORD_DEFAULT);
+                        }
+                    }
+
+                    if ($messageType !== 'error') {
+                        $checkStmt = $db->prepare("SELECT user_id FROM users WHERE (username = ? OR email = ?) AND user_id != ? LIMIT 1");
+                        $checkStmt->bind_param('ssi', $username, $email, $userId);
+                        $checkStmt->execute();
+                        $exists = $checkStmt->get_result()->fetch_assoc();
+                        $checkStmt->close();
+
+                        if ($exists) {
+                            $message = 'Username หรือ Email นี้ถูกใช้งานแล้ว';
+                            $messageType = 'error';
+                        } else {
+                            $updateFields = "username = ?, full_name = ?, email = ?, phone = ?, department = ?, position = ?, role = ?, status = 'active', is_active = ?";
+                            $types = 'ssssssssi';
+                            $params = [$username, $fullName, $email, $phone, $department, $position, $role, $isActive];
+
+                            if ($passwordToHash !== null) {
+                                $updateFields .= ", password = ?";
+                                $types .= 's';
+                                $params[] = $passwordToHash;
+                            }
+                            $params[] = $userId;
+
+                            $stmt = $db->prepare("UPDATE users SET $updateFields WHERE user_id = ?");
+                            if (!$stmt || !$stmt->bind_param($types, ...$params)) {
+                                $message = 'SQL Prepare/Bind failed: ' . $db->error;
+                                $messageType = 'error';
+                                error_log("Users edit prepare/bind error: " . $db->error);
+                            } elseif ($stmt->execute()) {
+                                $message = 'แก้ไขผู้ใช้สำเร็จ!';
+                                $messageType = 'success';
+                                logActivity($_SESSION['user_id'], 'แก้ไขข้อมูลผู้ใช้', 'Users', "แก้ไขผู้ใช้: $username (ID: $userId)");
+                                if (isset($_GET['profile_id']) && (int)$_GET['profile_id'] === $userId) {
+                                    header('Location: userProfile.php?id=' . $userId);
+                                    exit;
+                                }
+                            } else {
+                                $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+                                $messageType = 'error';
+                            }
+                            $stmt->close();
+                        }
+                    }
+                }
+            }
+        } elseif ($_POST['action'] === 'delete') {
+            $userId = (int)($_POST['user_id'] ?? 0);
+
+            if ($userId === (int)$_SESSION['user_id']) {
+                $message = 'ไม่สามารถลบบัญชีของตัวเองได้!';
+                $messageType = 'error';
+            } else {
+                $stmt = $db->prepare("DELETE FROM users WHERE user_id = ?");
+                $stmt->bind_param('i', $userId);
+
+                if ($stmt->execute()) {
+                    $message = 'ลบผู้ใช้สำเร็จ!';
+                    $messageType = 'success';
+                    logActivity($_SESSION['user_id'], 'ลบผู้ใช้', 'Users', "ลบผู้ใช้ ID: $userId");
+                } else {
+                    $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
+                    $messageType = 'error';
+                }
+                $stmt->close();
+            }
+        }
     }
 }
 
-// Handle Update User
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update' && $isValidCsrf) {
-    $user_id = (int)$_POST['user_id'];
-    $full_name = sanitize($_POST['full_name']);
-    $email = sanitize($_POST['email']);
-    $phone = sanitize($_POST['phone']);
-    $department = sanitize($_POST['department']);
-    $position = sanitize($_POST['position']);
-    $role = sanitize($_POST['role']);
-    $status = sanitize($_POST['status']);
-    
-    $stmt = $db->prepare("UPDATE users SET full_name = ?, email = ?, phone = ?, department = ?, position = ?, role = ?, status = ? WHERE user_id = ?");
-    $stmt->bind_param('sssssssi', $full_name, $email, $phone, $department, $position, $role, $status, $user_id);
-    
-    if ($stmt->execute()) {
-        $message = 'อัปเดตผู้ใช้งานสำเร็จ!';
-        $messageType = 'success';
-        logActivity($_SESSION['user_id'], 'อัปเดตผู้ใช้งาน', 'Users', "อัปเดต: $full_name");
-    } else {
-        $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
-        $messageType = 'error';
-    }
-}
-
-// Handle Delete User
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete' && $isValidCsrf) {
-    $user_id = (int)$_POST['user_id'];
-    
-    $stmt = $db->prepare("DELETE FROM users WHERE user_id = ?");
-    $stmt->bind_param('i', $user_id);
-    
-    if ($stmt->execute()) {
-        $message = 'ลบผู้ใช้งานสำเร็จ!';
-        $messageType = 'success';
-        logActivity($_SESSION['user_id'], 'ลบผู้ใช้งาน', 'Users', "ลบ User ID: $user_id");
-    } else {
-        $message = 'เกิดข้อผิดพลาด: ' . $stmt->error;
-        $messageType = 'error';
-    }
-}
-
-// Get Users
+// Get all users
 $search = isset($_GET['search']) ? sanitize($_GET['search']) : '';
-$role = isset($_GET['role']) ? sanitize($_GET['role']) : '';
-$status = isset($_GET['status']) ? sanitize($_GET['status']) : '';
-
-$sql = "SELECT * FROM users WHERE 1=1";
-$params = [];
-$types = '';
-
 if ($search) {
-    $sql .= " AND (full_name LIKE ? OR email LIKE ? OR username LIKE ?)";
+    $stmt = $db->prepare("SELECT * FROM users WHERE username LIKE ? OR full_name LIKE ? OR email LIKE ? ORDER BY created_at DESC");
     $searchTerm = "%$search%";
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $types .= 'sss';
-}
-
-if ($role) {
-    $sql .= " AND role = ?";
-    $params[] = $role;
-    $types .= 's';
-}
-
-if ($status) {
-    $sql .= " AND status = ?";
-    $params[] = $status;
-    $types .= 's';
-}
-
-$sql .= " ORDER BY created_at DESC";
-
-$stmt = $db->prepare($sql);
-if ($params) {
-    $stmt->bind_param($types, ...$params);
+    $stmt->bind_param('sss', $searchTerm, $searchTerm, $searchTerm);
+} else {
+    $stmt = $db->prepare("SELECT * FROM users ORDER BY created_at DESC");
 }
 $stmt->execute();
-$users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$result = $stmt->get_result();
+$users = $result->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 
-// Get Statistics
-$statsSQL = "SELECT 
-    COUNT(*) as total,
-    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
-    SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) as user_count,
-    SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admin_count,
-    SUM(CASE WHEN role = 'staff' THEN 1 ELSE 0 END) as staff_count
-    FROM users";
-$stats = $db->query($statsSQL)->fetch_assoc();
+$currentUser = getCurrentUser();
 ?>
-<?php
-$pageTitle = 'ผู้ใช้งาน';
-$activePage = 'users';
-include_once __DIR__ . '/../includes/header.php';
-include_once __DIR__ . '/../includes/sidebar.php';
-?>
-<main class="main-content">
-    <div class="breadcrumb-nav">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item">
-                <a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a>
-            </li>
-            <li class="breadcrumb-separator">โ€บ</li>
-            <li class="breadcrumb-item active">
-                <i class="fas fa-users"></i> ผู้ใช้งาน
-            </li>
-        </ol>
-    </div>
 
     <div class="page-header">
-        <div>
-            <h1><i class="fas fa-users"></i> ผู้ใช้งาน</h1>
-            <p class="section-subtitle">จัดการบทบาทและสถานะของทีมงาน</p>
-        </div>
-        <div class="page-actions">
-            <button class="btn btn-primary" id="createUserBtn">
-                <i class="fas fa-plus"></i> สร้างผู้ใช้งาน
-            </button>
+        <div class="page-title">
+            <h1>👥 การจัดการผู้ใช้งาน</h1>
         </div>
     </div>
 
     <?php if ($message): ?>
-    <div class="alert alert-<?php echo $messageType; ?> show">
-        <i class="fas fa-<?php echo $messageType === 'success' ? 'check-circle' : 'exclamation-circle'; ?>"></i>
-        <?php echo $message; ?>
+    <div class="alert alert-<?php echo htmlspecialchars($messageType); ?> show" id="alertMessage">
+        <?php echo htmlspecialchars($message); ?>
     </div>
     <?php endif; ?>
 
-    <section class="section">
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-                    <i class="fas fa-users" style="color:white;"></i>
-                </div>
-                <div class="stat-info">
-                    <h3><?php echo number_format($stats['total'] ?? 0); ?></h3>
-                    <p>ผู้ใช้งานทั้งหมด</p>
-                </div>
+    <div class="card">
+        <div class="card-header">
+            <div class="search-bar">
+                <form method="GET" style="display: flex; gap: 10px; flex: 1;">
+                    <input type="text" name="search" class="search-input" placeholder="ค้นหา ชื่อ, อีเมล หรือยูสเซอร์เนม..." value="<?php echo htmlspecialchars($search); ?>">
+                    <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
+                </form>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #48bb78, #38a169);">
-                    <i class="fas fa-user" style="color:white;"></i>
-                </div>
-                <div class="stat-info">
-                    <h3><?php echo number_format($stats['active_count'] ?? 0); ?></h3>
-                    <p>สถานะ Active</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #79c267, #16a34a);">
-                    <i class="fas fa-user-tag" style="color:white;"></i>
-                </div>
-                <div class="stat-info">
-                    <h3><?php echo number_format($stats['staff_count'] ?? 0); ?></h3>
-                    <p>Staff</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background: linear-gradient(135deg, #f97316, #ea580c);">
-                    <i class="fas fa-user-shield" style="color:white;"></i>
-                </div>
-                <div class="stat-info">
-                    <h3><?php echo number_format($stats['admin_count'] ?? 0); ?></h3>
-                    <p>Admin</p>
-                </div>
-            </div>
+            <button type="button" class="btn btn-primary" id="addUserBtn">
+                ➕ เพิ่มผู้ใช้ใหม่
+            </button>
         </div>
-    </section>
 
-    <section class="section">
-        <div class="filter-bar">
-            <form method="GET">
-                <div class="filter-grid">
-                    <div class="input-icon-wrapper">
-                        <i class="fas fa-search"></i>
-                        <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" class="form-control" placeholder="ค้นหาชื่อ, Username, Email หรือแผนก">
-                    </div>
-                    <select name="role" class="form-control" onchange="this.form.submit()">
-                        <option value="">ทุกบทบาท</option>
-                        <option value="admin" <?php echo $role === 'admin' ? 'selected' : ''; ?>>Admin</option>
-                        <option value="staff" <?php echo $role === 'staff' ? 'selected' : ''; ?>>Staff</option>
-                        <option value="user" <?php echo $role === 'user' ? 'selected' : ''; ?>>User</option>
-                    </select>
-                    <select name="status" class="form-control" onchange="this.form.submit()">
-                        <option value="">ทุกสถานะ</option>
-                        <option value="active" <?php echo $status === 'active' ? 'selected' : ''; ?>>Active</option>
-                        <option value="inactive" <?php echo $status === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
-                        <option value="suspended" <?php echo $status === 'suspended' ? 'selected' : ''; ?>>Suspended</option>
-                    </select>
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class="fas fa-search"></i> ค้นหา
-                    </button>
-                </div>
-            </form>
-        </div>
-    </section>
-
-    <section class="section">
-        <div class="card">
-            <div class="card-toolbar">
-                <strong><i class="fas fa-users"></i> รายชื่อผู้ใช้งาน</strong>
-                <div class="toolbar-actions">
-                    <a href="?export=excel" class="btn btn-sm view-toggle btn-green">
-                        <i class="fas fa-file-export"></i> Export
-                    </a>
-                </div>
-            </div>
+        <div class="table-container">
             <table>
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>ชื่อ</th>
                         <th>Username</th>
-                        <th>Email</th>
-                        <th>แผนก</th>
-                        <th>ตำแหน่ง</th>
+                        <th>ชื่อ-นามสกุล</th>
                         <th>บทบาท</th>
                         <th>สถานะ</th>
                         <th>จัดการ</th>
@@ -276,191 +259,421 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <tbody>
                     <?php if (empty($users)): ?>
                     <tr>
-                        <td colspan="9" class="table-empty">
-                            <i class="fas fa-user-slash"></i>
-                            ยังไม่มีผู้ใช้งานในระบบ
+                        <td colspan="6" style="text-align: center; padding: 40px;">
+                            <div style="color: #94a3b8;">
+                                <div style="font-size: 3em; margin-bottom: 10px;">👥</div>
+                                <p>ไม่พบผู้ใช้งาน</p>
+                            </div>
                         </td>
                     </tr>
                     <?php else: ?>
-                        <?php foreach ($users as $user): ?>
-                        <tr>
-                            <td>#<?php echo $user['user_id']; ?></td>
-                            <td><?php echo htmlspecialchars($user['full_name'] ?? '-'); ?></td>
-                            <td><?php echo htmlspecialchars($user['username']); ?></td>
-                            <td><?php echo htmlspecialchars($user['email'] ?? '-'); ?></td>
-                            <td><?php echo htmlspecialchars($user['department'] ?? '-'); ?></td>
-                            <td><?php echo htmlspecialchars($user['position'] ?? '-'); ?></td>
-                            <td>
-                                <span class="badge badge-<?php echo $user['role']; ?>">
-                                    <?php echo strtoupper($user['role']); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <span class="badge badge-<?php echo $user['status'] ?? 'inactive'; ?>">
-                                    <?php echo strtoupper($user['status'] ?? 'inactive'); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <div class="action-btns">
-                                    <a href="userProfile.php?id=<?php echo $user['user_id']; ?>" class="btn btn-sm btn-view" title="ดูข้อมูล">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <button class="btn btn-sm btn-edit" onclick='editUser(<?php echo json_encode($user, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>)' title="แก้ไข">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <?php if ($user['user_id'] != $_SESSION['user_id']): ?>
-                                    <button class="btn btn-sm btn-delete" onclick="deleteUser(<?php echo $user['user_id']; ?>, '<?php echo htmlspecialchars($user['full_name'] ?? $user['username']); ?>')" title="ลบ">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
+                    <?php $rank = 1; foreach ($users as $user): ?>
+                    <tr>
+                        <td><strong>#<?php echo $rank++; ?></strong></td>
+                        <td><code><?php echo htmlspecialchars($user['username']); ?></code></td>
+                        <td><?php echo htmlspecialchars($user['full_name']); ?></td>
+                        <td>
+                            <span class="badge badge-<?php echo $user['role'] === 'admin' ? 'admin' : ($user['role'] === 'staff' ? 'staff' : 'user'); ?>">
+                                <?php
+                                    if ($user['role'] === 'admin') {
+                                        echo '<span class="badge-dot badge-dot-admin"></span>Admin';
+                                            } elseif ($user['role'] === 'staff') {
+                                                echo '<span class="badge-dot badge-dot-staff"></span>Staff';
+                                            } else {
+                                                echo '<span class="badge-dot badge-dot-user"></span>User';
+                                            }
+                                ?>
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-<?php echo !empty($user['is_active']) ? 'active' : 'inactive'; ?>">
+                                <?php echo !empty($user['is_active']) ? '✅ ใช้งาน' : '❌ ปิดใช้งาน'; ?>
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-btns">
+                                <button
+                                    type="button"
+                                    class="btn-icon btn-profile"
+                                    title="ดูโปรไฟล์"
+                                    onclick="viewProfile(<?php echo (int)$user['user_id']; ?>)"
+                                >
+                                    👤
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-icon btn-edit"
+                                    title="แก้ไข"
+                                    data-action="edit-user"
+                                    data-user='<?php echo json_encode($user, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP); ?>'
+                                >
+                                    ✏️
+                                </button>
+                                <?php if ($user['user_id'] != $_SESSION['user_id']): ?>
+                                <button
+                                    type="button"
+                                    class="btn-icon btn-delete"
+                                    title="ลบ"
+                                    onclick="deleteUser(<?php echo (int)$user['user_id']; ?>, '<?php echo htmlspecialchars($user['full_name'] ?: $user['username'], ENT_QUOTES); ?>')"
+                                >
+                                    🗑️
+                                </button>
+                                <?php endif; ?>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
-    </section>
+    </div>
 
-    <!-- Create User Modal -->
-    <div id="createModal" class="modal">
+    <!-- Add Modal -->
+    <div class="modal" id="addModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2><i class="fas fa-user-plus"></i> สร้างผู้ใช้งานใหม่</h2>
-                <button class="close-btn" onclick="closeCreateModal()">&times;</button>
+                <h2 class="modal-title">➕ เพิ่มผู้ใช้ใหม่</h2>
+                <button type="button" class="modal-close" data-close-modal="addModal">&times;</button>
             </div>
-            <form method="POST">
-                <input type="hidden" name="action" value="create">
-                <?php echo csrf_input(); ?>
-                <div class="form-row">
+            <div class="modal-body">
+                <form method="POST" id="addForm">
+                    <input type="hidden" name="action" value="add">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
+
                     <div class="form-group">
-                        <label for="add_username">Username <span style="color:red;">*</span></label>
-                        <input type="text" name="username" id="add_username" class="form-control" required autocomplete="username">
+                        <label class="form-label" for="add_username">Username *</label>
+                        <input type="text" name="username" id="add_username" class="form-control" autocomplete="username" required>
                     </div>
+
                     <div class="form-group">
-                        <label for="add_password">Password <span style="color:red;">*</span></label>
-                        <input type="password" name="password" id="add_password" class="form-control" required autocomplete="new-password">
+                        <label class="form-label" for="add_password">Password *</label>
+                        <input type="password" name="password" id="add_password" class="form-control" autocomplete="new-password" required>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label for="add_full_name">ชื่อ-สกุล <span style="color:red;">*</span></label>
-                    <input type="text" name="full_name" id="add_full_name" class="form-control" required autocomplete="name">
-                </div>
-                <div class="form-row">
+
                     <div class="form-group">
-                        <label for="add_email">Email</label>
-                        <input type="email" name="email" id="add_email" class="form-control" autocomplete="email">
+                        <label class="form-label" for="add_full_name">ชื่อ-นามสกุล *</label>
+                        <input type="text" name="full_name" id="add_full_name" class="form-control" autocomplete="name" required>
                     </div>
+
                     <div class="form-group">
-                        <label for="add_phone">เบอร์โทร</label>
-                        <input type="text" name="phone" id="add_phone" class="form-control" autocomplete="tel">
+                        <label class="form-label" for="add_email">Email *</label>
+                        <input type="email" name="email" id="add_email" class="form-control" autocomplete="email" required>
                     </div>
-                </div>
-                <div class="form-row">
+
                     <div class="form-group">
-                        <label for="add_department">แผนก</label>
-                        <input type="text" name="department" id="add_department" class="form-control" autocomplete="organization">
+                        <label class="form-label" for="add_phone">Phone</label>
+                        <input type="tel" name="phone" id="add_phone" class="form-control" autocomplete="tel">
                     </div>
+
                     <div class="form-group">
-                        <label for="add_position">ตำแหน่ง</label>
-                        <input type="text" name="position" id="add_position" class="form-control" autocomplete="organization-title">
+                        <label class="form-label" for="add_department">แผนก</label>
+                        <input type="text" name="department" id="add_department" class="form-control">
                     </div>
-                </div>
-                <div class="form-row">
+
                     <div class="form-group">
-                        <label for="add_role">บทบาท <span style="color:red;">*</span></label>
+                        <label class="form-label" for="add_position">ตำแหน่ง</label>
+                        <input type="text" name="position" id="add_position" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="add_role">บทบาท *</label>
                         <select name="role" id="add_role" class="form-control" required>
                             <option value="user">User</option>
                             <option value="staff">Staff</option>
                             <option value="admin">Admin</option>
+                            <option value="it_support">IT Support</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="add_status">สถานะ <span style="color:red;">*</span></label>
-                        <select name="status" id="add_status" class="form-control" required>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="suspended">Suspended</option>
-                        </select>
+
+                    <div style="display: flex; gap: 10px; margin-top: 30px;">
+                        <button type="submit" class="btn btn-success" style="flex: 1;">✅ บันทึก</button>
+                        <button type="button" class="btn btn-secondary" style="flex: 1;" data-close-modal="addModal">❌ ยกเลิก</button>
                     </div>
-                </div>
-                <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
-                    <button type="button" class="btn" onclick="closeCreateModal()" style="background:#e2e8f0;">ยกเลิก</button>
-                    <button type="submit" class="btn btn-primary">บันทึก</button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 
-    <!-- Edit User Modal -->
-    <div id="editModal" class="modal">
+    <!-- Edit Modal -->
+    <div class="modal" id="editModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2><i class="fas fa-user-edit"></i> แก้ไขผู้ใช้งาน</h2>
-                <button class="close-btn" onclick="closeEditModal()">&times;</button>
+                <h2 class="modal-title">✏️ แก้ไขผู้ใช้</h2>
+                <button type="button" class="modal-close" data-close-modal="editModal">&times;</button>
             </div>
-            <form method="POST">
-                <input type="hidden" name="action" value="update">
-                <input type="hidden" name="user_id" id="edit_user_id">
-                <?php echo csrf_input(); ?>
-                <div class="form-group">
-                    <label for="edit_full_name">ชื่อ-สกุล <span style="color:red;">*</span></label>
-                    <input type="text" name="full_name" id="edit_full_name" class="form-control" required autocomplete="name">
-                </div>
-                <div class="form-row">
+            <div class="modal-body">
+                <form method="POST" id="editForm">
+                    <input type="hidden" name="action" value="edit">
+                    <input type="hidden" name="user_id" id="edit_user_id">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
+
                     <div class="form-group">
-                        <label for="edit_email">Email</label>
-                        <input type="email" name="email" id="edit_email" class="form-control" autocomplete="email">
+                        <label class="form-label" for="edit_username">Username *</label>
+                        <input type="text" name="username" id="edit_username" class="form-control" autocomplete="username" required>
                     </div>
+
                     <div class="form-group">
-                        <label for="edit_phone">เบอร์โทร</label>
-                        <input type="text" name="phone" id="edit_phone" class="form-control" autocomplete="tel">
+                        <label class="form-label" for="edit_password">Password ใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</label>
+                        <input type="password" name="password" id="edit_password" class="form-control" autocomplete="new-password">
                     </div>
-                </div>
-                <div class="form-row">
+
                     <div class="form-group">
-                        <label for="edit_department">แผนก</label>
+                        <label class="form-label" for="edit_full_name">ชื่อ-นามสกุล *</label>
+                        <input type="text" name="full_name" id="edit_full_name" class="form-control" autocomplete="name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="edit_email">Email *</label>
+                        <input type="email" name="email" id="edit_email" class="form-control" autocomplete="email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="edit_phone">Phone</label>
+                        <input type="tel" name="phone" id="edit_phone" class="form-control" autocomplete="tel">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="edit_department">แผนก</label>
                         <input type="text" name="department" id="edit_department" class="form-control">
                     </div>
+
                     <div class="form-group">
-                        <label for="edit_position">ตำแหน่ง</label>
+                        <label class="form-label" for="edit_position">ตำแหน่ง</label>
                         <input type="text" name="position" id="edit_position" class="form-control">
                     </div>
-                </div>
-                <div class="form-row">
+
                     <div class="form-group">
-                        <label for="edit_role">บทบาท <span style="color:red;">*</span></label>
+                        <label class="form-label" for="edit_role">บทบาท *</label>
                         <select name="role" id="edit_role" class="form-control" required>
                             <option value="user">User</option>
                             <option value="staff">Staff</option>
                             <option value="admin">Admin</option>
+                            <option value="it_support">IT Support</option>
                         </select>
                     </div>
+
                     <div class="form-group">
-                        <label for="edit_status">สถานะ <span style="color:red;">*</span></label>
-                        <select name="status" id="edit_status" class="form-control" required>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="suspended">Suspended</option>
-                        </select>
+                        <div class="form-check">
+                            <input type="checkbox" name="is_active" id="edit_is_active" value="1">
+                            <label for="edit_is_active">เปิดใช้งาน</label>
+                        </div>
                     </div>
-                </div>
-                <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
-                    <button type="button" class="btn" onclick="closeEditModal()" style="background:#e2e8f0;">ยกเลิก</button>
-                    <button type="submit" class="btn btn-primary">บันทึก</button>
-                </div>
-            </form>
+
+                    <div style="display: flex; gap: 10px; margin-top: 30px;">
+                        <button type="submit" class="btn btn-success" style="flex: 1;">✅ บันทึก</button>
+                        <button type="button" class="btn btn-secondary" style="flex: 1;" data-close-modal="editModal">❌ ยกเลิก</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
-    <form id="deleteForm" method="POST" class="visually-hidden">
+    <form method="POST" id="deleteForm" style="display: none;">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="user_id" id="delete_user_id">
-        <?php echo csrf_input(); ?>
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
     </form>
+
+    <script>
+        (function () {
+            const addModal = document.getElementById('addModal');
+            const editModal = document.getElementById('editModal');
+            const addForm = document.getElementById('addForm');
+            const editForm = document.getElementById('editForm');
+            const deleteForm = document.getElementById('deleteForm');
+            const addUserBtn = document.getElementById('addUserBtn');
+
+            function setBodyScroll(blocked) {
+                document.body.style.overflow = blocked ? 'hidden' : '';
+            }
+
+            function getActiveModal() {
+                return document.querySelector('.modal.active');
+            }
+
+            function openModal(modalId) {
+                const modal = document.getElementById(modalId);
+                if (!modal) {
+                    return;
+                }
+
+                const activeModal = getActiveModal();
+                if (activeModal && activeModal !== modal) {
+                    activeModal.classList.remove('active');
+                }
+
+                modal.classList.add('active');
+                setBodyScroll(true);
+            }
+
+            function closeModal(modalId) {
+                const modal = modalId ? document.getElementById(modalId) : getActiveModal();
+                if (!modal) {
+                    return;
+                }
+
+                modal.classList.remove('active');
+
+                if (!getActiveModal()) {
+                    setBodyScroll(false);
+                }
+            }
+
+            function clearInvalidState(form) {
+                if (!form) {
+                    return;
+                }
+
+                form.querySelectorAll('.is-invalid').forEach(function (field) {
+                    field.classList.remove('is-invalid');
+                });
+            }
+
+            function resetAddForm() {
+                if (!addForm) {
+                    return;
+                }
+
+                addForm.reset();
+                clearInvalidState(addForm);
+            }
+
+            function resetEditForm() {
+                if (!editForm) {
+                    return;
+                }
+
+                editForm.reset();
+                clearInvalidState(editForm);
+            }
+
+            function populateEditForm(user) {
+                if (!user || !editForm) {
+                    return;
+                }
+
+                document.getElementById('edit_user_id').value = user.user_id || '';
+                document.getElementById('edit_username').value = user.username || '';
+                document.getElementById('edit_password').value = '';
+                document.getElementById('edit_full_name').value = user.full_name || '';
+                document.getElementById('edit_email').value = user.email || '';
+                document.getElementById('edit_phone').value = user.phone || '';
+                document.getElementById('edit_department').value = user.department || '';
+                document.getElementById('edit_position').value = user.position || '';
+                document.getElementById('edit_role').value = user.role || 'user';
+                document.getElementById('edit_is_active').checked = Number(user.is_active) === 1;
+            }
+
+            function validateForm(form) {
+                const requiredFields = form.querySelectorAll('[required]');
+                let isValid = true;
+
+                requiredFields.forEach(function (field) {
+                    const value = typeof field.value === 'string' ? field.value.trim() : field.value;
+                    if (!value) {
+                        field.classList.add('is-invalid');
+                        isValid = false;
+                    } else {
+                        field.classList.remove('is-invalid');
+                    }
+                });
+
+                return isValid;
+            }
+
+            if (addUserBtn) {
+                addUserBtn.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    resetAddForm();
+                    openModal('addModal');
+                });
+            }
+
+            document.addEventListener('click', function (event) {
+                const editButton = event.target.closest('[data-action="edit-user"]');
+                if (editButton) {
+                    event.preventDefault();
+                    resetEditForm();
+
+                    const rawUser = editButton.getAttribute('data-user');
+                    if (!rawUser) {
+                        return;
+                    }
+
+                    try {
+                        const user = JSON.parse(rawUser);
+                        populateEditForm(user);
+                        openModal('editModal');
+                    } catch (error) {
+                        console.error('Cannot parse user data:', error);
+                    }
+                    return;
+                }
+
+                const closeButton = event.target.closest('[data-close-modal]');
+                if (closeButton) {
+                    event.preventDefault();
+                    closeModal(closeButton.getAttribute('data-close-modal'));
+                    return;
+                }
+
+                if (event.target.classList.contains('modal')) {
+                    closeModal(event.target.id);
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    closeModal();
+                }
+            });
+
+            [addForm, editForm].filter(Boolean).forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!validateForm(form)) {
+                        event.preventDefault();
+                    }
+                });
+            });
+
+            document.querySelectorAll('#addForm [required], #editForm [required]').forEach(function (field) {
+                field.addEventListener('input', function () {
+                    if (field.value.trim()) {
+                        field.classList.remove('is-invalid');
+                    }
+                });
+            });
+
+            window.deleteUser = function (userId, fullName) {
+                if (!deleteForm || !userId) {
+                    return;
+                }
+
+                const message = fullName
+                    ? 'คุณแน่ใจหรือไม่ที่จะลบผู้ใช้ "' + fullName + '" ?'
+                    : 'คุณแน่ใจหรือไม่ที่จะลบผู้ใช้นี้?';
+
+                if (window.confirm(message)) {
+                    document.getElementById('delete_user_id').value = userId;
+                    deleteForm.submit();
+                }
+            };
+
+            window.viewProfile = function(userId) {
+                window.location.href = `userProfile.php?id=${userId}`;
+            };
+
+            setTimeout(function () {
+                const alert = document.getElementById('alertMessage');
+                if (alert) {
+                    alert.classList.remove('show');
+                }
+            }, 5000);
+
+        })();
+
+    </script>
 </main>
 
-<?php $pageScripts = '<script src="' . BASE_URL . 'assets/js/users.js"></script>'; ?>
-
-<?php include_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once '../includes/footer.php'; ?>

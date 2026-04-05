@@ -313,7 +313,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                                     <span><i class="fas fa-thumbs-up"></i> <?php echo number_format($article['helpful_count']); ?></span>
                                 </div>
                                 <div class="action-btns">
-                                    <button type="button" class="btn btn-primary btn-sm" onclick='viewArticle(<?php echo json_encode($article, $jsonAttrFlags); ?>)'>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick='viewArticle(event,<?php echo json_encode($article, $jsonAttrFlags); ?>)'>
                                         <i class="fas fa-eye"></i> <?php echo ui_text('button.view_article'); ?>
                                     </button>
                                     <button type="button" class="btn btn-helpful btn-sm" onclick="markHelpful(<?php echo $article['kb_id']; ?>)">
@@ -348,7 +348,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <div class="sidebar-widget">
                     <h3 class="widget-title"><i class="fas fa-fire"></i> <?php echo ui_text('widget.popular_articles'); ?></h3>
                     <?php foreach ($popular as $pop): ?>
-                    <button type="button" class="popular-item" onclick='viewArticle(<?php echo json_encode($pop, $jsonAttrFlags); ?>)'>
+                    <button type="button" class="popular-item" onclick='viewArticle(event,<?php echo json_encode($pop, $jsonAttrFlags); ?>)'>
                         <div class="popular-title"><?php echo htmlspecialchars($pop['title']); ?></div>
                         <div class="popular-meta">
                             <i class="<?php echo $pop['category_icon'] ?? 'fas fa-folder'; ?>"></i>
@@ -361,7 +361,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
             </aside>
         </div>
     </section>
-<div id="viewModal" class="modal">
+    <div id="viewModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <h2 id="viewTitle" class="modal-title"><i class="fas fa-book-open"></i> <?php echo ui_text('modal.article_view_title'); ?></h2>

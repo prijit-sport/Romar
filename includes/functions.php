@@ -13,11 +13,41 @@ if (file_exists(__DIR__ . '/../config/config.php')) {
 
 require_once __DIR__ . '/i18n.php';
 
+// Load validation helper functions
+if (file_exists(__DIR__ . '/validation.php')) {
+    require_once __DIR__ . '/validation.php';
+}
+
+// Load backup helper functions
+if (file_exists(__DIR__ . '/backup_helpers.php')) {
+    require_once __DIR__ . '/backup_helpers.php';
+}
+
+// Load safe variable access helpers
+if (file_exists(__DIR__ . '/safe_access.php')) {
+    require_once __DIR__ . '/safe_access.php';
+}
+
+// Load logging & monitoring system
+if (file_exists(__DIR__ . '/logger.php')) {
+    require_once __DIR__ . '/logger.php';
+}
+
+// Load PHPMailer replacement for Gmail SMTP
+if (file_exists(__DIR__ . '/PHPMailerLite.php')) {
+    require_once __DIR__ . '/PHPMailerLite.php';
+}
+
+// Load ticket helper utilities
+if (file_exists(__DIR__ . '/ticket_helpers.php')) {
+    require_once __DIR__ . '/ticket_helpers.php';
+}
+
 /**
  * Verify user login
  */
 if (!function_exists('verifyLogin')) {
-    function verifyLogin($username, $password) {
+function verifyLogin(string $username, string $password) {
         $db = getDB();
         
         $stmt = $db->prepare("SELECT * FROM users WHERE username = ? AND is_active = 1");
@@ -43,7 +73,7 @@ if (!function_exists('verifyLogin')) {
  * Get user by ID
  */
 if (!function_exists('getUserById')) {
-    function getUserById($userId) {
+function getUserById(int $userId) {
         $db = getDB();
         
         $stmt = $db->prepare("SELECT * FROM users WHERE user_id = ?");
@@ -59,7 +89,7 @@ if (!function_exists('getUserById')) {
  * Get all users
  */
 if (!function_exists('getAllUsers')) {
-    function getAllUsers($role = null) {
+function getAllUsers(?string $role = null) {
         $db = getDB();
         
         if ($role) {
@@ -85,7 +115,7 @@ if (!function_exists('getAllUsers')) {
  * Log activity
  */
 if (!function_exists('logActivity')) {
-    function logActivity($userId, $action, $module = '', $description = '') {
+function logActivity(int $userId, string $action, string $module = '', string $description = '') {
         $db = getDB();
         
         $stmt = $db->prepare("
@@ -170,7 +200,7 @@ if (!function_exists('getDashboardStats')) {
  * Get recent activities
  */
 if (!function_exists('getRecentActivities')) {
-    function getRecentActivities($limit = 10) {
+function getRecentActivities(int $limit = 10) {
         $db = getDB();
         
         $stmt = $db->prepare("
@@ -198,7 +228,7 @@ if (!function_exists('getRecentActivities')) {
  * Get active announcements
  */
 if (!function_exists('getActiveAnnouncements')) {
-    function getActiveAnnouncements($limit = 5) {
+function getActiveAnnouncements(int $limit = 5) {
         $db = getDB();
         
         $stmt = $db->prepare("
@@ -255,7 +285,7 @@ if (!function_exists('generateTicketNumber')) {
  * Check if room is available
  */
 if (!function_exists('isRoomAvailable')) {
-    function isRoomAvailable($roomId, $date, $startTime, $endTime, $excludeBookingId = null) {
+function isRoomAvailable(int $roomId, string $date, string $startTime, string $endTime, ?int $excludeBookingId = null) {
         $db = getDB();
         
         $sql = "
@@ -295,7 +325,7 @@ if (!function_exists('isRoomAvailable')) {
  * Upload file
  */
 if (!function_exists('uploadFile')) {
-    function uploadFile($file, $subFolder = 'documents') {
+function uploadFile(array $file, string $subFolder = 'documents') {
         if (empty($file['tmp_name'])) {
             return ['success' => false, 'error' => 'No file uploaded'];
         }
@@ -350,7 +380,7 @@ if (!function_exists('uploadFile')) {
  * Format date to Thai format
  */
 if (!function_exists('formatDateThai')) {
-    function formatDateThai($date) {
+function formatDateThai(string $date) {
         if (empty($date)) return '-';
         
         $timestamp = strtotime($date);
@@ -373,7 +403,7 @@ if (!function_exists('formatDateThai')) {
  * Format date short
  */
 if (!function_exists('formatDateShort')) {
-    function formatDateShort($date) {
+function formatDateShort(string $date) {
         if (empty($date)) return '-';
         
         $timestamp = strtotime($date);
@@ -410,10 +440,19 @@ if (!function_exists('isLoggedIn')) {
 }
 
 /**
+ * Get current user role
+ */
+if (!function_exists('getCurrentUserRole')) {
+    function getCurrentUserRole() {
+        return $_SESSION['role'] ?? 'user';
+    }
+}
+
+/**
  * Redirect to page
  */
 if (!function_exists('redirect')) {
-    function redirect($url) {
+    function redirect(string $url) {
         header("Location: $url");
         exit;
     }
@@ -423,7 +462,7 @@ if (!function_exists('redirect')) {
  * Sanitize input
  */
 if (!function_exists('sanitize')) {
-    function sanitize($data) {
+    function sanitize(string $data) {
         return htmlspecialchars(strip_tags(trim($data)));
     }
 }
@@ -485,7 +524,7 @@ if (!function_exists('csrf_input')) {
  * Validate CSRF token from request
  */
 if (!function_exists('verify_csrf')) {
-    function verify_csrf($token) {
+    function verify_csrf(string $token) {
         $sessionToken = $_SESSION['csrf_token'] ?? '';
         return !empty($token) && !empty($sessionToken) && hash_equals($sessionToken, $token);
     }
@@ -495,7 +534,7 @@ if (!function_exists('verify_csrf')) {
  * Attach common security headers (safe to call multiple times)
  */
 if (!function_exists('apply_security_headers')) {
-    function apply_security_headers($options = []) {
+    function apply_security_headers(array $options = []) {
         if (headers_sent()) {
             return;
         }
@@ -560,7 +599,7 @@ if (!function_exists('request_id')) {
  * Basic rate limiting (session + ip key)
  */
 if (!function_exists('rate_limit_check')) {
-    function rate_limit_check($key, $maxAttempts = 10, $windowSeconds = 60) {
+    function rate_limit_check(string $key, int $maxAttempts = 10, int $windowSeconds = 60) {
         if (session_status() !== PHP_SESSION_ACTIVE) {
             session_start();
         }
@@ -597,7 +636,7 @@ if (!function_exists('rate_limit_check')) {
  * Security audit log (JSON lines)
  */
 if (!function_exists('security_audit_log')) {
-    function security_audit_log($event, $context = []) {
+    function security_audit_log(string $event, array $context = []) {
         $logDir = __DIR__ . '/../logs';
         if (!is_dir($logDir)) {
             @mkdir($logDir, 0755, true);
@@ -650,7 +689,7 @@ if (!function_exists('security_log_policy')) {
  * Rotate security log (daily or when exceeds max size)
  */
 if (!function_exists('rotate_security_log')) {
-    function rotate_security_log($logFile, $maxBytes = 5242880, $maxFiles = 10) {
+    function rotate_security_log(string $logFile, int $maxBytes = 5242880, int $maxFiles = 10) {
         if (!file_exists($logFile)) {
             return;
         }
@@ -690,7 +729,7 @@ if (!function_exists('rotate_security_log')) {
  * Check ticket ownership for non-admin users
  */
 if (!function_exists('can_access_ticket')) {
-    function can_access_ticket($db, $ticketId, $userId, $isAdmin = false) {
+    function can_access_ticket(mysqli $db, int $ticketId, int $userId, bool $isAdmin = false) {
         if ($isAdmin) {
             return true;
         }
@@ -707,7 +746,7 @@ if (!function_exists('can_access_ticket')) {
  * JSON error helper for APIs
  */
 if (!function_exists('json_error')) {
-    function json_error($message, $statusCode = 400, $requestId = null) {
+    function json_error(string $message, int $statusCode = 400, ?string $requestId = null) {
         if ($requestId === null) {
             $requestId = request_id();
         }

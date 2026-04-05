@@ -364,7 +364,13 @@ $assets = []; // Temporary: Uncomment after creating assets table
 $currentUser = getCurrentUser();
 
 // Helper functions
-function calculateSLA($priority, $impact) {
+/**
+ * Calculate SLA hours based on priority and impact
+ * @param string $priority
+ * @param string $impact
+ * @return int
+ */
+function calculateSLA(string $priority, string $impact): int {
     $slaMatrix = [
         'urgent' => ['critical' => 2, 'high' => 4, 'medium' => 8, 'low' => 16],
         'high' => ['critical' => 4, 'high' => 8, 'medium' => 16, 'low' => 24],
@@ -375,13 +381,27 @@ function calculateSLA($priority, $impact) {
     return $slaMatrix[$priority][$impact] ?? 24;
 }
 
-function addTimeline($db, $ticketId, $type, $description) {
+/**
+ * Add timeline entry for ticket
+ * @param mysqli $db
+ * @param int $ticketId
+ * @param string $type
+ * @param string $description
+ * @return bool
+ */
+function addTimeline($db, int $ticketId, string $type, string $description): bool {
     $stmt = $db->prepare("INSERT INTO ticket_timeline (ticket_id, user_id, event_type, description, created_at) VALUES (?, ?, ?, ?, NOW())");
     $stmt->bind_param('iiss', $ticketId, $_SESSION['user_id'], $type, $description);
     return $stmt->execute();
 }
 
-function getUserName($db, $userId) {
+/**
+ * Get user name by ID
+ * @param mysqli $db
+ * @param int $userId
+ * @return string
+ */
+function getUserName($db, int $userId): string {
     $stmt = $db->prepare("SELECT full_name FROM users WHERE user_id = ?");
     $stmt->bind_param('i', $userId);
     $stmt->execute();
@@ -394,7 +414,14 @@ function sendTicketNotification($ticketId, $eventType) {
     // You can use PHPMailer or similar library
 }
 
-function handleFileUploads($db, $ticketId, $files) {
+/**
+ * Handle file uploads for ticket attachments
+ * @param mysqli $db
+ * @param int $ticketId
+ * @param array $files
+ * @return void
+ */
+function handleFileUploads($db, int $ticketId, array $files): void {
     $uploadDir = '../uploads/tickets/';
     if (!file_exists($uploadDir)) {
         mkdir($uploadDir, 0777, true);
@@ -590,11 +617,14 @@ include_once __DIR__ . '/../includes/sidebar.php';
             <!-- Tickets Grid -->
             <div class="tickets-grid">
                 <?php if (empty($tickets)): ?>
-                <div class="empty-state">
-                    <i class="fas fa-inbox"></i>
-                    <h3><?php echo ui_text('tickets.empty.title'); ?></h3>
-                    <p><?php echo ui_text('tickets.empty.body'); ?></p>
-                </div>
+                    <?php $emptyBody = ui_text('tickets.empty.body'); ?>
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3><?php echo ui_text('tickets.empty.title'); ?></h3>
+                        <?php if ($emptyBody): ?>
+                            <p><?php echo $emptyBody; ?></p>
+                        <?php endif; ?>
+                    </div>
                         <?php else: ?>
                             <?php
                                 $priorityDisplay = [
