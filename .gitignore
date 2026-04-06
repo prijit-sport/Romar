@@ -1,5 +1,8 @@
 .env
+.env.local
+.env.*.local
 
+# Logs
 database/backups/
 logs/db-backup-*.log
 logs/*.log

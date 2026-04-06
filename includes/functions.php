@@ -433,6 +433,18 @@ if (!function_exists('isAdmin')) {
 /**
  * Check if user is logged in
  */
+if (!function_exists('safe_html')) {
+function safe_html(mixed $var): string {
+        if ($var === null) {
+            return '';
+        }
+        if (is_array($var) || is_object($var)) {
+            return '';
+        }
+        return htmlspecialchars((string)$var, ENT_QUOTES, 'UTF-8');
+    }
+}
+
 if (!function_exists('isLoggedIn')) {
     function isLoggedIn() {
         return isset($_SESSION['user_id']);
@@ -761,4 +773,3 @@ if (!function_exists('json_error')) {
         exit;
     }
 }
-

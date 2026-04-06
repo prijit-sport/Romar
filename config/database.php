@@ -6,16 +6,18 @@
 
 // กำหนดค่าการเชื่อมต่อ MySQL (prefer environment values)
 define('DB_HOST', getenv('ROMAR_DB_HOST') ?: '127.0.0.1');        // หรือ IP ของ Server
-define('DB_USER', getenv('ROMAR_DB_USER') ?: 'root');             // Username MySQL
-define('DB_PASS', getenv('ROMAR_DB_PASS') !== false ? getenv('ROMAR_DB_PASS') : ''); // Password MySQL
+define('DB_USER', getenv('ROMAR_DB_USER') ?: 'root'); // Username MySQL
+define('DB_PASS', getenv('ROMAR_DB_PASS') ?: ''); // Password MySQL (xampp default empty)
 define('DB_NAME', getenv('ROMAR_DB_NAME') ?: 'romar_dormitory');  // ชื่อ Database
 define('DB_CHARSET', 'utf8mb4');
 define('APP_DEBUG', filter_var(getenv('ROMAR_APP_DEBUG') ?: '0', FILTER_VALIDATE_BOOLEAN));
 
-// สำหรับ Production ให้เปลี่ยนค่าตามนี้:
-// define('DB_HOST', '192.168.1.xxx');  // IP ของ Database Server
-// define('DB_USER', 'romar_user');     // สร้าง User เฉพาะ
-// define('DB_PASS', 'strong_password'); // รหัสผ่านที่แข็งแรง
+/* Production: Set these in .env file:
+ROMAR_DB_HOST=your_db_host
+ROMAR_DB_USER=romar_user  
+ROMAR_DB_PASS=your_secure_password
+ROMAR_DB_NAME=romar_dormitory
+*/
 
 /**
  * Get MySQL Database Connection

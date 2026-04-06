@@ -373,7 +373,8 @@ include_once __DIR__ . '/../includes/sidebar.php';
                                                 <span class="priority-badge priority-<?php echo $ticket['priority']; ?>">
                                                     <?php echo strtoupper($ticket['priority'] ?? 0); ?>
                                                 </span>
-                                                | <?php echo ui_text('dashboard.ticket.created_by_label'); ?>: <?php echo htmlspecialchars($ticket['creator_name'] ?? 'N/A'); ?>
+                                                <?php echo safe_html($ticket['creator_name'] ?? 'N/A'); ?>
+
                                                 |
                                                 <?php echo date('d/m/Y H:i', strtotime($ticket['created_at'] ?? 0)); ?>
                                             </div>
@@ -428,8 +429,9 @@ include_once __DIR__ . '/../includes/sidebar.php';
                                     <span class="detail-item-label">
                                         <i class="fas fa-box"></i>
                                         <span>
-                                            <strong><?php echo htmlspecialchars($warranty['asset_tag']); ?></strong><br>
-                                            <small><?php echo htmlspecialchars(substr($warranty['asset_name'], 0, 40)); ?></small>
+                                <strong><?php echo safe_html($warranty['asset_tag']); ?></strong><br>
+                                            <small><?php echo safe_html(substr($warranty['asset_name'], 0, 40)); ?></small>
+
                                         </span>
                                     </span>
                                     <span class="detail-item-value"><?php echo date('d/m', strtotime($warranty['warranty_expiry'])); ?></span>

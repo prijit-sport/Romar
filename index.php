@@ -5,7 +5,7 @@
  */
 
 // Prevent output before headers
-ob_start();
+ob_clean(); ob_start();
 
 // Initialize session
 if (session_status() === PHP_SESSION_NONE) {

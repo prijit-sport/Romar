@@ -4,6 +4,9 @@
  * ข้อมูลที่ใช้ในการอัปเดตฐานข้อมูล
  */
 
+require_once __DIR__ . '/../config/database.php';
+
+
 
 
 $db = getDB();

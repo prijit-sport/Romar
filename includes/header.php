@@ -7,8 +7,9 @@ if (!headers_sent()) {
     header("Content-Type: $contentTypeHeader");
 }
 $pageTitle = $pageTitle ?? SITE_NAME;
-?><!DOCTYPE html>
+?>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
