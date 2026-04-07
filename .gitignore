@@ -10,8 +10,9 @@ tests/tmp/
 uploads/documents/
 database/*.db
 config/*.internal.env
-!config/alerts.internal.env
-!config/e2e.internal.env
+venv/**
+uploads/
+**/*.pyc
 
 # Junk/temp files
 tmp_*
