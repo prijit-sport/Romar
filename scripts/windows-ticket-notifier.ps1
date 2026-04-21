@@ -1,4 +1,4 @@
-<#
+ <#
 .SYNOPSIS
 Polls the Romar notifications API and fires Windows toast alerts.
 
@@ -33,7 +33,7 @@ param (
     [string]$Username,
 
     [Parameter()]
-    [string]$Password,
+[System.Security.SecureString]$Password,
 
     [Parameter()]
     [System.Management.Automation.PSCredential]$Credential,
@@ -44,7 +44,7 @@ param (
 
 Set-StrictMode -Version Latest
 
-function Ensure-BurntToastModule {
+function Test-BurntToastModule {
     if (-not (Get-Module -ListAvailable -Name BurntToast)) {
         Write-Host 'BurntToast module not found. Installing from PSGallery...' -ForegroundColor Yellow
         Install-Module -Name BurntToast -Scope CurrentUser -Force -AllowClobber
@@ -79,15 +79,19 @@ function Get-CsrfFromLoginPage {
 function Connect-ToRomar {
     param (
         [string]$UserName,
-        [string]$Password
+        [System.Security.SecureString]$Password
     )
-
+    if ($Password) {
+        $PlainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password))
+    } else {
+        $PlainPassword = ''
+    }
     $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
     $csrf = Get-CsrfFromLoginPage -Session $session
 
     $body = @{
         username   = $UserName
-        password   = $Password
+        password   = $PlainPassword
         csrf_token = $csrf
     }
 
@@ -106,7 +110,7 @@ function Connect-ToRomar {
     return $session
 }
 
-function Fetch-Notifications {
+function Get-RomarNotifications {
     param ([Microsoft.PowerShell.Commands.WebRequestSession]$Session)
 
     $data = Invoke-RestMethod -Uri "$BaseUrl/api/getnotifications.php" -WebSession $Session -Method Get -ErrorAction Stop
@@ -117,7 +121,7 @@ function Fetch-Notifications {
     return $data.notifications
 }
 
-function Mark-AsRead {
+function Set-NotificationRead {
     param (
         [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
         [int]$NotifId
@@ -127,7 +131,7 @@ function Mark-AsRead {
     Invoke-RestMethod -Uri "$BaseUrl/api/marknotificationread.php" -WebSession $Session -Method Post -Body $body -ContentType 'application/json' -ErrorAction SilentlyContinue
 }
 
-function Mark-AllAsRead {
+function Set-AllNotificationsRead {
     param ([Microsoft.PowerShell.Commands.WebRequestSession]$Session)
 
     $body = @{ mark_all_read = $true } | ConvertTo-Json
@@ -157,11 +161,11 @@ function Show-TicketToast {
 }
 
 $finalUsername = $null
-$rawPassword = $null
+$plainPassword = $null
 
 if ($Credential) {
     $finalUsername = $Credential.UserName
-    $rawPassword    = ConvertTo-PlainPassword -SecureString $Credential.Password
+$plainPassword = ConvertTo-PlainPassword -SecureString $Credential.Password
 } else {
     if ($Username) {
         $finalUsername = $Username
@@ -170,25 +174,25 @@ if ($Credential) {
     }
 
     if ($Password) {
-        $rawPassword = $Password
+$plainPassword = ConvertTo-PlainPassword -SecureString $Password
     } else {
         $secure = Read-Host -AsSecureString -Prompt 'Romar password'
-        $rawPassword = ConvertTo-PlainPassword -SecureString $secure
+        $plainPassword = ConvertTo-PlainPassword -SecureString $secure
     }
 }
 
-Ensure-BurntToastModule
+Test-BurntToastModule
 
-$session = Connect-ToRomar -UserName $finalUsername -Password $rawPassword
+$session = Connect-ToRomar -UserName $finalUsername -Password $Password
 $seenIds = New-Object 'System.Collections.Generic.HashSet[int]'
 
 while ($true) {
     try {
-        $notifications = Fetch-Notifications -Session $session
+        $notifications = Get-RomarNotifications -Session $session
     } catch {
         Write-Warning "Unable to refresh notifications ($_). Retrying login..."
         Start-Sleep -Seconds 5
-        $session = Connect-ToRomar -UserName $finalUsername -Password $rawPassword
+        $session = Connect-ToRomar -UserName $finalUsername -Password $Password
         continue
     }
 
@@ -198,12 +202,12 @@ while ($true) {
     if ($batch) {
         foreach ($notif in $batch) {
             Show-TicketToast -Notification $notif
-            Mark-AsRead -Session $session -NotifId $notif.notif_id
+            Set-NotificationRead -Session $session -NotifId $notif.notif_id
             $seenIds.Add($notif.notif_id) | Out-Null
         }
 
         if ($MarkAllRead) {
-            Mark-AllAsRead -Session $session
+            Set-AllNotificationsRead -Session $session
         }
     }
 
