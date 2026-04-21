@@ -36,7 +36,7 @@ notification as a toast (via BurntToast), then marks it as read.
    shared.
 
 4. Every poll cycle, the script will show a toast for each unread ticket
-   notification, then call `api/marknotificationread.php` so the same ticket is
+   notification, then call `api/marknotificationread.php` so the same ticket ispowershell.exe กับ arguments เดิม (-File
    not repeated.
 
 ### Advanced options
