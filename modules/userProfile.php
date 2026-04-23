@@ -1,5 +1,7 @@
-<?php
-session_start();
+﻿<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
@@ -18,13 +20,13 @@ if ($_SESSION['role'] !== 'admin') {
 $db = getDB();
 
 // Get user ID from URL
-$profileUserId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$profileUserId = intval($_GET['id'] ?? 0);
 if (!$profileUserId) {
     header('Location: users.php');
     exit;
 }
 
-// ===== ดึงข้อมูล User (ตรงกับ DB จริง) =====
+// ===== ดึงข้อมูล User (ตรงตาม DB จริง) =====
 $stmt = $db->prepare("SELECT * FROM users WHERE user_id = ?");
 $stmt->bind_param('i', $profileUserId);
 $stmt->execute();
@@ -35,81 +37,103 @@ if (!$profileUser) {
     exit;
 }
 
-// ===== ดึง Tickets (ถ้ามีตาราง tickets) =====
+// ===== ดึง Tickets (ถ้ามีตาราง tickets) - FORCE DISPLAY =====
 $tickets        = [];
 $ticketStats    = ['total' => 0, 'open_count' => 0, 'progress_count' => 0, 'solved_count' => 0];
 $hasTicketTable = false;
 $ticketUserCol  = null;
+$debugTickets   = '';
 
 $checkTickets = $db->query("SHOW TABLES LIKE 'tickets'");
 if ($checkTickets && $checkTickets->num_rows > 0) {
     $hasTicketTable = true;
+    $debugTickets .= 'Found tickets table. ';
 
-    // เช็ค column ที่เชื่อม user ทุกชื่อที่เป็นไปได้
-    foreach (['user_id', 'requester_id', 'created_by', 'reporter_id', 'open_by'] as $col) {
+    // ลองทุก column possible
+    $ticketCols = ['user_id', 'requester_id', 'created_by', 'reporter_id', 'open_by', 'assigned_to', 'owner_id'];
+    foreach ($ticketCols as $col) {
         $chk = $db->query("SHOW COLUMNS FROM `tickets` LIKE '{$col}'");
         if ($chk && $chk->num_rows > 0) {
             $ticketUserCol = $col;
+            $debugTickets .= "Using col: $col. ";
             break;
         }
     }
 
-    // Query เฉพาะเมื่อพบ column จริงในตาราง
     if ($ticketUserCol) {
-        $stmt = $db->prepare("SELECT 
+        // Stats query - add error handling
+        $statsSql = "SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN status IN ('new','assigned') THEN 1 ELSE 0 END) as open_count,
             SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as progress_count,
             SUM(CASE WHEN status IN ('solved','closed') THEN 1 ELSE 0 END) as solved_count
-            FROM tickets WHERE `{$ticketUserCol}` = ?");
-        $stmt->bind_param('i', $profileUserId);
-        $stmt->execute();
-        $ticketStats = $stmt->get_result()->fetch_assoc();
-
-        // เช็ค assigned_to
-        $assignedCol = $db->query("SHOW COLUMNS FROM `tickets` LIKE 'assigned_to'");
-        if ($assignedCol && $assignedCol->num_rows > 0) {
-            $stmt = $db->prepare("SELECT t.*, u2.full_name as assigned_name 
-                FROM tickets t 
-                LEFT JOIN users u2 ON t.assigned_to = u2.user_id
-                WHERE t.`{$ticketUserCol}` = ? 
-                ORDER BY t.created_at DESC LIMIT 30");
-        } else {
-            $stmt = $db->prepare("SELECT t.* 
-                FROM tickets t 
-                WHERE t.`{$ticketUserCol}` = ? 
-                ORDER BY t.created_at DESC LIMIT 30");
+            FROM tickets WHERE `{$ticketUserCol}` = ?";
+        $stmt = $db->prepare($statsSql);
+        if ($stmt) {
+            $stmt->bind_param('i', $profileUserId);
+            $stmt->execute();
+            $rs = $stmt->get_result()->fetch_assoc();
+            $ticketStats = array_merge($ticketStats, $rs ?: ['total' => 0]);
+            $debugTickets .= 'Stats: ' . $ticketStats['total'] . '. ';
         }
-        $stmt->bind_param('i', $profileUserId);
-        $stmt->execute();
-        $tickets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        // Details query - REMOVE LIMIT first, use fallback JOIN
+        $detailsSql = "SELECT t.*, COALESCE(u2.full_name, 'N/A') as assigned_name 
+            FROM tickets t 
+            LEFT JOIN users u2 ON t.assigned_to = u2.user_id
+            WHERE t.`{$ticketUserCol}` = ? 
+            ORDER BY t.created_at DESC";
+        $stmt = $db->prepare($detailsSql);
+        if ($stmt) {
+            $stmt->bind_param('i', $profileUserId);
+            $stmt->execute();
+            $tickets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $debugTickets .= 'Found ' . count($tickets) . ' tickets. ';
+        } else {
+            $debugTickets .= 'Details query failed. ';
+        }
+    } else {
+        $debugTickets .= 'No matching user column found. ';
     }
+} else {
+    $debugTickets = 'No tickets table. ';
 }
 
-// ===== ดึง Assets (ถ้ามีตาราง assets) =====
+// ===== ดึง Assets (ถ้ามีตาราง assets) - FORCE DISPLAY =====
 $assets       = [];
 $hasAssetTable = false;
 $assetUserCol  = null;
+$debugAssets  = '';
 
 $checkAssets = $db->query("SHOW TABLES LIKE 'assets'");
 if ($checkAssets && $checkAssets->num_rows > 0) {
     $hasAssetTable = true;
+    $debugAssets .= 'Found assets table. ';
 
-    // เช็ค column ที่เชื่อม user ทุกชื่อที่เป็นไปได้
-    foreach (['assigned_to', 'user_id', 'owner_id', 'assigned_user_id'] as $col) {
+    $possibleCols = ['assigned_to', 'user_id', 'owner_id', 'assigned_user_id', 'user_id', 'created_by'];
+    foreach ($possibleCols as $col) {
         $chk = $db->query("SHOW COLUMNS FROM `assets` LIKE '{$col}'");
         if ($chk && $chk->num_rows > 0) {
             $assetUserCol = $col;
+            $debugAssets .= "Using col: $col. ";
             break;
         }
     }
 
     if ($assetUserCol) {
-        $stmt = $db->prepare("SELECT * FROM assets WHERE `{$assetUserCol}` = ? ORDER BY created_at DESC");
-        $stmt->bind_param('i', $profileUserId);
-        $stmt->execute();
-        $assets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $sql = "SELECT * FROM assets WHERE `{$assetUserCol}` = ? ORDER BY created_at DESC LIMIT 50";
+        $stmt = $db->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param('i', $profileUserId);
+            $stmt->execute();
+            $assets = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $debugAssets .= 'Found ' . count($assets) . ' assets. ';
+        }
+    } else {
+        $debugAssets .= 'No matching column. ';
     }
+} else {
+    $debugAssets = 'No assets table. ';
 }
 
 // ===== ดึง Activity Log (ถ้ามีตาราง) =====
@@ -141,31 +165,50 @@ if (isset($profileUser['status'])) {
     $isActive = (bool)$profileUser['is_active'];
 }
 
-$roleBadgeClass = match($profileUser['role']) {
-    'admin' => 'badge-admin',
-    'staff' => 'badge-staff',
-    default => 'badge-user',
-};
+switch ($profileUser['role']) {
+    case 'admin':
+        $roleBadgeClass = 'badge-admin';
+        break;
+    case 'staff':
+        $roleBadgeClass = 'badge-staff';
+        break;
+    default:
+$roleBadgeClass = 'badge-user' ;
+        break;
+}
 
 // Priority / Status label helpers
-function priorityLabel($p) {
-    return match(strtolower($p ?? 'low')) {
-        'urgent' => ['label' => 'Urgent', 'class' => 'badge-urgent'],
-        'high'   => ['label' => 'High',   'class' => 'badge-high'],
-        'medium' => ['label' => 'Medium', 'class' => 'badge-medium'],
-        default  => ['label' => 'Low',    'class' => 'badge-low'],
-    };
+function priorityLabel(?string $p): array {
+    $priority = strtolower($p ?? 'low');
+    switch ($priority) {
+        case 'urgent':
+            return ['label' => 'Urgent', 'class' => 'badge-urgent'];
+        case 'high':
+            return ['label' => 'High', 'class' => 'badge-high'];
+        case 'medium':
+            return ['label' => 'Medium', 'class' => 'badge-medium'];
+        default:
+            return ['label' => 'Low', 'class' => 'badge-low'];
+    }
 }
-function statusLabel($s) {
-    return match(strtolower($s ?? 'new')) {
-        'new'         => ['label' => 'New',         'class' => 'badge-new'],
-        'assigned'    => ['label' => 'Assigned',    'class' => 'badge-assigned'],
-        'in_progress' => ['label' => 'In Progress', 'class' => 'badge-progress'],
-        'pending'     => ['label' => 'Pending',     'class' => 'badge-pending'],
-        'solved'      => ['label' => 'Solved',      'class' => 'badge-solved'],
-        'closed'      => ['label' => 'Closed',      'class' => 'badge-closed'],
-        default       => ['label' => ucfirst($s),   'class' => 'badge-user'],
-    };
+function statusLabel(?string $s): array {
+    $status = strtolower($s ?? 'new');
+    switch ($status) {
+        case 'new':
+            return ['label' => 'New', 'class' => 'badge-new'];
+        case 'assigned':
+            return ['label' => 'Assigned', 'class' => 'badge-assigned'];
+        case 'in_progress':
+            return ['label' => 'In Progress', 'class' => 'badge-progress'];
+        case 'pending':
+            return ['label' => 'Pending', 'class' => 'badge-pending'];
+        case 'solved':
+            return ['label' => 'Solved', 'class' => 'badge-solved'];
+        case 'closed':
+            return ['label' => 'Closed', 'class' => 'badge-closed'];
+        default:
+            return ['label' => ucfirst($s), 'class' => 'badge-user'];
+    }
 }
 
 $pageTitle = 'โปรไฟล์ผู้ใช้ - ' . htmlspecialchars($profileUser['full_name'] ?? $profileUser['username']);
@@ -175,98 +218,98 @@ include_once __DIR__ . '/../includes/sidebar.php';
 ?>
 
 <!-- Breadcrumb & Page Header -->
-<div class="page-header">
-    <div class="breadcrumb-nav">
-        <div class="breadcrumb">
-            <a href="../admin/dashboard.php"><i class="fas fa-home"></i> Dashboard</a>
-            <span>›</span>
-            <a href="users.php">จัดการผู้ใช้งาน</a>
-            <span>›</span>
-            <span class="active"><?php echo htmlspecialchars($profileUser['full_name'] ?? $profileUser['username']); ?></span>
-        </div>
-    </div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
-        <div>
-            <h1 style="font-size: 2rem; margin-bottom: 0.25rem;"><i class="fas fa-user" style="color: var(--primary-dark);"></i> <?php echo htmlspecialchars($profileUser['full_name'] ?? $profileUser['username']); ?></h1>
-            <p class="page-subtitle">User ID: #<?php echo $profileUser['user_id']; ?> | <?php echo strtoupper($profileUser['role']); ?> | <?php echo $isActive ? 'Active' : 'Inactive'; ?></p>
-        </div>
-        <button type="button" class="btn btn-primary" data-profile="<?php echo htmlspecialchars(json_encode($profileUser, JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_APOS | JSON_HEX_AMP), ENT_QUOTES, 'UTF-8'); ?>">
-            <i class="fas fa-edit"></i> แก้ไขข้อมูล
-        </button>
-    </div>
-</div>
+<main class="main-content">
 
-<?php $pageScripts = '<script nonce="' . htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8') . '">window.pageConfig = {userId: ' . $profileUserId . '};</script>
-<script nonce="' . htmlspecialchars(csp_nonce(), ENT_QUOTES, 'UTF-8') . '" src="../assets/js/userProfile.js"></script>'; ?>
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-nav profile-breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="../admin/dashboard.php">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+            </li>
+            <li class="breadcrumb-separator">›</li>
+<a href="users.php?profile_id=<?php echo $profileUserId; ?>">จัดการผู้ใช้งาน</a>
+            <li class="breadcrumb-separator">›</li>
+            <li class="breadcrumb-item active">
+                <?php echo htmlspecialchars($profileUser['full_name'] ?? $profileUser['username']); ?>
+            </li>
+        </ol>
+    </div>
 
-<section class="profile-overview">
-    <div class="card section-body">
-        <div class="profile-header" style="grid-template-columns: 120px 1fr auto; gap: 1.5rem;">
-            <div class="profile-avatar" style="width: 120px; height: 120px; background: linear-gradient(135deg, var(--primary-navy), var(--primary-dark)); box-shadow: var(--shadow-xl); font-size: 2.5rem;">
-                <div class="avatar-initials"><?php echo htmlspecialchars($initials ?: '?'); ?></div>
-            </div>
-            <div class="profile-meta">
-                <div class="profile-info">
-                    <h3 style="font-size: 1.75rem; margin-bottom: 0.5rem;"><?php echo htmlspecialchars($profileUser['username'] ?? 'N/A'); ?></h3>
-                    <?php if (!empty($profileUser['email'])): ?>
-                    <p class="profile-email"><i class="fas fa-envelope"></i> <?php echo htmlspecialchars($profileUser['email']); ?></p>
-                    <?php endif; ?>
-                    <?php if (!empty($profileUser['department'])): ?>
-                    <p class="profile-dept"><i class="fas fa-building"></i> <?php echo htmlspecialchars($profileUser['department']); ?></p>
-                    <?php endif; ?>
+    <section class="profile-hero">
+        <div class="profile-hero__main">
+            <div class="profile-avatar"><?php echo htmlspecialchars($initials ?: 'U'); ?></div>
+            <div class="profile-hero__content">
+                <div class="profile-hero__top">
+                    <h1 class="profile-hero__name"><?php echo htmlspecialchars($profileUser['full_name'] ?? $profileUser['username']); ?></h1>
+                    <div class="profile-hero__badges">
+                        <span class="badge badge-<?php echo $roleBadgeClass; ?>"><?php echo strtoupper($profileUser['role']); ?></span>
+                        <span class="badge badge-<?php echo $isActive ? 'success' : 'danger'; ?>"><?php echo $isActive ? 'Active' : 'Inactive'; ?></span>
+                    </div>
+                </div>
+                <div class="profile-hero__meta">
+                    <span><i class="fas fa-user"></i> <?php echo htmlspecialchars($profileUser['username']); ?></span>
+                    <span><i class="fas fa-envelope"></i> <?php echo htmlspecialchars($profileUser['email'] ?? '-'); ?></span>
+                    <span><i class="fas fa-building"></i> <?php echo htmlspecialchars($profileUser['department'] ?? '-'); ?></span>
+                    <span><i class="fas fa-briefcase"></i> <?php echo htmlspecialchars($profileUser['position'] ?? '-'); ?></span>
                 </div>
             </div>
-            <div class="profile-badges" style="align-self: start;">
-                <span class="badge badge-<?php echo $profileUser['role']; ?>"><?php echo strtoupper($profileUser['role']); ?></span>
-                <span class="badge badge-<?php echo $isActive ? 'active' : 'inactive'; ?>"><?php echo $isActive ? 'ACTIVE' : 'INACTIVE'; ?></span>
-            </div>
         </div>
-    </div>
-    
-    <!-- Stats inside profile-overview -->
-    <div class="stats-grid" style="margin-top: 2rem;">
-        <div class="stat-card">
-            <div class="stat-icon gradient-purple">
-                <i class="fas fa-ticket-alt"></i>
-            </div>
-            <div class="stat-info">
-                <h3><?php echo $ticketStats['total'] ?? 0; ?></h3>
-                <p>Tickets ทั้งหมด</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon gradient-blue">
-                <i class="fas fa-hourglass-half"></i>
-            </div>
-            <div class="stat-info">
-                <h3><?php echo ($ticketStats['open_count'] ?? 0) + ($ticketStats['progress_count'] ?? 0); ?></h3>
-                <p>กำลังดำเนินการ</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon gradient-green">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <div class="stat-info">
-                <h3><?php echo $ticketStats['solved_count'] ?? 0; ?></h3>
-                <p>แก้ไขสำเร็จ</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
-                <i class="fas fa-laptop"></i>
-            </div>
-            <div class="stat-info">
-                <h3><?php echo count($assets); ?></h3>
-                <p>สินทรัพย์ IT</p>
-            </div>
-        </div>
-    </div>
-</section>
+    </section>
 
-<!-- Tabs -->
-<div class="tabs-wrapper"> 
-            <div class="tabs-nav">
+    <!-- Stats Cards -->
+    <section class="section profile-stats-section">
+        <div class="section-header">
+            <h2 class="section-title"><i class="fas fa-chart-bar"></i> สถิติการใช้งาน</h2>
+        </div>
+        <div class="section-body">
+            <div class="stats-grid stats-grid-modern">
+                <div class="stat-card-modern stat-card-modern--blue">
+                    <div class="stat-card-modern__icon">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <div class="stat-card-modern__content">
+                        <h3><?php echo $ticketStats['total']; ?></h3>
+                        <p>ประวัติ Ticket</p>
+                    </div>
+                </div>
+
+                <div class="stat-card-modern stat-card-modern--green">
+                    <div class="stat-card-modern__icon">
+                        <i class="fas fa-play-circle"></i>
+                    </div>
+                    <div class="stat-card-modern__content">
+                        <h3><?php echo count($assets); ?></h3>
+                        <p>ทรัพย์สินที่มี</p>
+                    </div>
+                </div>
+
+                <div class="stat-card-modern stat-card-modern--orange">
+                    <div class="stat-card-modern__icon">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <div class="stat-card-modern__content">
+                        <h3><?php echo $ticketStats['progress_count']; ?></h3>
+                        <p>กำลังบำรุงรักษา</p>
+                    </div>
+                </div>
+
+                <div class="stat-card-modern stat-card-modern--red">
+                    <div class="stat-card-modern__icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-card-modern__content">
+                        <h3><?php echo $ticketStats['open_count']; ?></h3>
+                        <p>รอดำเนินการ</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+<div class="tabs-wrapper profile-tabs-wrapper"> 
+            <div class="tabs-nav" id="profileTabsNav">
                 <button type="button" class="tab-btn active" data-tab="tickets">
                     <i class="fas fa-ticket-alt"></i> ประวัติ Ticket
                     <span class="tab-count"><?php echo $ticketStats['total'] ?? 0; ?></span>
@@ -291,24 +334,23 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <div class="page-section">
                     <h2 class="section-title">
                         <i class="fas fa-ticket-alt text-primary"></i>
-                        ประวัติการแจ้ง Ticket
+                        ประวัติการแจ้ง Ticket (<?php echo $ticketStats['total']; ?>)
                     </h2>
+                    <?php if ($hasTicketTable && $ticketUserCol): ?>
                     <a href="tickets.php" class="btn btn-primary btn-sm">
                         <i class="fas fa-plus"></i> แจ้ง Ticket ใหม่
                     </a>
+                    <?php endif; ?>
                 </div>
-
                 <?php if (!$hasTicketTable): ?>
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <strong>ยังไม่มีตาราง tickets ในฐานข้อมูล</strong><br>
-                    <small>เมื่อสร้างตาราง <code>tickets</code> แล้ว ข้อมูลจะแสดงที่นี่อัตโนมัติ</small>
+                <div class="empty-state">
+                    <i class="fas fa-ticket-alt"></i>
+                    <p>ยังไม่มีตาราง tickets ในฐานข้อมูล</p>
                 </div>
-                <?php elseif ($hasTicketTable && !$ticketUserCol): ?>
-                <div class="alert alert-info">
+                <?php elseif (!$ticketUserCol): ?>
+                <div class="empty-state">
                     <i class="fas fa-info-circle"></i>
-                    <strong>พบตาราง tickets แต่ยังไม่มี column เชื่อมกับ User</strong><br>
-                    <small>กรุณาเพิ่ม column <code>user_id</code> หรือ <code>requester_id</code> ในตาราง tickets</small>
+                    <p>พบตาราง tickets แต่ไม่มี column เชื่อม user</p>
                 </div>
                 <?php elseif (empty($tickets)): ?>
                 <div class="empty-state">
@@ -316,46 +358,25 @@ include_once __DIR__ . '/../includes/sidebar.php';
                     <p>ยังไม่มีประวัติการแจ้ง Ticket</p>
                 </div>
                 <?php else: ?>
-                <div class="table-panel">
+                <div class="table-responsive">
                     <table class="table">
                         <thead>
                             <tr>
-                                <th>Ticket ID</th>
+                                <th>ID</th>
                                 <th>หัวข้อ</th>
-                                <th>หมวดหมู่</th>
-                                <th>Priority</th>
                                 <th>สถานะ</th>
-                                <th>ผู้รับผิดชอบ</th>
-                                <th>วันที่แจ้ง</th>
-                                <th></th>
+                                <th>รับผิดชอบ</th>
+                                <th>วันที่</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($tickets as $ticket):
-                                $sl = statusLabel($ticket['status']   ?? 'new');
-                                $pl = priorityLabel($ticket['priority'] ?? 'low');
-                                $ticketId = $ticket['ticket_id'] ?? $ticket['id'] ?? 0;
-                                $ticketTitle = $ticket['title'] ?? $ticket['subject'] ?? '-';
-                            ?>
+                            <?php foreach (array_slice($tickets, 0, 10) as $ticket): ?>
                             <tr>
-                                <td>
-                                    <code>#TK-<?php echo str_pad($ticketId, 4, '0', STR_PAD_LEFT); ?></code>
-                                </td>
-                                <td><strong><?php echo htmlspecialchars($ticketTitle); ?></strong></td>
-                                <td>
-                                    <?php if (!empty($ticket['category'])): ?>
-                                    <span class="badge badge-primary"><?php echo htmlspecialchars($ticket['category']); ?></span>
-                                    <?php else: ?>—<?php endif; ?>
-                                </td>
-                                <td><span class="badge <?php echo $pl['class']; ?>"><?php echo $pl['label']; ?></span></td>
-                                <td><span class="badge <?php echo $sl['class']; ?>"><?php echo $sl['label']; ?></span></td>
-                                <td><?php echo htmlspecialchars($ticket['assigned_name'] ?? 'รอมอบหมาย'); ?></td>
-                                <td><?php echo !empty($ticket['created_at']) ? date('d/m H:i', strtotime($ticket['created_at'])) : '-'; ?></td>
-                                <td>
-                                    <a href="ticket_view.php?id=<?php echo $ticketId; ?>" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                </td>
+                                <td><code>#<?php echo $ticket['id'] ?? $ticket['ticket_id'] ?? '-'; ?></code></td>
+                                <td><?php echo htmlspecialchars($ticket['title'] ?? $ticket['subject'] ?? '-'); ?></td>
+                                <td><span class="badge badge-info"><?php echo $ticket['status'] ?? 'new'; ?></span></td>
+                                <td><?php echo htmlspecialchars($ticket['assigned_name'] ?? $ticket['assigned_to'] ?? 'รอ'); ?></td>
+                                <td><?php echo date('d/m H:i', strtotime($ticket['created_at'] ?? 0)); ?></td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -366,31 +387,16 @@ include_once __DIR__ . '/../includes/sidebar.php';
 
             <!-- TAB: ASSETS -->
             <div id="tab-assets" class="tab-panel">
-                <div class="section-header">
-                    <div class="section-title">
-                        <i class="fas fa-laptop" style="color:#48bb78;"></i>
-                        สินทรัพย์ IT ที่ผู้ใช้ครอบครอง
-                    </div>
-                    <a href="assets.php" class="btn btn-primary" style="font-size:0.85em; padding:8px 16px;">
-                        <i class="fas fa-plus"></i> กำหนดสินทรัพย์
-                    </a>
+                <div class="page-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-laptop text-success"></i>
+                        สินทรัพย์ IT (<?php echo count($assets); ?>)
+                    </h2>
                 </div>
-
                 <?php if (!$hasAssetTable): ?>
-                <div class="no-table-info">
-                    <i class="fas fa-exclamation-triangle" style="margin-top:2px;"></i>
-                    <div>
-                        <strong>ยังไม่มีตาราง assets ในฐานข้อมูล</strong><br>
-                        <small>เมื่อสร้างตาราง <code>assets</code> แล้ว ข้อมูลจะแสดงที่นี่อัตโนมัติ</small>
-                    </div>
-                </div>
-                <?php elseif ($hasAssetTable && !$assetUserCol): ?>
-                <div class="no-table-info">
-                    <i class="fas fa-info-circle" style="margin-top:2px;"></i>
-                    <div>
-                        <strong>พบตาราง assets แต่ยังไม่มี column เชื่อมกับ User</strong><br>
-                        <small>กรุณาเพิ่ม column <code>assigned_to</code> หรือ <code>user_id</code> ในตาราง assets</small>
-                    </div>
+                <div class="empty-state">
+                    <i class="fas fa-laptop"></i>
+                    <p>ยังไม่มีตาราง assets ในฐานข้อมูล</p>
                 </div>
                 <?php elseif (empty($assets)): ?>
                 <div class="empty-state">
@@ -398,54 +404,17 @@ include_once __DIR__ . '/../includes/sidebar.php';
                     <p>ยังไม่มีสินทรัพย์ที่ถูกมอบหมาย</p>
                 </div>
                 <?php else: ?>
-                <div class="asset-grid">
-                    <?php foreach ($assets as $asset):
-                        $assetIcon = match(strtolower($asset['asset_type'] ?? $asset['type'] ?? $asset['category'] ?? '')) {
-                            'notebook', 'laptop', 'computer' => '💻',
-                            'monitor', 'display'             => '🖥️',
-                            'printer'                        => '🖨️',
-                            'phone', 'mobile'                => '📱',
-                            'server'                         => '🖧',
-                            'network', 'switch', 'router'    => '🌐',
-                            default                          => '📦',
-                        };
-                        $assetName = $asset['asset_name'] ?? $asset['name'] ?? 'N/A';
-                    ?>
-                    <div class="asset-card">
-                        <div class="asset-icon"><?php echo $assetIcon; ?></div>
-                        <div class="asset-name"><?php echo htmlspecialchars($assetName); ?></div>
-                        <?php if (!empty($asset['serial_number'])): ?>
-                        <div class="asset-serial">SN: <?php echo htmlspecialchars($asset['serial_number']); ?></div>
-                        <?php endif; ?>
-                        <?php if (!empty($asset['status'])): ?>
-                        <span class="badge <?php echo $asset['status'] === 'active' ? 'badge-active' : 'badge-inactive'; ?>">
-                            <?php echo strtoupper($asset['status']); ?>
-                        </span>
-                        <?php endif; ?>
-                        <div style="margin-top:12px;">
-                            <?php if (!empty($asset['brand'])): ?>
-                            <div class="asset-detail-row"><span>ยี่ห้อ</span><span><?php echo htmlspecialchars($asset['brand']); ?></span></div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['model'])): ?>
-                            <div class="asset-detail-row"><span>รุ่น</span><span><?php echo htmlspecialchars($asset['model']); ?></span></div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['purchase_date'])): ?>
-                            <div class="asset-detail-row">
-                                <span>วันที่ซื้อ</span>
-                                <span><?php echo date('d/m/Y', strtotime($asset['purchase_date'])); ?></span>
+                <div class="row">
+                    <?php foreach ($assets as $asset): ?>
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6><?php echo htmlspecialchars($asset['asset_name'] ?? $asset['name'] ?? 'N/A'); ?></h6>
+                                <?php if (!empty($asset['serial_number'])): ?>
+                                <small class="text-muted">SN: <?php echo htmlspecialchars($asset['serial_number']); ?></small>
+                                <?php endif; ?>
+                                <small>Status: <?php echo $asset['status'] ?? 'active'; ?></small>
                             </div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['warranty_expiry'])): ?>
-                            <div class="asset-detail-row">
-                                <span>ประกัน</span>
-                                <span style="color:<?php echo strtotime($asset['warranty_expiry']) > time() ? '#2f855a' : '#c53030'; ?>;">
-                                    ถึง <?php echo date('d/m/Y', strtotime($asset['warranty_expiry'])); ?>
-                                </span>
-                            </div>
-                            <?php endif; ?>
-                            <?php if (!empty($asset['location'])): ?>
-                            <div class="asset-detail-row"><span>ที่ตั้ง</span><span><?php echo htmlspecialchars($asset['location']); ?></span></div>
-                            <?php endif; ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -453,131 +422,55 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 <?php endif; ?>
             </div>
 
-            <!-- TAB: INFO (ตรงตาม DB จริงทุก column) -->
+            <!-- TAB: INFO -->
             <div id="tab-info" class="tab-panel">
-                <div class="section-title" style="margin-bottom:20px;">
-                    <i class="fas fa-id-card" style="color:#ed8936;"></i>
-                    ข้อมูลผู้ใช้งานทั้งหมด
+                <div class="page-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-id-card text-warning"></i>
+                        ข้อมูลส่วนตัว
+                    </h2>
                 </div>
                 <div class="info-grid">
                     <div>
-                        <div class="info-section" style="margin-bottom:16px;">
-                            <h4><i class="fas fa-user" style="color:#667eea;"></i> ข้อมูลส่วนตัว</h4>
-                            <div class="info-row">
-                                <span class="info-key">ชื่อ-นามสกุล</span>
-                                <span class="info-val"><?php echo htmlspecialchars($profileUser['full_name'] ?? '-'); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-key">Username</span>
-                                <span class="info-val" style="font-family:monospace;"><?php echo htmlspecialchars($profileUser['username']); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-key">อีเมล</span>
-                                <span class="info-val"><?php echo htmlspecialchars($profileUser['email'] ?? '-'); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-key">เบอร์โทร</span>
-                                <span class="info-val"><?php echo htmlspecialchars($profileUser['phone'] ?? '-'); ?></span>
-                            </div>
-                        </div>
-                        <div class="info-section">
-                            <h4><i class="fas fa-building" style="color:#ed8936;"></i> ข้อมูลองค์กร</h4>
-                            <div class="info-row">
-                                <span class="info-key">แผนก</span>
-                                <span class="info-val"><?php echo htmlspecialchars($profileUser['department'] ?? '-'); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-key">ตำแหน่ง</span>
-                                <span class="info-val"><?php echo htmlspecialchars($profileUser['position'] ?? '-'); ?></span>
-                            </div>
-                        </div>
+                        <h4>ข้อมูลส่วนตัว</h4>
+                        <p><strong>ชื่อ:</strong> <?php echo htmlspecialchars($profileUser['full_name'] ?? '-'); ?></p>
+                        <p><strong>Username:</strong> <?php echo htmlspecialchars($profileUser['username']); ?></p>
+                        <p><strong>Email:</strong> <?php echo htmlspecialchars($profileUser['email'] ?? '-'); ?></p>
+                        <p><strong>Phone:</strong> <?php echo htmlspecialchars($profileUser['phone'] ?? '-'); ?></p>
                     </div>
                     <div>
-                        <div class="info-section">
-                            <h4><i class="fas fa-shield-alt" style="color:#48bb78;"></i> ข้อมูลบัญชีระบบ</h4>
-                            <div class="info-row">
-                                <span class="info-key">User ID</span>
-                                <span class="info-val" style="font-family:monospace;">#<?php echo $profileUser['user_id']; ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-key">บทบาท</span>
-                                <span class="info-val">
-                                    <span class="badge <?php echo $roleBadgeClass; ?>">
-                                        <?php echo strtoupper($profileUser['role']); ?>
-                                    </span>
-                                </span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-key">สถานะ (status)</span>
-                                <span class="info-val">
-                                    <?php $st = $profileUser['status'] ?? 'inactive'; ?>
-                                    <span class="badge badge-<?php echo $st; ?>">
-                                        <?php echo strtoupper($st); ?>
-                                    </span>
-                                </span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-key">is_active</span>
-                                <span class="info-val">
-                                    <span class="badge <?php echo $profileUser['is_active'] ? 'badge-active' : 'badge-inactive'; ?>">
-                                        <?php echo $profileUser['is_active'] ? 'YES (1)' : 'NO (0)'; ?>
-                                    </span>
-                                </span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-key">วันที่สมัคร</span>
-                                <span class="info-val">
-                                    <?php echo !empty($profileUser['created_at'])
-                                        ? date('d/m/Y H:i', strtotime($profileUser['created_at'])) : '-'; ?>
-                                </span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-key">Login ล่าสุด</span>
-                                <span class="info-val">
-                                    <?php echo !empty($profileUser['last_login'])
-                                        ? date('d/m/Y H:i', strtotime($profileUser['last_login'])) : 'ยังไม่เคย Login'; ?>
-                                </span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-key">แก้ไขล่าสุด</span>
-                                <span class="info-val">
-                                    <?php echo !empty($profileUser['updated_at'])
-                                        ? date('d/m/Y H:i', strtotime($profileUser['updated_at'])) : '-'; ?>
-                                </span>
-                            </div>
-                            <?php if (isset($profileUser['sort_order'])): ?>
-                            <div class="info-row">
-                                <span class="info-key">Sort Order</span>
-                                <span class="info-val"><?php echo $profileUser['sort_order'] ?? '-'; ?></span>
-                            </div>
-                            <?php endif; ?>
-                        </div>
+                        <h4>ข้อมูลองค์กร</h4>
+                        <p><strong>แผนก:</strong> <?php echo htmlspecialchars($profileUser['department'] ?? '-'); ?></p>
+                        <p><strong>ตำแหน่ง:</strong> <?php echo htmlspecialchars($profileUser['position'] ?? '-'); ?></p>
+                    </div>
+                    <div>
+                        <h4>ข้อมูลบัญชี</h4>
+                        <p><strong>User ID:</strong> #<?php echo $profileUser['user_id']; ?></p>
+                        <p><strong>Role:</strong> <span class="badge badge-<?php echo $roleBadgeClass; ?>"><?php echo strtoupper($profileUser['role']); ?></span></p>
+                        <p><strong>Status:</strong> <span class="badge badge-<?php echo $isActive ? 'success' : 'danger'; ?>"><?php echo $isActive ? 'Active' : 'Inactive'; ?></span></p>
+                        <p><strong>Created:</strong> <?php echo !empty($profileUser['created_at']) ? date('d/m/Y H:i', strtotime($profileUser['created_at'])) : '-'; ?></p>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB: ACTIVITY LOG (optional) -->
+            <!-- TAB: ACTIVITY -->
             <?php if (!empty($activityLogs)): ?>
             <div id="tab-activity" class="tab-panel">
-                <div class="section-title" style="margin-bottom:20px;">
-                    <i class="fas fa-history" style="color:#9f7aea;"></i>
-                    ประวัติกิจกรรมล่าสุด
+                <div class="page-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-history text-purple"></i>
+                        ประวัติกิจกรรม (<?php echo count($activityLogs); ?>)
+                    </h2>
                 </div>
-                <div class="timeline">
+<div class="timeline timeline-scroll" id="activityTimeline">
                     <?php foreach ($activityLogs as $log): ?>
-                    <div class="tl-item">
-                        <div class="tl-dot" style="background:#ebf4ff; color:#667eea;">
-                            <i class="fas fa-circle" style="font-size:0.5em;"></i>
-                        </div>
-                        <div class="tl-content">
-                            <div class="tl-title"><?php echo htmlspecialchars($log['action'] ?? '-'); ?></div>
-                            <div class="tl-meta">
-                                <?php echo !empty($log['created_at'])
-                                    ? date('d/m/Y H:i', strtotime($log['created_at'])) : ''; ?>
-                                <?php if (!empty($log['module'])): ?> · <?php echo htmlspecialchars($log['module']); ?><?php endif; ?>
-                            </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h6><?php echo htmlspecialchars($log['action'] ?? 'Action'); ?></h6>
+                            <small><?php echo date('d/m/Y H:i', strtotime($log['created_at'] ?? 0)); ?> · <?php echo htmlspecialchars($log['module'] ?? '-'); ?></small>
                             <?php if (!empty($log['description'])): ?>
-                            <div class="tl-body"><?php echo htmlspecialchars($log['description']); ?></div>
+                            <p><?php echo htmlspecialchars($log['description']); ?></p>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -585,80 +478,516 @@ include_once __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
             <?php endif; ?>
-
-        </div><!-- end tabs-wrapper -->
-    </div><!-- end main-content -->
-</div><!-- end container -->
-
-<!-- Edit Modal - Modern CSS Classes -->
-<div id="editModal" class="modal" aria-hidden="true">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 class="modal-title"><i class="fas fa-user-edit"></i> แก้ไขผู้ใช้งาน</h2>
-            <button type="button" class="modal-close" data-edit-action="close-edit-modal" aria-label="ปิด">&times;</button>
         </div>
-        <div class="modal-body">
-            <form method="POST" action="users.php">
-                <input type="hidden" name="action" value="update">
-                <input type="hidden" name="user_id" id="edit_user_id">
 
-                <div class="form-group">
-                    <label for="edit_full_name" class="form-label">ชื่อ-นามสกุล <span class="text-danger">*</span></label>
-                    <input type="text" name="full_name" id="edit_full_name" required class="form-control" autocomplete="name">
-                </div>
+<style>
+/* Refined profile tabs UX/UI */
+.main-content {
+    padding-top: 0.75rem;
+}
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit_email" class="form-label">อีเมล</label>
-                        <input type="email" name="email" id="edit_email" class="form-control" autocomplete="email">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_phone" class="form-label">เบอร์โทร</label>
-                        <input type="text" name="phone" id="edit_phone" class="form-control" autocomplete="tel">
-                    </div>
-                </div>
+.profile-breadcrumb {
+    margin-bottom: 0.85rem;
+}
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit_department" class="form-label">แผนก</label>
-                        <input type="text" name="department" id="edit_department" class="form-control" autocomplete="organization">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_position" class="form-label">ตำแหน่ง</label>
-                        <input type="text" name="position" id="edit_position" class="form-control" autocomplete="organization-title">
-                    </div>
-                </div>
+.profile-hero {
+    margin: -0.15rem 0 1rem;
+    padding: 1.2rem 1.35rem;
+    background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%);
+    border: 1px solid #dbe7f3;
+    border-radius: 20px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+}
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit_role" class="form-label">บทบาท <span class="text-danger">*</span></label>
-                        <select name="role" id="edit_role" required class="form-control">
-                            <option value="user">User</option>
-                            <option value="staff">Staff</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit_status" class="form-label">สถานะ <span class="text-danger">*</span></label>
-                        <select name="status" id="edit_status" required class="form-control">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="suspended">Suspended</option>
-                        </select>
-                    </div>
-                </div>
+.profile-hero__main {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+}
 
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" data-edit-action="close-edit-modal">ยกเลิก</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> บันทึก
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+.profile-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3182ce 0%, #2563eb 100%);
+    color: #ffffff;
+    font-size: 1.55rem;
+    font-weight: 700;
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+    flex-shrink: 0;
+}
 
-<script src="../assets/js/userProfile.js"></script>
+.profile-hero__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-hero__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    margin-bottom: 0.6rem;
+}
+
+.profile-hero__name {
+    margin: 0;
+    font-size: 1.65rem;
+    line-height: 1.2;
+    color: #0f172a;
+}
+
+.profile-hero__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.profile-hero__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+    color: #475569;
+    font-size: 0.95rem;
+}
+
+.profile-hero__meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid #dbe7f3;
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+}
+
+.profile-stats-section {
+    margin-top: 0.5rem;
+}
+
+.profile-stats-section .section-header {
+    margin-bottom: 0.7rem;
+}
+
+.profile-stats-section .section-title {
+    margin-bottom: 0;
+}
+
+.stats-grid {
+    gap: 1rem;
+}
+
+.stats-grid-modern {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.stat-card-modern {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-height: 88px;
+    padding: 1.15rem 1.35rem;
+    border-radius: 14px;
+    color: #ffffff;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+}
+
+.stat-card-modern--blue {
+    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+}
+
+.stat-card-modern--green {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.stat-card-modern--orange {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.stat-card-modern--red {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.stat-card-modern__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.16);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.stat-card-modern__content h3 {
+    margin: 0 0 0.2rem;
+    font-size: 1.8rem;
+    line-height: 1;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.stat-card-modern__content p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.35;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.profile-tabs-wrapper {
+    margin-top: -0.35rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+
+.tabs-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem 0.65rem;
+    background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+    border-bottom: 1px solid #dbe7f3;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.tabs-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex: 0 0 auto;
+    padding: 0.85rem 1.25rem;
+    border: 1px solid #d9e2ec;
+    background: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+}
+
+.tab-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(49, 130, 206, 0.12);
+    background: #f8fbff;
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, #3182ce 0%, #2563eb 100%);
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.25);
+}
+
+.tab-panel {
+    display: none;
+    padding: 0.75rem 1.5rem 1.2rem;
+    border-top: none;
+    background: #ffffff;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+.tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.8rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: rgba(15, 23, 42, 0.08);
+    color: inherit;
+}
+
+.page-section {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem 1rem;
+    margin-bottom: 0.8rem;
+}
+
+.page-section .section-title {
+    margin-bottom: 0;
+}
+
+.table-responsive,
+.info-grid,
+.timeline-scroll,
+.row {
+    scroll-margin-top: 5rem;
+}
+
+.table-responsive {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table thead th {
+    background: #f8fafc;
+    color: #334155;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.table tbody td {
+    vertical-align: middle;
+}
+
+.card {
+    height: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+.card-body h6 {
+    margin-bottom: 0.4rem;
+    color: #0f172a;
+}
+
+.card-body small {
+    display: block;
+    color: #64748b;
+    line-height: 1.45;
+}
+
+.empty-state {
+    border: 1px dashed #cbd5e1;
+    border-radius: 16px;
+    padding: 2rem 1.25rem;
+    background: #f8fafc;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+}
+
+.info-grid > div {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.2rem 1.25rem;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+}
+
+.info-grid h4 {
+    margin: 0 0 1rem;
+    font-size: 1rem;
+    color: #0f172a;
+}
+
+.info-grid p {
+    margin-bottom: 0.75rem;
+    color: #475569;
+}
+
+.timeline {
+    position: relative;
+}
+
+.timeline-scroll {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.5rem;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+}
+
+.timeline-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+
+.timeline-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 999px;
+}
+
+.timeline-item {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    align-items: flex-start;
+}
+
+.timeline-dot {
+    width: 12px;
+    height: 12px;
+    margin-top: 0.4rem;
+    background: #4299e1;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 6px rgba(66, 153, 225, 0.12);
+}
+
+.timeline-content {
+    flex: 1;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 0.95rem 1rem;
+}
+
+.timeline-content h6 {
+    margin: 0 0 0.35rem;
+    color: #0f172a;
+}
+
+.timeline-content small {
+    display: inline-block;
+    margin-bottom: 0.5rem;
+    color: #64748b;
+}
+
+.timeline-content p {
+    margin: 0;
+    color: #475569;
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        padding-top: 0.35rem;
+    }
+
+    .profile-hero {
+        padding: 1rem;
+        border-radius: 16px;
+    }
+
+    .profile-hero__main {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .profile-avatar {
+        width: 62px;
+        height: 62px;
+        font-size: 1.35rem;
+        border-radius: 16px;
+    }
+
+    .profile-hero__name {
+        font-size: 1.35rem;
+    }
+
+    .profile-hero__meta {
+        gap: 0.5rem;
+    }
+
+    .profile-hero__meta span {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .stats-grid-modern {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card-modern {
+        min-height: 78px;
+        padding: 1rem 1.1rem;
+    }
+
+    .stat-card-modern__content h3 {
+        font-size: 1.45rem;
+    }
+
+    .profile-tabs-wrapper {
+        margin-top: 0;
+        border-radius: 14px;
+    }
+
+    .tabs-nav {
+        padding: 0.7rem 0.85rem 0.6rem;
+        gap: 0.5rem;
+    }
+
+    .tab-btn {
+        padding: 0.75rem 1rem;
+        font-size: 0.92rem;
+    }
+
+    .tab-panel {
+        padding: 0.8rem 1rem 1rem;
+    }
+
+    .timeline-scroll {
+        max-height: 520px;
+    }
+}
+</style>
+
+<script>
+// Tab switching + lock tab nav scroll while keeping timeline scrollable
+document.addEventListener('DOMContentLoaded', function() {
+    const tabs = document.querySelectorAll('.tab-btn[data-tab]');
+    const panels = document.querySelectorAll('.tab-panel');
+    const tabsNav = document.getElementById('profileTabsNav');
+
+    if (tabsNav) {
+        const lockTabNavScroll = function(event) {
+            if (tabsNav.scrollWidth <= tabsNav.clientWidth) return;
+            event.preventDefault();
+            tabsNav.scrollLeft += event.deltaY || event.deltaX || 0;
+        };
+
+        tabsNav.addEventListener('wheel', lockTabNavScroll, { passive: false });
+    }
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.tab;
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            panels.forEach(p => p.classList.remove('active'));
+            document.getElementById(`tab-${target}`).classList.add('active');
+        });
+    });
+});
+</script>
+
+<?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

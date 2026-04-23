@@ -29,7 +29,7 @@ if (!function_exists('getAssetCategories')) {
             'network'       => [
 'label' => 'เน็ตเวิค',
                 'icon'  => 'fa-network-wired',
-                'types' => ['network'],
+                'types' => ['network', 'network_device'],
                 'color' => '#805ad5',
             ],
             'printers'      => [

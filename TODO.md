@@ -1,12 +1,1 @@
-# Romar Project TODO
-
-## Deployment Steps (BlackboxAI)
-- [x] Step 1: Cleanup trash files (tmp_*, debug.php, insert-users.php, duplicate TODOs/MDs, script.ps1)\n- [x] Step 2: Install GitHub CLI (gh)
-- [x] Step 3: Git clean, add, commit cleanup
-- [ ] Step 4: Create blackboxai/deploy-cleanup branch
-- [ ] Step 5: Push and create PR
-- [ ] Step 6: Run preflight checks and tests
-- [ ] Step 7: Merge PR and verify GitHub Actions
-
-**Next:** gh install, branch, PR.
-
+# Final Deploy Cleanup - blackboxai/ branch PR&#10;&#10;## Steps:&#10;&#10;### 1. [ ] Run deploy preflight check&#10;`php scripts/ops/deploy_preflight.php`&#10;&#10;### 2. [ ] Run project health check&#10;`php tests/project_health_check.php`&#10;&#10;### 3. [ ] Remove junk tmp files (20+ tmp_*.php/py/ps1)&#10;List: tmp_swap_style.php, tmp_read.py, tmp_check_encoding.php, tmp_dump*.php, tmp_*.py, temp*.ps1/php etc.&#10;&#10;### 4. [ ] Remove tests/load/venv/ (load testing artifacts, 700+ files)&#10;&#10;### 5. [ ] Remove .bak files&#10;index.php.bak, admin/settings.php.bak&#10;&#10;### 6. [ ] Remove redundant reports&#10;ANALYSIS_REPORT_cleanup.md, TODO_cleanup.md, TODO2.md, TODO_deploy.md (keep CLEANUP_REPORT_FINAL.md, this TODO.md)&#10;&#10;### 7. [ ] Git: create branch, commit, push&#10;`git checkout -b blackboxai/deploy-final-cleanup`&#10;`git add -A`&#10;`git commit -m "Final cleanup for deploy: remove tmp junk, venv, backups; validated preflight &amp; health"`&#10;`git push -u origin HEAD`&#10;&#10;### 8. [ ] Open PR&#10;`gh pr create --title "blackboxai/deploy-final-cleanup: Complete PR#2 cleanup for production deploy" --body "Removes tmp/debug files, Python venv; ensures clean deploy. Passes preflight &amp; health checks."`&#10;&#10;## Completion Criteria&#10;- All checks pass&#10;- PR opened successfully

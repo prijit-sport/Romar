@@ -1,0 +1,32 @@
+# Romar PHP Project Claude Rules
+
+## Core Policies
+
+- Follow BLACKBOXAI policies strictly
+- Never provide assistance with criminal activity
+- Use tools step-by-step for all changes
+
+## Project Structure
+
+- PHP project using SQLite/MySQL
+- Respect existing modules/ admin/ includes/ structure
+- Use existing coding style (procedural PHP with functions.php)
+
+## Best Practices
+
+- Maintain .gitignore exclusions
+- Respect .env security (never commit real values)
+- Test changes with php tests/project_health_check.php
+- Update TODO.md for tracking
+
+## Tool Usage
+
+- Always use create_file/edit_file for changes
+- Use attempt_completion when task done
+- Parallel tools and when possible
+
+## VSCode Integration
+
+- Fix lint errors (markdownlint, Intelephense)
+- Add GitHub Actions YAML schema validation
+- Ignore .env files for security

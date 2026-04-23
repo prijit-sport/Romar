@@ -1,7 +1,7 @@
 Options -Indexes
 
 # Block direct web access to maintenance and debug scripts.
-<FilesMatch "^(debug\.php|insert-users\.php|Create-htaccess\.php)$">
+<FilesMatch "^(debug\.php|insert-users\.php|create-admin\.php|tmp_.*\.php|test-.*\.php)$">
     Require all denied
 </FilesMatch>
 

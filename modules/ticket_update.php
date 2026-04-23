@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
@@ -115,23 +117,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get IT team members
 $itTeam = $db->query("SELECT user_id, full_name FROM users WHERE role IN ('admin', 'it_support') AND status = 'active' ORDER BY full_name")->fetch_all(MYSQLI_ASSOC);
 
-function calculateSLA($priority, $impact) {
-    $slaMatrix = [
-        'urgent' => ['critical' => 2, 'high' => 4, 'medium' => 8, 'low' => 16],
-        'high' => ['critical' => 4, 'high' => 8, 'medium' => 16, 'low' => 24],
-        'normal' => ['critical' => 8, 'high' => 16, 'medium' => 24, 'low' => 48],
-        'low' => ['critical' => 16, 'high' => 24, 'medium' => 48, 'low' => 72]
-    ];
-    return $slaMatrix[$priority][$impact] ?? 24;
-}
-
-// ✅ แก้ไขให้ตรงกับ structure จริงของตาราง ticket_timeline
-// Structure: id, ticket_id, event_type, description, user_id, created_at
-function addTimeline($db, $ticketId, $eventType, $description) {
-    $stmt = $db->prepare("INSERT INTO ticket_timeline (ticket_id, event_type, description, user_id, created_at) VALUES (?, ?, ?, ?, NOW())");
-    $stmt->bind_param('issi', $ticketId, $eventType, $description, $_SESSION['user_id']);
-    return $stmt->execute();
-}
 ?>
 <!DOCTYPE html>
 <html lang="th">
