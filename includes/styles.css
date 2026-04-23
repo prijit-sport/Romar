@@ -348,6 +348,17 @@ body {
   background: var(--medium-text);
 }
 
+.asset-category-panel {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.asset-category-panel::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
+}
+
 .no-notifications {
   padding: 2rem 1rem;
   text-align: center;

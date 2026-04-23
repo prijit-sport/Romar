@@ -1,28 +1,32 @@
-# Claude AI Rules for this project
-# This file customizes how Claude behaves in this workspace
-# Similar to Cursor's .cursorrules
+# Romar PHP Project Claude Rules
 
-## Code Style
-- Use TypeScript strict mode
-- Prefer functional components in React
-- Use async/await instead of promises.then()
-- Add JSDoc comments to all exported functions
+## Core Policies
 
-## Framework-Specific
-- This is a Next.js project, use App Router conventions
-- Use Server Components by default, Client Components only when needed
-- Use Tailwind CSS for styling
+- Follow BLACKBOXAI policies strictly
+- Never provide assistance with criminal activity
+- Use tools step-by-step for all changes
+
+## Project Structure
+
+- PHP project using SQLite/MySQL
+- Respect existing modules/ admin/ includes/ structure
+- Use existing coding style (procedural PHP with functions.php)
 
 ## Best Practices
-- Write tests for all new features
-- Follow the existing folder structure in src/
-- Use meaningful variable names
-- Keep functions small and focused
 
-## Restrictions
-- Never use 'any' type in TypeScript
-- Don't install new packages without asking
-- Always show diff preview before applying changes
+- Maintain .gitignore exclusions
+- Respect .env security (never commit real values)
+- Test changes with php tests/project_health_check.php
+- Update TODO.md for tracking
 
-## Custom Instructions
-# Add your own rules here...
+## Tool Usage
+
+- Always use create_file/edit_file for changes
+- Use attempt_completion when task done
+- Parallel tools and when possible
+
+## VSCode Integration
+
+- Fix lint errors (markdownlint, Intelephense)
+- Add GitHub Actions YAML schema validation
+- Ignore .env files for security
