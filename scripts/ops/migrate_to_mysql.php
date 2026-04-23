@@ -22,7 +22,7 @@ if (!$isCLI) {
     echo "<pre style='font-family: monospace; background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 8px;'>";
 }
 
-function logMsg($msg, $type = 'info') {
+function logMsg(string $msg, string $type = 'info'): void {
     global $isCLI;
     $colors = [
         'info' => $isCLI ? "\033[36m" : '',
@@ -80,7 +80,11 @@ if ($row['cnt'] == 0) {
     
     $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
     $stmt = $db->prepare("INSERT INTO users (username, password, full_name, email, role, is_active) VALUES (?, ?, ?, ?, ?, 1)");
-    $stmt->bind_param('sssss', $username = 'admin', $adminPassword, $fullName = 'Administrator', $email = 'admin@romar.local', $role = 'admin');
+$username = 'admin';
+$fullName = 'Administrator';
+$email = 'admin@romar.local';
+$role = 'admin';
+$stmt->bind_param('sssss', $username, $adminPassword, $fullName, $email, $role);
     
     if ($stmt->execute()) {
         logMsg("✓ Admin user created (username: admin, password: admin123)", 'success');
@@ -107,7 +111,11 @@ if ($row['cnt'] == 0) {
     $stmt = $db->prepare("INSERT INTO meeting_rooms (room_name, capacity, location, amenities, is_active) VALUES (?, ?, ?, ?, 1)");
     
     foreach ($rooms as $room) {
-        $stmt->bind_param('siss', $room[0], $room[1], $room[2], $room[3]);
+$room_name = $room[0];
+$capacity = $room[1];
+$location = $room[2];
+$amenities = $room[3];
+$stmt->bind_param('siss', $room_name, $capacity, $location, $amenities);
         $stmt->execute();
     }
     
@@ -132,7 +140,12 @@ if ($row['cnt'] == 0) {
     $stmt = $db->prepare("INSERT INTO sla_rules (name, priority, impact, response_time_hours, resolution_time_hours) VALUES (?, ?, ?, ?, ?)");
     
     foreach ($slaRules as $rule) {
-        $stmt->bind_param('sssii', $rule[0], $rule[1], $rule[2], $rule[3], $rule[4]);
+$name = $rule[0];
+$priority = $rule[1];
+$impact = $rule[2];
+$response_time = $rule[3];
+$resolution_time = $rule[4];
+$stmt->bind_param('sssii', $name, $priority, $impact, $response_time, $resolution_time);
         $stmt->execute();
     }
     
@@ -155,7 +168,14 @@ if ($row['cnt'] == 0) {
     $stmt = $db->prepare("INSERT INTO assets (asset_tag, asset_name, asset_type, brand, model, status, location) VALUES (?, ?, ?, ?, ?, ?, ?)");
     
     foreach ($assets as $asset) {
-        $stmt->bind_param('sssssss', $asset[0], $asset[1], $asset[2], $asset[3], $asset[4], $asset[5], $asset[6]);
+$asset_tag = $asset[0];
+$asset_name = $asset[1];
+$asset_type = $asset[2];
+$brand = $asset[3];
+$model = $asset[4];
+$status = $asset[5];
+$location = $asset[6];
+$stmt->bind_param('sssssss', $asset_tag, $asset_name, $asset_type, $brand, $model, $status, $location);
         $stmt->execute();
     }
     

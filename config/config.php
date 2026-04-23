@@ -3,7 +3,7 @@ if (!function_exists('romar_load_env_file')) {
     /**
      * Load key=value pairs from .env into process env when not already set.
      */
-    function romar_load_env_file($path) {
+function romar_load_env_file(?string $path) {
         if (!is_string($path) || $path === '' || !is_file($path) || !is_readable($path)) {
             return;
         }
@@ -36,7 +36,7 @@ if (!function_exists('romar_load_env_file')) {
 romar_load_env_file(__DIR__ . '/../.env');
 
 if (!function_exists('romar_normalize_base_url')) {
-    function romar_normalize_base_url($value) {
+function romar_normalize_base_url(?string $value) {
         $value = trim((string)$value);
         if ($value === '') {
             return '';
@@ -178,7 +178,7 @@ define('CONVERSATION_TYPES', ['phone' => 'โทรศัพท์', 'email' => 
  * Redirect to URL
  * Note: This is the main redirect function used throughout the application
  */
-function redirect($url) {
+function redirect(string $url) {
     header("Location: " . BASE_URL . $url);
     exit;
 }

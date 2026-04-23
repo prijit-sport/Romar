@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS `users` (
     `password` VARCHAR(255) NOT NULL,
     `full_name` VARCHAR(100) NOT NULL,
     `email` VARCHAR(100),
+    `phone` VARCHAR(20) NULL,
+    `department` VARCHAR(100) NULL,
+    `position` VARCHAR(100) NULL,
     `role` ENUM('admin', 'staff', 'user', 'it_support') DEFAULT 'user',
     `status` ENUM('active', 'inactive') DEFAULT 'active',
     `is_active` TINYINT(1) DEFAULT 1,
@@ -20,7 +23,10 @@ CREATE TABLE IF NOT EXISTS `users` (
     PRIMARY KEY (`user_id`),
     INDEX `idx_username` (`username`),
     INDEX `idx_role` (`role`),
-    INDEX `idx_status` (`status`)
+    INDEX `idx_status` (`status`),
+    INDEX `idx_phone` (`phone`),
+    INDEX `idx_department` (`department`),
+    INDEX `idx_position` (`position`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ========================================

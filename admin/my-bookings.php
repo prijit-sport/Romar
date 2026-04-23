@@ -52,344 +52,7 @@ $currentUser = getCurrentUser();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>รายการจองของฉัน - Romar</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Sarabun', sans-serif;
-            background: #065f159c;
-            color: #000000;
-        }
-
-        .container {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 260px;
-            background: linear-gradient(180deg, #10ce30 0%, #000000 100%);
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100vh;
-            overflow-y: auto;
-            box-shadow: 2px 0 10px rgb(0, 0, 0);
-            z-index: 1000;
-        }
-
-        .sidebar-brand {
-            padding: 25px 20px;
-            border-bottom: 1px solid rgb(255, 255, 255);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: white;
-        }
-
-        .brand-icon {
-            font-size: 2em;
-        }
-
-        .brand-name {
-            font-size: 1.5em;
-            font-weight: 700;
-        }
-
-        .brand-subtitle {
-            color: #000000;
-            font-size: 1em;
-            opacity: 0.8;
-        }
-
-        .sidebar-nav ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .sidebar-nav a {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 20px;
-            color: rgb(255, 255, 255);
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-
-        .sidebar-nav a:hover {
-            background: rgba(255,255,255,0.1);
-            color: white;
-        }
-
-        .sidebar-nav li.active a {
-            background: rgba(255,255,255,0.15);
-            color: white;
-            border-left: 4px solid #000000;
-        }
-
-        .menu-section {
-            padding: 20px 20px 10px;
-            color: rgb(255, 255, 255);
-            font-size: 0.75em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-left: 260px;
-            padding: 30px;
-        }
-
-        .page-header {
-            background: white;
-            padding: 25px 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-bottom: 30px;
-        }
-
-        .page-title h1 {
-            font-size: 1.8em;
-            color: #2d3748;
-            font-weight: 600;
-        }
-
-        /* Tabs */
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-        }
-
-        .tab-btn {
-            padding: 12px 24px;
-            border: none;
-            background: white;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 500;
-            transition: all 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .tab-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-        }
-
-        /* Booking Cards */
-        .bookings-grid {
-            display: grid;
-            gap: 20px;
-        }
-
-        .booking-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            overflow: hidden;
-            transition: all 0.3s;
-            border-left: 4px solid;
-        }
-
-        .booking-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
-        }
-
-        .booking-card.pending { border-left-color: #f59e0b; }
-        .booking-card.approved { border-left-color: #10b981; }
-        .booking-card.cancelled { border-left-color: #ef4444; }
-        .booking-card.completed { border-left-color: #6b7280; }
-
-        .booking-body {
-            padding: 25px;
-        }
-
-        .booking-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 20px;
-        }
-
-        .booking-room {
-            flex: 1;
-        }
-
-        .room-name {
-            font-size: 1.3em;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 5px;
-        }
-
-        .room-location {
-            color: #64748b;
-            font-size: 0.9em;
-        }
-
-        .booking-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-            padding: 20px;
-            background: #f8fafc;
-            border-radius: 8px;
-        }
-
-        .detail-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .detail-icon {
-            font-size: 1.2em;
-        }
-
-        .detail-text {
-            font-size: 0.95em;
-            color: #475569;
-        }
-
-        .booking-purpose {
-            padding: 15px;
-            background: #eff6ff;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-
-        .purpose-label {
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: #1e40af;
-        }
-
-        .purpose-text {
-            color: #475569;
-            font-size: 0.95em;
-        }
-
-        .booking-actions {
-            display: flex;
-            gap: 10px;
-            padding-top: 15px;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95em;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-            flex: 1;
-        }
-
-        .btn-cancel {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-cancel:hover {
-            background: #dc2626;
-        }
-
-        .btn-disabled {
-            background: #e2e8f0;
-            color: #94a3b8;
-            cursor: not-allowed;
-        }
-
-        /* Badge */
-        .badge {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 12px;
-            font-size: 0.85em;
-            font-weight: 500;
-        }
-
-        .badge-pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .badge-approved {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .badge-cancelled {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .badge-completed {
-            background: #e5e7eb;
-            color: #374151;
-        }
-
-        /* Alert */
-        .alert {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .alert.show {
-            display: block;
-        }
-
-        .alert-success {
-            background: #d1fae5;
-            color: #065f46;
-            border-left: 4px solid #10b981;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            background: white;
-            border-radius: 12px;
-            color: #94a3b8;
-        }
-
-        .empty-icon {
-            font-size: 4em;
-            margin-bottom: 15px;
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                margin-left: -260px;
-            }
-            .main-content {
-                margin-left: 0;
-                padding: 15px;
-            }
-            .booking-details {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="../includes/admin-theme.css">
 </head>
 <body>
     <div class="container">
@@ -411,7 +74,6 @@ $currentUser = getCurrentUser();
                     <li class="<?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>"><a href="dashboard.php">📊 Dashboard</a></li>
                     <?php if ($currentUser['role'] === 'admin'): ?>
                     <li class="menu-section">การจัดการ</li>
-                    <li class="<?php echo $current_page == 'users-management.php' ? 'active' : ''; ?>"><a href="users-management.php">👥 จัดการผู้ใช้</a></li>
                     <li class="<?php echo $current_page == 'meeting-rooms.php' ? 'active' : ''; ?>"><a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a></li>
                     <li class="<?php echo $current_page == 'documents.php' ? 'active' : ''; ?>"><a href="documents.php">📄 จัดการเอกสาร</a></li>
                     <?php endif; ?>
@@ -421,7 +83,7 @@ $currentUser = getCurrentUser();
                     <?php endif; ?>
                     <li class="<?php echo $current_page == 'announcements.php' ? 'active' : ''; ?>"><a href="announcements.php">📢 ข่าวสาร</a></li>
                      <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
-                        <a href="../modules/tickets.php">🎫 IT Tickets</a>
+                        <a href="../modules/tickets.php">🎫 แจ้งปัญหาการใช้งาน IT</a>
                     </li>
                     <li class="menu-section">ระบบ</li>
                     <li><a href="settings.php">⚙️ ตั้งค่า</a></li>
@@ -432,9 +94,16 @@ $currentUser = getCurrentUser();
 
         <!-- Main Content -->
         <div class="main-content">
-            <div class="page-header">
-                <h1>📋 รายการจองของฉัน</h1>
-            </div>
+            <div class="content-wrapper">
+                <div class="page-header" style="justify-content: space-between;">
+                    <div class="page-title-block">
+                        <div class="page-icon" style="width:60px; height:60px; border-radius:1rem; background: linear-gradient(135deg, #1a3edc, #0b2c73); display:flex; align-items:center; justify-content:center; color:#fff; font-size:2rem; box-shadow:0 15px 35px rgba(15,23,42,0.25);">📋</div>
+                        <div>
+                            <h1 style="margin:0; font-size:2rem; font-weight:700;">รายการจองของฉัน</h1>
+                            <p style="margin:0.25rem 0 0; color:#475569; font-weight:500;">ดูและจัดการการจองห้องประชุมของคุณ</p>
+                        </div>
+                    </div>
+                </div>
 
             <?php if ($message): ?>
             <div class="alert alert-<?php echo $messageType; ?> show">
@@ -587,3 +256,4 @@ $currentUser = getCurrentUser();
     </script>
 </body>
 </html>
+

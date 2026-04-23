@@ -9,7 +9,7 @@ if (PHP_SAPI !== 'cli') {
 putenv('ROMAR_SKIP_DB_BOOT=1');
 require_once __DIR__ . '/../includes/functions.php';
 
-function assert_true($cond, string $message): void
+function assert_true(bool $cond, string $message): void
 {
     if (!$cond) {
         throw new RuntimeException($message);

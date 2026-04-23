@@ -22,10 +22,64 @@
         return escapeHtml(value).replace(/\r?\n/g, '<br>');
     }
 
-    function toggleModal(modalEl, open) {
+    function getEventCoordinates(event) {
+        const scrollX = window.scrollX || window.pageXOffset;
+        const scrollY = window.scrollY || window.pageYOffset;
+        if (!event) {
+            return {
+                x: scrollX + window.innerWidth / 2,
+                y: scrollY + window.innerHeight / 2
+            };
+        }
+        const x = typeof event.pageX === 'number' ? event.pageX : (event.clientX + scrollX);
+        const y = typeof event.pageY === 'number' ? event.pageY : (event.clientY + scrollY);
+        return { x, y };
+    }
+
+    function positionFloatingModal(modalEl, coords) {
+        if (!modalEl || !coords || !modalEl.classList.contains('floating-modal') || modalEl.id === 'viewModal') return;
+        const contentEl = modalEl.querySelector('.modal-content');
+        if (!contentEl) return;
+        requestAnimationFrame(() => {
+            const rect = contentEl.getBoundingClientRect();
+            const modalWidth = rect.width;
+            const modalHeight = rect.height;
+            const scrollX = window.scrollX || window.pageXOffset;
+            const scrollY = window.scrollY || window.pageYOffset;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const margin = 12;
+            const fallbackX = scrollX + viewportWidth / 2;
+            const fallbackY = scrollY + viewportHeight / 2;
+            let left = Math.round((coords.x ?? fallbackX) + margin);
+            let top = Math.round((coords.y ?? fallbackY) + margin);
+            const minLeft = scrollX + margin;
+            const maxLeft = scrollX + viewportWidth - modalWidth - margin;
+            const minTop = scrollY + margin;
+            const maxTop = scrollY + viewportHeight - modalHeight - margin;
+            const boundedLeft = Math.min(Math.max(left, minLeft), Math.max(minLeft, maxLeft));
+            const boundedTop = Math.min(Math.max(top, minTop), Math.max(minTop, maxTop));
+            modalEl.style.position = 'absolute';
+            modalEl.style.left = `${boundedLeft}px`;
+            modalEl.style.top = `${boundedTop}px`;
+        });
+    }
+
+    function toggleModal(modalEl, open, options = {}) {
         if (!modalEl) return;
         modalEl.classList.toggle('active', open);
-        document.body.classList.toggle('modal-open', open);
+        const shouldLockBody = options.lockBody !== false;
+        if (shouldLockBody) {
+            document.body.classList.toggle('modal-open', open);
+        }
+        if (!open) {
+            modalEl.style.removeProperty('left');
+            modalEl.style.removeProperty('top');
+            modalEl.style.removeProperty('position');
+        }
+        if (open && options.coords) {
+            positionFloatingModal(modalEl, options.coords);
+        }
     }
 
     function updateViewModal(article) {
@@ -42,7 +96,7 @@
         html += `<span><i class="fas fa-eye"></i> ${Number(article.views || 0).toLocaleString()} วิว</span>`;
         html += `<span><i class="fas fa-thumbs-up"></i> ${Number(article.helpful_count || 0).toLocaleString()} ถูกใจ</span>`;
         html += '</div>';
-        html += `<div class="view-content">${renderMultiline(article.content || '')}</div>`;
+    html += `<div class="view-content">${renderMultiline(article.content || '')}</div>`;
 
         const tags = (article.tags || '').split(',').map(tag => tag.trim()).filter(Boolean);
         if (tags.length) {
@@ -55,16 +109,18 @@
         viewBody.innerHTML = html;
     }
 
-    window.viewArticle = function (article) {
+window.viewArticle = function (maybeEventOrArticle, maybeArticle) {
+        const article = maybeArticle ?? maybeEventOrArticle;
+        const event = maybeArticle ? maybeEventOrArticle : undefined;
         if (article?.kb_id) {
             fetch('?view=' + article.kb_id, { cache: 'no-cache' });
         }
         updateViewModal(article);
-        toggleModal(viewModal, true);
+        toggleModal(viewModal, true, { lockBody: true });
     };
 
     window.closeViewModal = function () {
-        toggleModal(viewModal, false);
+        toggleModal(viewModal, false, { lockBody: false });
     };
 
     window.openCreateModal = function () {
@@ -122,13 +178,13 @@
 
     document.addEventListener('click', function (event) {
         if (event.target.classList.contains('modal')) {
-            toggleModal(event.target, false);
+            toggleModal(event.target, false, { lockBody: true });
         }
     });
 
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {
-            if (viewModal.classList.contains('active')) toggleModal(viewModal, false);
+            if (viewModal.classList.contains('active')) toggleModal(viewModal, false, { lockBody: true });
             if (articleModal.classList.contains('active')) toggleModal(articleModal, false);
         }
     });

@@ -13,6 +13,8 @@ if (!isset($_SESSION['user_id'])) {
 
 $db = getDB();
 $user_id = $_SESSION['user_id'];
+$user = getCurrentUser();
+$current_page = basename($_SERVER['PHP_SELF']);
 $success_message = '';
 $error_message = '';
 csrf_token();
@@ -81,141 +83,65 @@ while ($room = $rooms_result->fetch_assoc()) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>จองห้องประชุม - Romar Dormitory Management</title>
+    <title>จองห้องประชุม - Romar</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../includes/admin-theme.css">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="../assets/js/room-calendar.js"></script>
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Sarabun', sans-serif;
-            background: linear-gradient(135deg,  #065f159c 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .header {
-            background: white;
-            padding: 25px 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgb(0, 0, 0);
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header h1 {
-            color: #000000;
-            font-size: 2em;
-            font-weight: 700;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #000000 0%, #10ce30 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgb(0, 0, 0);
-        }
-
-        .alert {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .rooms-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
         .room-card {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 8px 32px rgb(0, 0, 0);
-            transition: all 0.3s ease;
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            transition: all 0.25s ease;
+            border: 1px solid var(--border-faint);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         .room-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgb(255, 255, 255);
+            transform: translateY(-3px);
+            box-shadow: 0 30px 60px rgba(15, 23, 42, 0.18);
         }
 
         .room-header {
             display: flex;
             justify-content: space-between;
             align-items: start;
-            margin-bottom: 15px;
+            gap: 1rem;
         }
 
         .room-name {
-            font-size: 1.5em;
+            font-size: 1.2rem;
             font-weight: 700;
-            color: #000000;
+            color: var(--text-dark);
         }
 
         .room-capacity {
-            background: linear-gradient(135deg, #000000 0%, #10ce30 100%);
+            background: linear-gradient(135deg, var(--blue), var(--navy));
             color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
+            padding: 0.5rem 1rem;
+            border-radius: 1.25rem;
+            font-size: 0.85rem;
             font-weight: 600;
+            white-space: nowrap;
         }
 
         .room-details {
-            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
         }
 
         .room-detail-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 0;
-            color: #000000;
+            gap: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.95rem;
         }
 
         .room-detail-item span:first-child {
@@ -224,21 +150,40 @@ while ($room = $rooms_result->fetch_assoc()) {
         }
 
         .facilities {
-            margin: 15px 0;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
+            margin: 0.5rem 0;
+            padding: 1rem;
+            background: rgba(59, 130, 246, 0.08);
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(59, 130, 246, 0.2);
         }
 
         .facilities-title {
             font-weight: 600;
-            color: #000000;
-            margin-bottom: 10px;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
         }
 
         .facilities-list {
-            color: #000000;
-            line-height: 1.8;
+            color: var(--text-muted);
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+
+        .content-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+            align-items: stretch;
+            justify-items: stretch;
+            grid-auto-rows: 1fr;
         }
 
         .modal {
@@ -259,78 +204,134 @@ while ($room = $rooms_result->fetch_assoc()) {
         }
 
         .modal-content {
-            background: white;
-            border-radius: 15px;
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
             width: 90%;
-            max-width: 600px;
+            max-width: 650px;
             max-height: 90vh;
             overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
         }
 
         .modal-header {
-            padding: 25px;
-            border-bottom: 1px solid #dee2e6;
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-faint);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .modal-title {
-            font-size: 1.5em;
+            font-size: 1.3rem;
             font-weight: 700;
-            color: #000000;
+            color: var(--text-dark);
         }
 
         .modal-close {
             background: none;
             border: none;
-            font-size: 2em;
+            font-size: 1.8rem;
             cursor: pointer;
-            color: #000000;
+            color: var(--text-muted);
+            transition: color 0.2s ease;
         }
 
         .modal-close:hover {
-            color: #ff0000;
+            color: #ef4444;
         }
 
         .modal-body {
-            padding: 25px;
+            padding: 1.5rem;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 1.2rem;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 0.5rem;
             font-weight: 600;
-            color: #000000;
+            color: var(--text-dark);
+            font-size: 0.95rem;
         }
 
         .form-group input,
         .form-group select,
         .form-group textarea {
             width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1em;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            font-size: 0.95rem;
             font-family: 'Sarabun', sans-serif;
-            transition: all 0.3s ease;
+            background: var(--card-bg);
+            color: var(--text-dark);
+            transition: all 0.2s ease;
         }
 
         .form-group input:focus,
         .form-group select:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #000000;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
         }
 
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 1rem;
+        }
+
+        .form-group small {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+.page-title-block {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .page-icon {
+            font-size: 2rem;
+        }
+
+        /* Calendar Container Styles - Extra Enlarged */
+        .calendar-container {
+            height: min(80vh, 750px);
+            min-height: 600px;
+        }
+
+        .calendar-container .card-header {
+            padding: 1.25rem;
+        }
+
+        .calendar-container .card-body {
+            height: calc(100% - 65px);
+            padding: 1.25rem !important;
+            overflow: hidden;
+        }
+
+        #roomCalendar {
+            height: 100% !important;
+            width: 100% !important;
+            font-size: 0.8rem;
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .calendar-container {
+                height: min(75vh, 550px);
+                min-height: 450px;
+            }
+        }
+
+        .rooms-grid {
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)) !important;
+            gap: 2rem;
         }
 
         @media (max-width: 768px) {
@@ -341,61 +342,171 @@ while ($room = $rooms_result->fetch_assoc()) {
             .form-row {
                 grid-template-columns: 1fr;
             }
+
+            .room-header {
+                flex-direction: column;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>📅 จองห้องประชุม</h1>
-            <div>
-                <a href="my-bookings.php" class="btn btn-primary">📋 รายการจองของฉัน</a>
-                <a href="dashboard.php" class="btn btn-secondary">← กลับหน้าหลัก</a>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">🏢</div>
+                <div>
+                    <div class="brand-name">Romar</div>
+                    <div class="brand-subtitle">Dormitory</div>
+                </div>
+            </div>
+
+            <div class="nav-wrapper">
+                <nav class="sidebar-nav">
+                    <ul>
+                        <li class="<?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>">
+                            <a href="dashboard.php">📊 Dashboard</a>
+                        </li>
+
+                        <?php if ($user['role'] === 'admin'): ?>
+                        <li class="menu-section">การจัดการ</li>
+                        <li class="<?php echo $current_page == 'meeting-rooms.php' ? 'active' : ''; ?>">
+                            <a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a>
+                        </li>
+                        <li class="<?php echo $current_page == 'documents.php' ? 'active' : ''; ?>">
+                            <a href="documents.php">📄 จัดการเอกสาร</a>
+                        </li>
+                        <?php endif; ?>
+
+                        <li class="menu-section">ฟีเจอร์</li>
+                        <li class="active">
+                            <a href="room-booking.php">📅 จองห้องประชุม</a>
+                        </li>
+                        <li class="<?php echo $current_page == 'announcements.php' ? 'active' : ''; ?>">
+                            <a href="announcements.php">📢 ข่าวสาร</a>
+                        </li>
+                        <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                            <a href="../modules/tickets.php">🎫 IT Tickets</a>
+                        </li>
+                        <?php if ($user['role'] !== 'admin'): ?>
+                        <li class="<?php echo $current_page == 'userdocuments.php' ? 'active' : ''; ?>">
+                            <a href="userdocuments.php">📄 เอกสาร</a>
+                        </li>
+                        <?php endif; ?>
+
+                        <li class="menu-section">ระบบ</li>
+                        <li class="<?php echo $current_page == 'settings.php' ? 'active' : ''; ?>">
+                            <a href="settings.php">⚙️ ตั้งค่า</a>
+                        </li>
+                        <li>
+                            <a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">🚪 ออกจากระบบ</a>
+                        </li>
+                    </ul>
+                </nav>
             </div>
         </div>
 
-        <?php if ($success_message): ?>
-            <div class="alert alert-success"><?php echo $success_message; ?></div>
-        <?php endif; ?>
-
-        <?php if ($error_message): ?>
-            <div class="alert alert-error"><?php echo $error_message; ?></div>
-        <?php endif; ?>
-
-        <!-- Rooms Grid -->
-        <div class="rooms-grid">
-            <?php foreach ($rooms as $room): ?>
-                <div class="room-card">
-                    <div class="room-header">
-                        <div class="room-name"><?php echo htmlspecialchars($room['room_name']); ?></div>
-                        <div class="room-capacity">👥 <?php echo $room['capacity']; ?> คน</div>
-                    </div>
-
-                    <div class="room-details">
-                        <div class="room-detail-item">
-                            <span>📍 สถานที่:</span>
-                            <span><?php echo htmlspecialchars($room['location']); ?></span>
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="content-wrapper">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="page-title-block">
+                        <div class="page-icon">📅</div>
+                        <div>
+                            <h1>จองห้องประชุม</h1>
+                            <p class="page-subtitle">เลือกห้องประชุมที่ต้องการและทำการจอง</p>
                         </div>
                     </div>
-
-                    <?php if (isset($room['facilities']) && !empty($room['facilities'])): ?>
-                        <div class="facilities">
-                            <div class="facilities-title">🎯 สิ่งอำนวยความสะดวก:</div>
-                            <div class="facilities-list"><?php echo htmlspecialchars($room['facilities']); ?></div>
+                    <div class="user-info">
+                        <div class="user-details">
+                            <div class="user-name"><?php echo htmlspecialchars($user['full_name']); ?></div>
+                            <div class="user-role"><?php echo $user['role'] === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'; ?></div>
                         </div>
-                    <?php endif; ?>
-
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" 
-                            onclick="openBookingModal(<?php echo $room['room_id']; ?>, '<?php echo htmlspecialchars($room['room_name']); ?>', <?php echo $room['capacity']; ?>)">
-                        📅 จองห้องนี้
-                    </button>
+                        <div class="user-avatar">
+                            <?php echo strtoupper(substr($user['full_name'], 0, 1)); ?>
+                        </div>
+                    </div>
                 </div>
-            <?php endforeach; ?>
+
+                <!-- Alerts -->
+                <?php if ($success_message): ?>
+                    <div class="alert alert-success show">
+                        ✓ <?php echo $success_message; ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($error_message): ?>
+                    <div class="alert alert-error show">
+                        ✕ <?php echo $error_message; ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (empty($rooms)): ?>
+                    <div class="empty-state" style="text-align: center; padding: 3rem 2rem; color: var(--text-muted);">
+                        <div style="font-size: 4rem; margin-bottom: 1rem;">🏢</div>
+                        <h3 style="color: var(--text-dark); margin-bottom: 0.5rem;">ไม่มีห้องประชุมให้เลือก</h3>
+                        <p>กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มห้องประชุมใหม่</p>
+                        <?php if (isset($user['role']) && $user['role'] === 'admin'): ?>
+                            <a href="meeting-rooms.php" class="btn btn-primary" style="margin-top: 1rem; display: inline-block;">จัดการห้องประชุม</a>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+
+                <!-- Calendar View -->
+<div class="calendar-container card" style="margin-bottom: 2.5rem; border-radius: var(--radius-lg); box-shadow: var(--card-shadow); overflow: hidden;">
+
+                    <div class="card-header" style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, var(--blue), var(--navy)); color: white;">
+                        <h3 style="margin: 0; font-size: 1.4rem;"><i class="fas fa-calendar" style="margin-right: 0.5rem;"></i>📅 ปฏิทินห้องประชุม</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="roomCalendar" style="height: 100%;"></div>
+                    </div>
+                </div>
+                
+                <!-- Rooms Grid -->
+                <div class="rooms-grid">
+                    <?php foreach ($rooms as $room): ?>
+
+                        <div class="room-card">
+                            <div class="room-header">
+                                <div class="room-name"><?php echo htmlspecialchars($room['room_name']); ?></div>
+                                <div class="room-capacity">👥 <?php echo $room['capacity']; ?> คน</div>
+                            </div>
+
+                            <div class="room-details">
+                                <div class="room-detail-item">
+                                    <span>📍 สถานที่:</span>
+                                    <span><?php echo htmlspecialchars($room['location']); ?></span>
+                                </div>
+                            </div>
+
+                            <?php if (isset($room['facilities']) && !empty($room['facilities'])): ?>
+                                <div class="facilities">
+                                    <div class="facilities-title">🎯 สิ่งอำนวยความสะดวก:</div>
+                                    <div class="facilities-list"><?php echo htmlspecialchars($room['facilities']); ?></div>
+                                </div>
+                            <?php endif; ?>
+
+                            <button class="btn btn-primary room-booking-btn" 
+                                    onclick="openBookingModal(<?php echo $room['room_id']; ?>, '<?php echo htmlspecialchars($room['room_name']); ?>', <?php echo $room['capacity']; ?>)">
+                                📅 จองห้องนี้
+                            </button>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 
     <!-- Booking Modal -->
+
     <div id="bookingModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -411,7 +522,7 @@ while ($room = $rooms_result->fetch_assoc()) {
 
                     <div class="form-group">
                         <label for="modal_room_name">ห้องที่เลือก:</label>
-                        <input type="text" id="modal_room_name" readonly style="background: #f8f9fa;">
+                        <input type="text" id="modal_room_name" readonly>
                     </div>
 
                     <div class="form-group">
@@ -435,7 +546,7 @@ while ($room = $rooms_result->fetch_assoc()) {
                     <div class="form-group">
                         <label for="num_attendees">จำนวนผู้เข้าร่วม: *</label>
                         <input type="number" name="num_attendees" id="num_attendees" required min="1">
-                        <small style="color: #7f8c8d;">ความจุสูงสุด: <span id="max_capacity"></span> คน</small>
+                        <small>ความจุสูงสุด: <span id="max_capacity"></span> คน</small>
                     </div>
 
                     <div class="form-group">

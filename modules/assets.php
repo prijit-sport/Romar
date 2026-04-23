@@ -617,7 +617,7 @@ include_once __DIR__ . '/../includes/sidebar.php';
                     <h6 class="mb-0"><i class="fas fa-list me-1"></i> <?= htmlspecialchars($ASSET_CATEGORIES["all"]["label"] ?? "Asset Categories") ?></h6>
                     <button class="btn btn-sm btn-outline-secondary" onclick="toggleCategoryPanel()">?</button>
                 </div>
-                <div class="card-body p-2" style="max-height: 70vh; overflow-y: auto;">
+                <div class="card-body p-2 asset-category-panel" style="max-height: 70vh; overflow-y: auto; overflow-x: hidden;">
                     <?php foreach ($ASSET_CATEGORIES as $key => $catDef): ?>
                         <a href="?cat=<?= $key ?>" class="btn btn-sm d-block mb-1 w-100 text-start cat-btn <?= $cat === $key ? "btn-primary active" : "" ?>" style="<?= $cat === $key ? "background-color: " . ($catDef["color"] ?? "#4299e1") . "; color: white !important; border-color: " . ($catDef["color"] ?? "#4299e1") . ";" : "" ?>">
                             <i class="fas <?= $catDef["icon"] ?? "fa-layer-group" ?> me-1"></i>

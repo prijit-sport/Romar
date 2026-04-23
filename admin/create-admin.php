@@ -6,10 +6,10 @@
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
-    exit('Forbidden');
+    exit('🔒 Admin creation restricted to CLI only. Use php admin/create-admin.php');
 }
 
-require_once '../config/database.php';
+require_once dirname(__DIR__) . '/config/database.php';
 
 echo "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Create Admin User</title>";
 echo "<style>
@@ -122,27 +122,18 @@ try {
         
         echo "<h3>🔑 รหัสผ่าน Default:</h3>";
         echo "<p>ถ้าลืมรหัสผ่าน ให้ใช้ปุ่มด้านล่างเพื่อ Reset</p>";
-        echo "<form method='post' style='margin-top: 15px;'>";
-        echo "<input type='hidden' name='reset_password' value='1'>";
-        echo "<button type='submit' class='btn' onclick=\"return confirm('ต้องการ Reset รหัสผ่าน Admin เป็น admin123?')\">🔄 Reset รหัสผ่าน Admin</button>";
-        echo "</form>";
+        echo "<div class='warning'>";
+        echo "<p>🔒 <strong>Password reset disabled for security.</strong></p>";
+        echo "<p>Use CLI: <code>php admin/create-admin.php reset</code> หรือ change ใน DB directly.</p>";
+        echo "</div>";
+        echo "<a href='../auth/login.php' class='btn'>🔐 ไป Login</a>";
+        echo "<a href='http://localhost/phpmyadmin/' class='btn' target='_blank'>📊 phpMyAdmin</a>";
+
         echo "</div>";
     }
     
-    // Handle password reset
-    if (isset($_POST['reset_password'])) {
-        $newPassword = password_hash('admin123', PASSWORD_DEFAULT);
-        $stmt = $db->prepare("UPDATE users SET password = ? WHERE username = 'admin'");
-        $stmt->bind_param('s', $newPassword);
-        
-        if ($stmt->execute()) {
-            echo "<div class='success'>";
-            echo "<h2>✅ Reset รหัสผ่านสำเร็จ!</h2>";
-            echo "<p>Username: <code>admin</code></p>";
-            echo "<p>Password: <code>admin123</code></p>";
-            echo "</div>";
-        }
-    }
+    // 🔒 WEB PASSWORD RESET DISABLED FOR SECURITY
+    // CLI reset: php admin/create-admin.php reset
     
     // ตรวจสอบตารางอื่นๆ
     echo "<div class='info'>";

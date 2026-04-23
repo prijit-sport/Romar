@@ -153,113 +153,90 @@ $pendingBookings = $db->query("
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>จัดการห้องประชุม - Romar</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../includes/admin-theme.css">
     <style>
+        :root {
+            --sidebar-width: 260px;
+            --card-radius: 1.25rem;
+            --card-shadow: 0 25px 45px rgba(15, 23, 42, 0.15);
+        }
+
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
 
         body {
+            margin: 0;
             font-family: 'Sarabun', sans-serif;
-            background: #065f159c;
-            color: #000000;
-        }
-
-        .container {
-            display: flex;
+            background: linear-gradient(180deg, #f5f7ff 0%, #e2e8fb 60%, #dbeafe 100%);
+            color: #0f172a;
             min-height: 100vh;
         }
 
-        /* Sidebar */
-        .sidebar {
-            width: 260px;
-            background: linear-gradient(180deg, #10ce30 0%, #000000 100%);
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100vh;
-            overflow-y: auto;
-            box-shadow: 2px 0 10px rgb(0, 0, 0);
-            z-index: 1000;
-        }
-
-        .sidebar-brand {
-            padding: 25px 20px;
-            border-bottom: 1px solid rgb(255, 255, 255);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: white;
-        }
-
-        .brand-icon {
-            font-size: 2em;
-        }
-
-        .brand-name {
-            font-size: 1.5em;
-            font-weight: 700;
-        }
-
-        .brand-subtitle {
-            color: #000000;
-            font-size: 1em;
-            opacity: 0.8;
-        }
-
-        .sidebar-nav ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .sidebar-nav a {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 20px;
-            color: rgb(255, 255, 255);
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-
-        .sidebar-nav a:hover {
-            background: rgba(255,255,255,0.1);
-            color: white;
-        }
-
-        .sidebar-nav li.active a {
-            background: rgba(255,255,255,0.15);
-            color: white;
-            border-left: 4px solid #000000;
-        }
-
-        .menu-section {
-            padding: 20px 20px 10px;
-            color: rgb(255, 255, 255);
-            font-size: 0.75em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
+        .container {
+            min-height: 100vh;
         }
 
         /* Main Content */
         .main-content {
-            flex: 1;
-            margin-left: 260px;
-            padding: 30px;
+            margin-left: var(--sidebar-width);
+            padding: clamp(1.5rem, 3vw, 2.5rem);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .content-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
         }
 
         .page-header {
-            background: white;
-            padding: 25px 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgb(0, 0, 0);
-            margin-bottom: 30px;
+            background: #ffffff;
+            border-radius: var(--card-radius);
+            padding: 1.35rem 1.75rem;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12);
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .page-title-block {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .page-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 1rem;
+            background: linear-gradient(135deg, #1a3edc, #0b2c73);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 2rem;
+            box-shadow: 0 15px 35px rgba(15, 23, 42, 0.25);
+        }
+
+        .page-title-block h1 {
+            margin: 0;
+            font-size: clamp(1.8rem, 2.2vw, 2.3rem);
+            font-weight: 700;
+        }
+
+        .page-title-block .page-description {
+            margin: 0.25rem 0 0;
+            color: #475569;
+            font-weight: 500;
+            line-height: 1.4;
         }
 
         .page-title h1 {
@@ -271,48 +248,68 @@ $pendingBookings = $db->query("
         .btn {
             padding: 12px 24px;
             border: none;
-            border-radius: 8px;
+            border-radius: 0.75rem;
             font-size: 1em;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            color: #fff;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #000000 0%, #10ce30 100%);
-            color: white;
-            box-shadow: 0 4px 6px rgb(0, 0, 0);
+            background: linear-gradient(135deg, #1a3edc, #0b2c73);
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.2);
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgb(0, 0, 0);
+            box-shadow: 0 15px 30px rgba(15, 23, 42, 0.25);
         }
 
         .btn-secondary {
-            background: #718096;
-            color: white;
+            background: #94a3b8;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            background: #64748b;
         }
 
         .btn-success {
-            background: #10ce30;
-            color: white;
+            background: #10b981;
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            background: #dc2626;
         }
 
         .btn-sm {
-            padding: 8px 16px;
+            padding: 0.65rem 1rem;
             font-size: 0.9em;
         }
 
         /* Cards Grid */
         .rooms-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 1.5rem;
         }
 
         .room-card {
@@ -329,29 +326,30 @@ $pendingBookings = $db->query("
         }
 
         .room-header {
-            padding: 20px;
-            background: linear-gradient(135deg, #070707 0%, #10ce30 100%);
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #0c1a33 0%, #1a3edc 100%);
             color: white;
         }
 
         .room-name {
             font-size: 1.3em;
             font-weight: 600;
-            margin-bottom: 8px;
+            margin-bottom: 0.5rem;
         }
 
         .room-location {
-            opacity: 0.9;
+            opacity: 0.95;
             font-size: 0.95em;
         }
 
         .room-body {
-            padding: 20px;
+            padding: 1.5rem;
         }
 
         .room-info {
             display: flex;
-            gap: 20px;
+            flex-direction: column;
+            gap: 0.75rem;
             margin-bottom: 15px;
             padding-bottom: 15px;
             border-bottom: 1px solid #e2e8f0;
@@ -403,17 +401,7 @@ $pendingBookings = $db->query("
             font-weight: 500;
         }
 
-        .badge-active {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .badge-inactive {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        /* Modal */
+        /* Modal and Forms */
         .modal {
             display: none;
             position: fixed;
@@ -421,7 +409,7 @@ $pendingBookings = $db->query("
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(15, 23, 42, 0.5);
             z-index: 9999;
             align-items: center;
             justify-content: center;
@@ -433,66 +421,76 @@ $pendingBookings = $db->query("
 
         .modal-content {
             background: white;
-            border-radius: 12px;
+            border-radius: var(--card-radius);
             width: 90%;
-            max-width: 600px;
+            max-width: 650px;
             max-height: 90vh;
             overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(15, 23, 42, 0.25);
         }
 
         .modal-header {
-            padding: 25px 30px;
+            padding: 1.5rem;
             border-bottom: 1px solid #e2e8f0;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background: linear-gradient(135deg, #0c1a33 0%, #1a3edc 100%);
+            color: white;
         }
 
         .modal-title {
             font-size: 1.5em;
             font-weight: 600;
-            color: #000000;
         }
 
         .modal-close {
             font-size: 1.5em;
             cursor: pointer;
-            color: #000000;
+            color: white;
             transition: color 0.2s;
+            background: none;
+            border: none;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .modal-close:hover {
-            color: #ef4444;
+            color: #bfdbfe;
         }
 
         .modal-body {
-            padding: 30px;
+            padding: 1.5rem;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 1.25rem;
         }
 
         .form-label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #000000;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #0f172a;
         }
 
         .form-control {
             width: 100%;
-            padding: 12px 16px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 1em;
-            transition: all 0.3s;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d6dcf3;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border 0.2s ease, box-shadow 0.2s ease;
         }
 
         .form-control:focus {
             outline: none;
-            border-color: #000000;
-            box-shadow: 0 0 0 3px rgb(255, 255, 255);
+            border-color: #1a3edc;
+            box-shadow: 0 0 0 3px rgba(26, 62, 220, 0.15);
         }
 
         textarea.form-control {
@@ -503,7 +501,7 @@ $pendingBookings = $db->query("
         .form-check {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 0.75rem;
         }
 
         .alert {
@@ -529,44 +527,44 @@ $pendingBookings = $db->query("
             border-left: 4px solid #ef4444;
         }
 
-        /* Pending Bookings Section */
+        /* Section Title */
         .section-title {
-            font-size: 1.4em;
-            font-weight: 600;
-            color: #000000;
-            margin-bottom: 15px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 1rem;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 0.75rem;
         }
 
         .pending-count {
             background: #f59e0b;
             color: white;
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 0.7em;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.8rem;
             font-weight: 600;
         }
 
         .pending-section {
             background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgb(0, 0, 0);
-            padding: 25px;
-            margin-bottom: 30px;
-            border: 1px solid #eeda88;
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #fbbf24;
         }
 
         .pending-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.95em;
+            font-size: 0.95rem;
         }
 
         .pending-table th {
             text-align: left;
-            padding: 12px 14px;
+            padding: 0.65rem;
             background: #fef3c7;
             color: #92400e;
             font-weight: 600;
@@ -575,9 +573,9 @@ $pendingBookings = $db->query("
         }
 
         .pending-table td {
-            padding: 12px 14px;
-            border-bottom: 1px solid #e2e8f0;
-            color: #050505;
+            padding: 0.65rem;
+            border-bottom: 1px solid #e5e7eb;
+            color: #0f172a;
         }
 
         .pending-table tr:last-child td {
@@ -591,57 +589,85 @@ $pendingBookings = $db->query("
         .badge-pending {
             background: #fef3c7;
             color: #92400e;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 0.85em;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .badge-active {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .badge-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.85rem;
             font-weight: 500;
         }
 
         .btn-approve {
             background: #10b981;
             color: white;
-            padding: 7px 14px;
+            padding: 0.5rem 1rem;
             border: none;
-            border-radius: 6px;
-            font-size: 0.88em;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.2s;
             font-family: 'Sarabun', sans-serif;
+            font-weight: 600;
         }
 
-        .btn-approve:hover { background: #059669; }
+        .btn-approve:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
 
         .btn-reject {
             background: #ef4444;
             color: white;
-            padding: 7px 14px;
+            padding: 0.5rem 1rem;
             border: none;
-            border-radius: 6px;
-            font-size: 0.88em;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.2s;
             font-family: 'Sarabun', sans-serif;
+            font-weight: 600;
         }
 
-        .btn-reject:hover { background: #dc2626; }
+        .btn-reject:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
 
-        .action-btns { display: flex; gap: 8px; }
+        .action-btns {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
 
         .empty-pending {
             text-align: center;
-            padding: 30px;
-            color: #000000;
-            font-size: 1.05em;
+            padding: 2rem;
+            color: #0f172a;
+            font-size: 1rem;
         }
 
         @media (max-width: 768px) {
-            .sidebar { margin-left: -260px; }
-            .main-content { margin-left: 0; padding: 15px; }
+            .sidebar { position: relative; width: 100%; }
+            .main-content { margin-left: 0; padding: 1rem; }
+            .page-header { justify-content: center; }
             .rooms-grid { grid-template-columns: 1fr; }
-            .pending-table { font-size: 0.85em; }
-            .pending-table th, .pending-table td { padding: 8px 10px; }
         }
-
     </style>
 </head>
 <body>
@@ -656,42 +682,63 @@ $pendingBookings = $db->query("
                 </div>
             </div>
 
+            <div class="nav-wrapper">
             <nav class="sidebar-nav">
                 <ul>
-                    <li><a href="dashboard.php">📊 Dashboard</a></li>
+                    <li class="<?php echo $current_page == 'dashboard.php' ? 'active' : ''; ?>">
+                        <a href="dashboard.php">📊 Dashboard</a>
+                    </li>
+
                     <li class="menu-section">การจัดการ</li>
-                    <li><a href="users-management.php">👥 จัดการผู้ใช้</a></li>
-                    <li class="active"><a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a></li>
-                    <li><a href="documents.php">📄 จัดการเอกสาร</a></li>
+                    <li class="<?php echo $current_page == 'meeting-rooms.php' ? 'active' : ''; ?>">
+                        <a href="meeting-rooms.php">🏢 จัดการห้องประชุม</a>
+                    </li>
+                    <li class="<?php echo $current_page == 'documents.php' ? 'active' : ''; ?>">
+                        <a href="documents.php">📄 จัดการเอกสาร</a>
+                    </li>
+
                     <li class="menu-section">ฟีเจอร์</li>
-                    <li><a href="room-booking.php">📅 จองห้องประชุม</a></li>
-                    <li><a href="announcements.php">📢 ข่าวสาร</a></li>
-                     <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
+                    <li class="<?php echo $current_page == 'room-booking.php' ? 'active' : ''; ?>">
+                        <a href="room-booking.php">📅 จองห้องประชุม</a>
+                    </li>
+                    <li class="<?php echo $current_page == 'announcements.php' ? 'active' : ''; ?>">
+                        <a href="announcements.php">📢 ข่าวสาร</a>
+                    </li>
+                    <li class="<?php echo $current_page == 'tickets.php' ? 'active' : ''; ?>">
                         <a href="../modules/tickets.php">🎫 IT Tickets</a>
                     </li>
+
                     <li class="menu-section">ระบบ</li>
                     <li><a href="settings.php">⚙️ ตั้งค่า</a></li>
-                    <li><a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">🚪 ออกจากระบบ</a></li>
+                    <li>
+                        <a href="../auth/logout.php" onclick="return confirm('ต้องการออกจากระบบ?')">🚪 ออกจากระบบ</a>
+                    </li>
                 </ul>
             </nav>
+            </div>
         </div>
 
         <!-- Main Content -->
         <div class="main-content">
-            <div class="page-header">
-                <div class="page-title">
-                    <h1>🏢 จัดการห้องประชุม</h1>
+            <div class="content-wrapper">
+                <div class="page-header">
+                    <div class="page-title-block">
+                        <div class="page-icon">🏢</div>
+                        <div>
+                            <h1>จัดการห้องประชุม</h1>
+                            <p class="page-description">เพิ่ม แก้ไข ลบ และจัดการห้องประชุมในระบบ</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="openAddModal()">
+                        ➕ เพิ่มห้องประชุม
+                    </button>
                 </div>
-                <button class="btn btn-primary" onclick="openAddModal()">
-                    ➕ เพิ่มห้องประชุม
-                </button>
-            </div>
 
-            <?php if ($message): ?>
-            <div class="alert alert-<?php echo $messageType; ?> show">
-                <?php echo $message; ?>
-            </div>
-            <?php endif; ?>
+                <?php if ($message): ?>
+                <div class="alert alert-<?php echo $messageType; ?> show">
+                    <?php echo $message; ?>
+                </div>
+                <?php endif; ?>
 
             <!-- ===== Pending Bookings สำหรับ อนุมัติ/ปฏิเสท ===== -->
             <div class="pending-section">

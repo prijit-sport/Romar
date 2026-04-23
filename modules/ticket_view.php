@@ -163,7 +163,7 @@ $currentUser = getCurrentUser();
         
         body {
             font-family: 'Sarabun', sans-serif;
-            background: linear-gradient( #065f159c);
+            background: linear-gradient(135deg, #f5f7fa 0%, #f0f3f7 100%);
             padding: 20px;
         }
 
@@ -174,29 +174,31 @@ $currentUser = getCurrentUser();
 
         .header-bar {
             background: white;
-            padding: 25px 30px;
-            border-radius: 16px;
+            padding: 20px 30px;
+            border-radius: 12px;
             margin-bottom: 25px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border: 1px solid #e8ecf1;
         }
 
         .ticket-number-badge {
-            font-size: 1.8em;
+            font-size: 1.6em;
             font-weight: 700;
-            color: #667eea;
+            color: #1e40af;
+            letter-spacing: -0.5px;
         }
 
         .btn {
-            padding: 12px 24px;
+            padding: 10px 20px;
             border: none;
-            border-radius: 10px;
-            font-size: 1em;
+            border-radius: 8px;
+            font-size: 0.95em;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
@@ -204,13 +206,22 @@ $currentUser = getCurrentUser();
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #1e40af;
             color: white;
         }
 
+        .btn-primary:hover {
+            background: #1e3a8a;
+            box-shadow: 0 2px 8px rgba(30, 64, 175, 0.2);
+        }
+
         .btn-secondary {
-            background: #718096;
+            background: #6b7280;
             color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
         }
 
         .main-grid {
@@ -221,157 +232,190 @@ $currentUser = getCurrentUser();
 
         .card {
             background: white;
-            border-radius: 16px;
-            padding: 30px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             margin-bottom: 25px;
+            border: 1px solid #e8ecf1;
         }
 
         .card-title {
-            font-size: 1.5em;
+            font-size: 1.25em;
             font-weight: 700;
-            margin-bottom: 20px;
-            color: #1a202c;
+            margin-bottom: 18px;
+            color: #0f172a;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+            border-bottom: 2px solid #f0f3f7;
+            padding-bottom: 12px;
         }
 
         .ticket-title-main {
-            font-size: 2em;
+            font-size: 1.8em;
             font-weight: 700;
-            color: #1a202c;
-            margin-bottom: 20px;
+            color: #0f172a;
+            margin-bottom: 16px;
+            letter-spacing: -0.5px;
         }
 
         .status-badges {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 25px;
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
         .badge {
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9em;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.85em;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            border: 1.5px solid;
+            background: transparent;
         }
 
-        .badge-status-new { background: #e3f2fd; color: #1976d2; }
-        .badge-status-assigned { background: #f3e5f5; color: #7b1fa2; }
-        .badge-status-in_progress { background: #fff3e0; color: #f57c00; }
-        .badge-status-resolved { background: #e8f5e9; color: #388e3c; }
-        .badge-status-closed { background: #eceff1; color: #455a64; }
+        .badge-status-new { border-color: #3b82f6; color: #1e40af; }
+        .badge-status-assigned { border-color: #8b5cf6; color: #6d28d9; }
+        .badge-status-in_progress { border-color: #f59e0b; color: #b45309; }
+        .badge-status-resolved { border-color: #10b981; color: #047857; }
+        .badge-status-pending { border-color: #f097a7; color: #9c1c4a; }
+        .badge-status-closed { border-color: #9ca3af; color: #374151; }
 
-        .badge-priority-urgent { background: #fee; color: #c53030; }
-        .badge-priority-high { background: #fff5f0; color: #c05621; }
-        .badge-priority-normal { background: #ebf8ff; color: #2c5282; }
-        .badge-priority-low { background: #f0fff4; color: #276749; }
+        .badge-priority-urgent { border-color: #ef4444; color: #dc2626; }
+        .badge-priority-high { border-color: #f97316; color: #c2410c; }
+        .badge-priority-normal { border-color: #3b82f6; color: #1e40af; }
+        .badge-priority-low { border-color: #10b981; color: #047857; }
+
+        .badge-impact-critical { border-color: #ef4444; color: #dc2626; }
+        .badge-impact-high { border-color: #f97316; color: #c2410c; }
+        .badge-impact-medium { border-color: #f59e0b; color: #b45309; }
+        .badge-impact-low { border-color: #10b981; color: #047857; }
+        .badge-impact-normal { border-color: #6b7280; color: #4b5563; }
+
+        .badge-urgency-critical { border-color: #ef4444; color: #dc2626; }
+        .badge-urgency-high { border-color: #f97316; color: #c2410c; }
+        .badge-urgency-medium { border-color: #f59e0b; color: #b45309; }
+        .badge-urgency-low { border-color: #10b981; color: #047857; }
+        .badge-urgency-normal { border-color: #6b7280; color: #4b5563; }
+
+        .badge-category { border-color: #8b5cf6; color: #6d28d9; }
 
         .info-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin-bottom: 25px;
+            gap: 18px;
+            margin-bottom: 20px;
         }
 
         .info-item {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 6px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 3px solid #e5e7eb;
         }
 
         .info-label {
-            font-size: 0.85em;
-            color: #718096;
+            font-size: 0.8em;
+            color: #6b7280;
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .info-value {
-            font-size: 1em;
-            color: #2d3748;
+            font-size: 0.95em;
+            color: #1f2937;
             font-weight: 500;
         }
 
         .description-box {
-            background: #f7fafc;
-            padding: 20px;
-            border-radius: 12px;
-            border-left: 4px solid #667eea;
-            line-height: 1.7;
-            color: #2d3748;
-            margin-bottom: 25px;
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 3px solid #1e40af;
+            line-height: 1.6;
+            color: #374151;
+            margin-bottom: 20px;
         }
 
         .sla-indicator {
-            padding: 15px 20px;
-            border-radius: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
             font-weight: 600;
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
+            border-left: 3px solid;
+            background: transparent;
         }
 
         .sla-ok {
-            background: #c6f6d5;
-            color: #22543d;
+            border-left-color: #10b981;
+            background: #f0fdf4;
+            color: #065f46;
         }
 
         .sla-warning {
-            background: #feebc8;
-            color: #7c2d12;
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+            color: #92400e;
         }
 
         .sla-overdue {
-            background: #fed7d7;
-            color: #742a2a;
+            border-left-color: #ef4444;
+            background: #fef2f2;
+            color: #7f1d1d;
         }
 
         .comment-item {
-            padding: 20px;
-            border-radius: 12px;
-            background: #f7fafc;
-            margin-bottom: 15px;
-            border-left: 4px solid #cbd5e0;
+            padding: 16px;
+            border-radius: 8px;
+            background: #f9fafb;
+            margin-bottom: 12px;
+            border-left: 3px solid #e5e7eb;
         }
 
         .comment-item.internal {
-            background: #fffaf0;
-            border-left-color: #ed8936;
+            background: #fef7f0;
+            border-left-color: #f59e0b;
         }
 
         .comment-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             align-items: center;
         }
 
         .comment-author {
             font-weight: 700;
-            color: #2d3748;
+            color: #1f2937;
         }
 
         .comment-time {
-            font-size: 0.85em;
-            color: #718096;
+            font-size: 0.8em;
+            color: #9ca3af;
         }
 
         .comment-text {
-            color: #4a5568;
-            line-height: 1.7;
+            color: #4b5563;
+            line-height: 1.6;
         }
 
         .timeline-item {
-            padding: 15px;
-            border-left: 3px solid #e2e8f0;
-            margin-left: 10px;
-            margin-bottom: 15px;
+            padding: 12px;
+            padding-left: 24px;
+            border-left: 2px solid #e5e7eb;
+            margin-left: 0;
+            margin-bottom: 12px;
             position: relative;
         }
 
@@ -379,43 +423,45 @@ $currentUser = getCurrentUser();
             content: '';
             position: absolute;
             left: -8px;
-            top: 20px;
-            width: 13px;
-            height: 13px;
+            top: 12px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background: #667eea;
+            background: #1e40af;
+            border: 2px solid white;
         }
 
         .timeline-text {
-            color: #4a5568;
-            margin-bottom: 5px;
+            color: #374151;
+            margin-bottom: 4px;
         }
 
         .timeline-time {
-            font-size: 0.8em;
-            color: #a0aec0;
+            font-size: 0.75em;
+            color: #9ca3af;
         }
 
         .attachment-item {
             display: flex;
             align-items: center;
-            gap: 15px;
-            padding: 15px;
-            background: #f7fafc;
-            border-radius: 10px;
-            margin-bottom: 12px;
+            gap: 12px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #e5e7eb;
         }
 
         .attachment-icon {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
+            width: 44px;
+            height: 44px;
+            background: #f0f3f7;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 1.5em;
+            color: #1e40af;
+            font-size: 1.2em;
         }
 
         .attachment-info {
@@ -424,20 +470,22 @@ $currentUser = getCurrentUser();
 
         .attachment-name {
             font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 3px;
+            color: #1f2937;
+            margin-bottom: 2px;
+            font-size: 0.9em;
         }
 
         .attachment-meta {
-            font-size: 0.85em;
-            color: #718096;
+            font-size: 0.8em;
+            color: #9ca3af;
         }
 
         .time-entry {
-            padding: 15px;
-            background: #f7fafc;
-            border-radius: 10px;
-            margin-bottom: 12px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #e5e7eb;
         }
 
         .time-header {
@@ -447,32 +495,40 @@ $currentUser = getCurrentUser();
         }
 
         .hours-badge {
-            background: #667eea;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 0.9em;
-            font-weight: 600;
+            background: #f0f3f7;
+            color: #1e40af;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 700;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .form-label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             font-weight: 600;
-            color: #2d3748;
+            color: #1f2937;
+            font-size: 0.95em;
         }
 
         .form-control {
             width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 1em;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.95em;
             font-family: 'Sarabun', sans-serif;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
         }
 
         textarea.form-control {
@@ -523,38 +579,38 @@ $currentUser = getCurrentUser();
 
                     <div class="status-badges">
                         <span class="badge badge-status-<?php echo $ticket['status']; ?>">
-                            <i class="fas fa-circle"></i>
+                            <i class="fas fa-circle-dot"></i>
                             <?php 
                             $statusLabels = [
-                                'new' => 'New',
-                                'assigned' => 'Assigned',
-                                'in_progress' => 'In Progress',
-                                'pending' => 'Pending',
-                                'resolved' => 'Resolved',
-                                'closed' => 'Closed'
+                                'new' => 'ใหม่',
+                                'assigned' => 'มอบหมาย',
+                                'in_progress' => 'ดำเนินการ',
+                                'pending' => 'รอดำเนินการ',
+                                'resolved' => 'แก้ไขแล้ว',
+                                'closed' => 'ปิด'
                             ];
-                            echo $statusLabels[$ticket['status']] ?? $ticket['status'];
+                            echo $statusLabels[$ticket['status']] ?? ucfirst($ticket['status']);
                             ?>
                         </span>
 
                         <span class="badge badge-priority-<?php echo $ticket['priority']; ?>">
-                            <i class="fas fa-flag"></i>
-                            Priority: <?php echo ucfirst($ticket['priority']); ?>
+                            <i class="fas fa-arrow-up"></i>
+                            <?php echo ucfirst($ticket['priority']); ?>
                         </span>
 
-                        <span class="badge" style="background: #fef5e7; color: #7d6608;">
+                        <span class="badge badge-impact-<?php echo strtolower($ticket['impact'] ?? 'normal'); ?>">
                             <i class="fas fa-exclamation-circle"></i>
-                            Impact: <?php echo ucfirst($ticket['impact']); ?>
+                            <?php echo htmlspecialchars($ticket['impact'] ?? 'N/A'); ?>
                         </span>
 
-                        <span class="badge" style="background: #fef5e7; color: #7d6608;">
-                            <i class="fas fa-bolt"></i>
-                            Urgency: <?php echo ucfirst($ticket['urgency']); ?>
+                        <span class="badge badge-urgency-<?php echo strtolower($ticket['urgency'] ?? 'normal'); ?>">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <?php echo htmlspecialchars($ticket['urgency'] ?? 'N/A'); ?>
                         </span>
 
-                        <span class="badge" style="background: #e6fffa; color: #234e52;">
-                            <i class="fas fa-folder"></i>
-                            <?php echo ucfirst($ticket['category']); ?>
+                        <span class="badge badge-category">
+                            <i class="fas fa-tag"></i>
+                            <?php echo htmlspecialchars($ticket['category'] ?? 'N/A'); ?>
                         </span>
                     </div>
 

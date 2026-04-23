@@ -1,5 +1,8 @@
 .env
+.env.local
+.env.*.local
 
+# Logs
 database/backups/
 logs/db-backup-*.log
 logs/*.log
@@ -7,5 +10,35 @@ tests/tmp/
 uploads/documents/
 database/*.db
 config/*.internal.env
-!config/alerts.internal.env
-!config/e2e.internal.env
+venv/**
+uploads/
+**/*.pyc
+
+# Junk/temp files
+tmp_*
+temp_*
+debug.php
+insert-users.php
+*.bak
+database.phpbackup
+*.old
+*.tmp
+TODO*.md
+
+# IDE/VSCode
+.vscode/
+
+# Reports/Cleanup files
+ANALYSIS_REPORT*.md
+PROJECT_REPORT*.md
+
+# Backup/temp dirs/files
+cleanup/
+**/*_fixed.php
+**/*_original_backup.php
+**/*_backup.php
+includes/styles_fixed.css
+includes/tabs-no-scroll.css
+
+# Asset .htaccess (if not needed)
+assets/**/.htaccess

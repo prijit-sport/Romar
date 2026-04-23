@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ดูประกาศ - Romar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../includes/admin-theme.css">
+
+</head>
+<body>
+    <div id="viewAnnouncementModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="announcementViewTitle" class="modal-title"><i class="fas fa-eye"></i> ดูประกาศ</h2>
+                <button class="modal-close" onclick="closeAnnouncementView()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="announcementViewBody">
+                    <div class="announcement-view-meta" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; color: #64748b;">
+                        <span id="announcementViewPriority"></span>
+                        <span id="announcementViewAuthor"></span>
+                        <span id="announcementViewDate"></span>
+                        <span id="announcementViewStatus"></span>
+                    </div>
+                    <div id="announcementViewContent" class="announcement-view-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function viewAnnouncement(announcement) {
+            document.getElementById('announcementViewTitle').textContent = announcement.title;
+            document.getElementById('announcementViewPriority').innerHTML = getPriorityBadge(announcement.priority);
+            document.getElementById('announcementViewAuthor').innerHTML = `👤 ${announcement.full_name || 'ไม่ระบุ'}`;
+            document.getElementById('announcementViewDate').innerHTML = `📅 ${new Date(announcement.publish_date).toLocaleDateString('th-TH')}`;
+            document.getElementById('announcementViewStatus').innerHTML = announcement.is_active ? '✅ Active' : '❌ Inactive';
+            document.getElementById('announcementViewContent').innerHTML = announcement.content.replace(/\\n/g, '<br>');
+            document.getElementById('viewAnnouncementModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeAnnouncementView() {
+            document.getElementById('viewAnnouncementModal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function getPriorityBadge(priority) {
+            const badges = {
+                'normal': '🟢 ปกติ',
+                'important': '🟡 สำคัญ',
+                'urgent': '🔴 เร่งด่วน'
+            };
+            return `<span style="background: rgba(34,197,94,0.2); padding: 0.25rem 0.75rem; border-radius: 999px; font-weight: 600;">${badges[priority] || priority}</span>`;
+        }
+
+        // Close on overlay click
+        document.getElementById('viewAnnouncementModal').addEventListener('click', function(e) {
+            if (e.target === this) closeAnnouncementView();
+        });
+
+        // Close on ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeAnnouncementView();
+        });
+    </script>
+</body>
+</html>
