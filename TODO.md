@@ -1,7 +1,1 @@
-# README.md Markdownlint Fix Progress
-
-- [x] 1. Read and analyze README.md content
-- [x] 2. Create this TODO.md
-- [x] 3. Apply formatting fixes to README.md (blanks around headings/lists, bare URL)
-- [x] 4. Verify all 10 lint errors cleared in VSCode Problems panel
-- [x] 5. Update TODO.md to complete and attempt_completion
+# Final Deploy Cleanup - blackboxai/ branch PR&#10;&#10;## Steps:&#10;&#10;### 1. [ ] Run deploy preflight check&#10;`php scripts/ops/deploy_preflight.php`&#10;&#10;### 2. [ ] Run project health check&#10;`php tests/project_health_check.php`&#10;&#10;### 3. [ ] Remove junk tmp files (20+ tmp_*.php/py/ps1)&#10;List: tmp_swap_style.php, tmp_read.py, tmp_check_encoding.php, tmp_dump*.php, tmp_*.py, temp*.ps1/php etc.&#10;&#10;### 4. [ ] Remove tests/load/venv/ (load testing artifacts, 700+ files)&#10;&#10;### 5. [ ] Remove .bak files&#10;index.php.bak, admin/settings.php.bak&#10;&#10;### 6. [ ] Remove redundant reports&#10;ANALYSIS_REPORT_cleanup.md, TODO_cleanup.md, TODO2.md, TODO_deploy.md (keep CLEANUP_REPORT_FINAL.md, this TODO.md)&#10;&#10;### 7. [ ] Git: create branch, commit, push&#10;`git checkout -b blackboxai/deploy-final-cleanup`&#10;`git add -A`&#10;`git commit -m "Final cleanup for deploy: remove tmp junk, venv, backups; validated preflight &amp; health"`&#10;`git push -u origin HEAD`&#10;&#10;### 8. [ ] Open PR&#10;`gh pr create --title "blackboxai/deploy-final-cleanup: Complete PR#2 cleanup for production deploy" --body "Removes tmp/debug files, Python venv; ensures clean deploy. Passes preflight &amp; health checks."`&#10;&#10;## Completion Criteria&#10;- All checks pass&#10;- PR opened successfully
