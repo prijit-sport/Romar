@@ -1,11 +1,7 @@
+# README.md Markdownlint Fix Progress
 
-
-# Fix GitHub Actions Lint Errors in deploy.yml - COMPLETED ✓
-
-- [x] Step 1: Create preliminary 'Check DB Config' step that sets 'needs-db-config' output (true if ROMAR_DB_HOST secret exists and non-empty)
-- [x] Step 2: Update 4 conditional steps to use `if: steps.check-db.outputs.needs-db-config == 'true'`
-- [x] Step 3: Remove `env:` DB vars from individual steps (set in check step via GITHUB_ENV)
-- [x] Step 4: Verify no lint errors remain and workflow logic preserved
-- [x] Step 5: Complete task
-
-All VSCode lint errors in .github/workflows/deploy.yml fixed. Reload VSCode window to clear cache if needed (Ctrl+Shift+P > Reload Window).
+- [x] 1. Read and analyze README.md content
+- [x] 2. Create this TODO.md
+- [x] 3. Apply formatting fixes to README.md (blanks around headings/lists, bare URL)
+- [x] 4. Verify all 10 lint errors cleared in VSCode Problems panel
+- [x] 5. Update TODO.md to complete and attempt_completion
