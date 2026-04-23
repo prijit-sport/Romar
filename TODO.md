@@ -1,10 +1,11 @@
-# Fix GitHub Actions Context Errors - Progress Tracker
 
-## Steps to Complete:
 
-- [x] Step 1: Edit `.github/workflows/deploy.yml` - Remove single quotes from heredoc delimiter (`<<'EOF'` → `<<EOF`) to enable GitHub context expansion for ROMAR_DB_* secrets.
-- [x] Step 2: Verify VSCode errors are resolved.
-- [x] Step 3: Test workflow locally if possible or note for GitHub run (requires secrets).
-- [x] Step 4: Update this TODO with completion status and run health check.
+# Fix GitHub Actions Lint Errors in deploy.yml - COMPLETED ✓
 
-**Current Status:** ✅ All steps complete. GitHub Actions deploy.yml fixed - context expressions now expand correctly, VSCode errors resolved, YAML valid, health check passed.
+- [x] Step 1: Create preliminary 'Check DB Config' step that sets 'needs-db-config' output (true if ROMAR_DB_HOST secret exists and non-empty)
+- [x] Step 2: Update 4 conditional steps to use `if: steps.check-db.outputs.needs-db-config == 'true'`
+- [x] Step 3: Remove `env:` DB vars from individual steps (set in check step via GITHUB_ENV)
+- [x] Step 4: Verify no lint errors remain and workflow logic preserved
+- [x] Step 5: Complete task
+
+All VSCode lint errors in .github/workflows/deploy.yml fixed. Reload VSCode window to clear cache if needed (Ctrl+Shift+P > Reload Window).
