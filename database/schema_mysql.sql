@@ -431,21 +431,36 @@ CREATE TABLE IF NOT EXISTS `system_settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ========================================
--- Table: notifications
+-- Table: notifications (Ticket/Comment notifications)
 -- ========================================
 CREATE TABLE IF NOT EXISTS `notifications` (
-    `notification_id` INT(11) NOT NULL AUTO_INCREMENT,
-    `user_id` INT(11) NOT NULL,
-    `title` VARCHAR(255) NOT NULL,
+    `notif_id` INT(11) NOT NULL AUTO_INCREMENT,
+    `type` ENUM('new_ticket', 'new_comment') NOT NULL DEFAULT 'new_ticket',
+    `ticket_id` INT(11) NULL,
+    `comment_id` INT(11) NULL,
     `message` TEXT NOT NULL,
-    `type` ENUM('info', 'success', 'warning', 'error') DEFAULT 'info',
-    `link` VARCHAR(255),
-    `is_read` TINYINT(1) DEFAULT 0,
+    `triggered_by` INT(11) NULL,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`notification_id`),
+    PRIMARY KEY (`notif_id`),
+    INDEX `idx_type` (`type`),
+    INDEX `idx_ticket_id` (`ticket_id`),
+    INDEX `idx_created_at` (`created_at`),
+    FOREIGN KEY (`ticket_id`) REFERENCES `tickets`(`ticket_id`) ON DELETE CASCADE,
+    FOREIGN KEY (`triggered_by`) REFERENCES `users`(`user_id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ========================================
+-- Table: notification_recipients
+-- ========================================
+CREATE TABLE IF NOT EXISTS `notification_recipients` (
+    `notif_id` INT(11) NOT NULL,
+    `user_id` INT(11) NOT NULL,
+    `is_read` TINYINT(1) NOT NULL DEFAULT 0,
+    `read_at` DATETIME NULL,
+    PRIMARY KEY (`notif_id`, `user_id`),
     INDEX `idx_user_id` (`user_id`),
     INDEX `idx_is_read` (`is_read`),
-    INDEX `idx_created_at` (`created_at`),
+    FOREIGN KEY (`notif_id`) REFERENCES `notifications`(`notif_id`) ON DELETE CASCADE,
     FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
