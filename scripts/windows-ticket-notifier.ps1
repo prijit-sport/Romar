@@ -159,6 +159,7 @@ function Get-CsrfFromLoginPage {
 # Core: Log in to Romar and return a session
 # ============================================================
 function Connect-ToRomar {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', '')]
     param(
         [string]$UserName,
         [string]$PlainPassword
@@ -188,7 +189,7 @@ function Connect-ToRomar {
         
         # Check for redirect (successful login)
         $isRedirect = ($response.StatusCode -eq 302) -or ($response.StatusCode -eq 301)
-        $hasLocation = $response.Headers['Location'] -ne $null
+        $hasLocation = $null -ne $response.Headers['Location']
         
         Write-Log -Message "Login response status: $($response.StatusCode), Redirect: $isRedirect, Location: $($response.Headers['Location'])" -Level 'DEBUG'
         
