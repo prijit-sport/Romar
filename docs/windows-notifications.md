@@ -8,7 +8,7 @@ notification as a toast (via BurntToast), then marks it as read.
 ## Prerequisites
 
 - A Windows 10/11 workstation with PowerShell 5.1 or newer.
-- Access to the Romar installation (default `http://192.168.2.99/Romar`).
+- Access to the Romar installation (default `http://localhost/Romar`).
 - The [BurntToast](https://www.powershellgallery.com/packages/BurntToast) module,
   which the script installs if missing.
 - A user account that has `admin` or `it_support` role so that notifications
@@ -23,7 +23,7 @@ notification as a toast (via BurntToast), then marks it as read.
 2. Run the watcher script interactively:
    ```powershell
    powershell -ExecutionPolicy Bypass -NoProfile -File .\scripts\windows-ticket-notifier.ps1 `
-       -BaseUrl 'http://192.168.2.99/Romar' `
+       -BaseUrl 'http://localhost/Romar' `
        -PollIntervalSeconds 45
    ```
    The script prompts for the Romar username (unless you pass `-Username`) and

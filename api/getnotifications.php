@@ -4,6 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once '../config/database.php';
 require_once '../includes/functions.php';
+require_once '../includes/logger.php';
 
 apply_security_headers();
 header('Content-Type: application/json; charset=UTF-8');
@@ -14,8 +15,10 @@ if (!$limit['allowed']) {
     json_error('Too many requests', 429, $requestId);
 }
 
+
 if (!isset($_SESSION['user_id'])) {
-    echo json_encode(['notifications' => [], 'unread_count' => 0, 'request_id' => $requestId]);
+    log_security_event('api_unauthorized', 'getnotifications.php accessed without session', 'WARN', ['request_id' => $requestId]);
+    echo json_encode(['notifications' => [], 'unread_count' => 0, 'authenticated' => false, 'request_id' => $requestId]);
     exit;
 }
 
@@ -44,10 +47,15 @@ $stmt = $db->prepare("
         ON n.notif_id = nr.notif_id AND nr.user_id = ?
     LEFT JOIN tickets t  ON n.ticket_id  = t.ticket_id
     LEFT JOIN users  u  ON n.triggered_by = u.user_id
-    WHERE n.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    WHERE n.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
     ORDER BY n.created_at DESC
-    LIMIT 20
+    LIMIT 50
 ");
+if (!$stmt) {
+    log_security_event('database_error', 'getnotifications.php prepare failed: ' . $db->error, 'ERROR', ['request_id' => $requestId]);
+    json_error('Database error', 500, $requestId);
+    exit;
+}
 $stmt->bind_param('i', $userId);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -81,6 +89,8 @@ while ($row = $result->fetch_assoc()) {
         'is_read'              => (bool)$row['is_read'],
     ];
 }
+
+log_security_event('notifications_fetched', sprintf('Fetched %d notifications, %d unread', count($notifications), $unreadCount), 'INFO', ['request_id' => $requestId]);
 
 echo json_encode([
     'notifications' => $notifications,

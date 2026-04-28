@@ -5,6 +5,8 @@
  */
 use PHPMailer\PHPMailer\PHPMailer;
 
+require_once __DIR__ . '/logger.php';
+
 /**
  * สร้าง notification เมื่อมี ticket ใหม่ → แจ้ง admin/IT
  */
@@ -17,18 +19,53 @@ function notifyNewTicket(mysqli $db, int $ticketId, string $ticketNumber, string
         INSERT INTO notifications (type, ticket_id, message, triggered_by) 
         VALUES ('new_ticket', ?, ?, ?)
     ");
+    if (!$stmt) {
+        log_error('notifyNewTicket: prepare failed', 'ERROR', [
+            'file' => __FILE__,
+            'line' => __LINE__,
+            'trace' => $db->error
+        ]);
+        return false;
+    }
     $stmt->bind_param('isi', $ticketId, $message, $createdBy);
-    if (!$stmt->execute()) return false;
+    if (!$stmt->execute()) {
+        log_error('notifyNewTicket: execute failed', 'ERROR', [
+            'file' => __FILE__,
+            'line' => __LINE__,
+            'trace' => $stmt->error
+        ]);
+        return false;
+    }
     $notifId = $db->insert_id;
+    log_event('notification_created', "New ticket notification created: #{$notifId} for ticket {$ticketNumber}", $createdBy, [
+        'notif_id' => $notifId,
+        'ticket_id' => $ticketId,
+        'ticket_number' => $ticketNumber
+    ]);
     
     // Send to admin/it_support (except creator)
     $recpStmt = $db->prepare("
         SELECT user_id FROM users 
-        WHERE role IN ('admin', 'it_support') AND status = 'active' AND user_id != ?
+        WHERE role IN ('admin', 'it_support') AND is_active = 1 AND user_id != ?
     ");
+    if (!$recpStmt) {
+        log_error('notifyNewTicket: recipient prepare failed', 'ERROR', [
+            'file' => __FILE__,
+            'line' => __LINE__,
+            'trace' => $db->error
+        ]);
+        return false;
+    }
     $recpStmt->bind_param('i', $createdBy);
     $recpStmt->execute();
     $recipients = $recpStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    
+    $recipientCount = count($recipients);
+    log_event('notification_recipients', "Ticket {$ticketNumber}: found {$recipientCount} recipients (excluded creator {$createdBy})", $createdBy, [
+        'ticket_id' => $ticketId,
+        'recipient_count' => $recipientCount,
+        'recipients' => array_column($recipients, 'user_id')
+    ]);
     
     _insertRecipients($db, $notifId, $recipients);
     return true;
@@ -47,20 +84,62 @@ function notifyNewComment(mysqli $db, int $ticketId, int $commentId, string $tic
         INSERT INTO notifications (type, ticket_id, comment_id, message, triggered_by) 
         VALUES ('new_comment', ?, ?, ?, ?)
     ");
+    if (!$stmt) {
+        log_error('notifyNewComment: prepare failed', 'ERROR', [
+            'file' => __FILE__,
+            'line' => __LINE__,
+            'trace' => $db->error
+        ]);
+        return false;
+    }
     $stmt->bind_param('iisi', $ticketId, $commentId, $message, $commentedBy);
-    if (!$stmt->execute()) return false;
+    if (!$stmt->execute()) {
+        log_error('notifyNewComment: execute failed', 'ERROR', [
+            'file' => __FILE__,
+            'line' => __LINE__,
+            'trace' => $stmt->error
+        ]);
+        return false;
+    }
     $notifId = $db->insert_id;
+    log_event('notification_comment_created', "New comment notification created: #{$notifId} for ticket {$ticketNumber}", $commentedBy, [
+        'notif_id' => $notifId,
+        'ticket_id' => $ticketId,
+        'comment_id' => $commentId,
+        'ticket_number' => $ticketNumber
+    ]);
 
     if (in_array($commentedByRole, ['admin', 'it_support'])) {
         $recipients = [['user_id' => $ticketCreatedBy]];
+        log_event('notification_comment_recipients', "Ticket {$ticketNumber}: admin/IT commented -> notify creator {$ticketCreatedBy}", $commentedBy, [
+            'ticket_id' => $ticketId,
+            'recipient_type' => 'ticket_creator',
+            'recipient_count' => 1
+        ]);
     } else {
         $recpStmt = $db->prepare("
             SELECT user_id FROM users 
-            WHERE role IN ('admin', 'it_support') AND status = 'active' AND user_id != ?
+            WHERE role IN ('admin', 'it_support') AND is_active = 1 AND user_id != ?
         ");
+        if (!$recpStmt) {
+            log_error('notifyNewComment: recipient prepare failed', 'ERROR', [
+                'file' => __FILE__,
+                'line' => __LINE__,
+                'trace' => $db->error
+            ]);
+            return false;
+        }
         $recpStmt->bind_param('i', $commentedBy);
         $recpStmt->execute();
         $recipients = $recpStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        $recipientCount = count($recipients);
+        log_event('notification_comment_recipients', "Ticket {$ticketNumber}: user commented -> found {$recipientCount} admin/IT recipients", $commentedBy, [
+            'ticket_id' => $ticketId,
+            'recipient_type' => 'admin_it_support',
+            'recipient_count' => $recipientCount,
+            'recipients' => array_column($recipients, 'user_id')
+        ]);
     }
 
     _insertRecipients($db, $notifId, $recipients);
@@ -73,64 +152,49 @@ function notifyNewComment(mysqli $db, int $ticketId, int $commentId, string $tic
  */
 if (!function_exists('_insertRecipients')) {
 function _insertRecipients(mysqli $db, int $notifId, array $recipients) {
-    if (empty($recipients)) return;
-    
+    if (empty($recipients)) {
+        log_event('notification_no_recipients', "No recipients found for notification {$notifId}", null, [
+            'notif_id' => $notifId
+        ]);
+        return;
+    }
+
     $stmt = $db->prepare("
         INSERT IGNORE INTO notification_recipients (notif_id, user_id, is_read) 
         VALUES (?, ?, 0)
     ");
-    foreach ($recipients as $r) {
-        $stmt->bind_param('ii', $notifId, $r['user_id']);
-        $stmt->execute();
-    }
-}
-}
-
-if (!function_exists('gatherNotificationRecipients')) {
-function gatherNotificationRecipients(mysqli $db, ?int $excludeUserId = null): array {
-    $conditions = "role IN ('admin', 'it_support') AND status = 'active' AND is_active = 1";
-    $sql = "SELECT user_id, full_name, email FROM users WHERE {$conditions}";
-    if ($excludeUserId) {
-        $sql .= " AND user_id != ?";
-    }
-
-    $stmt = $db->prepare($sql);
     if (!$stmt) {
-        return [];
+        log_error('_insertRecipients: prepare failed', 'ERROR', [
+            'file' => __FILE__,
+            'line' => __LINE__,
+            'trace' => $db->error,
+            'notif_id' => $notifId
+        ]);
+        return;
     }
 
-    if ($excludeUserId) {
-        $stmt->bind_param('i', $excludeUserId);
-    }
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $recipients = [];
-    while ($row = $result->fetch_assoc()) {
-        if (!empty($row['email']) && filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
-            $recipients[$row['email']] = [
-                'user_id' => (int)$row['user_id'],
-                'full_name' => $row['full_name'],
-                'email' => $row['email'],
-            ];
+    $insertedCount = 0;
+    foreach ($recipients as $r) {
+        $userId = $r['user_id'] ?? 0;
+        $stmt->bind_param('ii', $notifId, $userId);
+        if ($stmt->execute()) {
+            $insertedCount++;
+        } else {
+            log_error('_insertRecipients: execute failed', 'ERROR', [
+                'file' => __FILE__,
+                'line' => __LINE__,
+                'trace' => $stmt->error,
+                'notif_id' => $notifId,
+                'user_id' => $userId
+            ]);
         }
     }
 
-    $extra = getenv('ROMAR_NOTIFICATION_EMAIL_TO') ?: '';
-    if ($extra !== '') {
-        $emails = preg_split('/[\s,;]+/', $extra, -1, PREG_SPLIT_NO_EMPTY);
-        foreach ($emails as $email) {
-            $email = trim($email);
-            if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $recipients[$email] = [
-                    'user_id' => 0,
-                    'full_name' => 'Notification Recipient',
-                    'email' => $email,
-                ];
-            }
-        }
-    }
-
-    return array_values($recipients);
+    log_event('notification_recipients_inserted', "Inserted {$insertedCount} recipients for notification {$notifId}", null, [
+        'notif_id' => $notifId,
+        'inserted_count' => $insertedCount,
+        'total_recipients' => count($recipients)
+    ]);
 }
 }
 
@@ -245,6 +309,37 @@ function buildTicketNotificationPayload(array $ticket, string $eventType): array
         'slack' => "{$eventLabel}: {$title} - <{$link}|View ticket>\nStatus: {$status} | Priority: {$priority}",
         'link' => $link,
     ];
+}
+}
+
+/**
+ * Gather notification recipients (admin/it_support) for email alerts
+ */
+if (!function_exists('gatherNotificationRecipients')) {
+function gatherNotificationRecipients(mysqli $db, ?int $excludeUserId = null): array {
+    $sql = "
+        SELECT email, full_name 
+        FROM users 
+        WHERE role IN ('admin', 'it_support') AND is_active = 1
+    ";
+    if ($excludeUserId !== null) {
+        $sql .= " AND user_id != ?";
+    }
+    $stmt = $db->prepare($sql);
+    if (!$stmt) {
+        log_error('gatherNotificationRecipients: prepare failed', 'ERROR', [
+            'file' => __FILE__,
+            'line' => __LINE__,
+            'trace' => $db->error
+        ]);
+        return [];
+    }
+    if ($excludeUserId !== null) {
+        $stmt->bind_param('i', $excludeUserId);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 }
 }
 
